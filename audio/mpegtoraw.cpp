@@ -327,7 +327,6 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
 
     /* Bail if audio isn't playing */
     if ( audio->Status() != MPEG_PLAYING ) {
-printf("-- Audio isn't playing, returning\n");
         return;
     }
     volume = audio->volume;
