@@ -298,7 +298,7 @@ int MPEGaudio_run( MPEGaudio *self, int frames, double *timestamp)
 
     for( ; frames; frames-- )
     {
-        if( loadheader() == false ) {
+        if( MPEGaudio_loadheader(self) == false ) {
 	  return false;	  
         }
 
@@ -396,7 +396,7 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
             break;
         default:    /* A buffer has completed, filling a new one */
             audio->frag_time = SDL_GetTicks();
-            audio->audioaction->play_time += ((double)len)/audio->rate_in_s;
+            audio->action->play_time += ((double)len)/audio->rate_in_s;
             break;
     }
 
@@ -419,7 +419,7 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
             len = 0;
 	    for (i=0; i < N_TIMESTAMPS -1; i++)
 		audio->timestamp[i] = audio->timestamp[i+1];
-	    audio->timestamp[N_TIMESTAMPS-1] = MPEG_ring_ReadTimeStampe(audio->ring);
+	    audio->timestamp[N_TIMESTAMPS-1] = MPEG_ring_ReadTimeStamp(audio->ring);
         } else {
             SDL_MixAudio(stream, rbuf, copylen, volume);
             mixed += copylen;

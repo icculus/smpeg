@@ -14,7 +14,7 @@ dnl Set various version strings - taken gratefully from the GTk sources
 #
 MAJOR_VERSION=0
 MINOR_VERSION=4
-MICRO_VERSION=5
+MICRO_VERSION=6
 INTERFACE_AGE=4
 BINARY_AGE=5
 VERSION=$MAJOR_VERSION.$MINOR_VERSION.$MICRO_VERSION
@@ -53,7 +53,6 @@ dnl Check for tools
 
 AC_PROG_MAKE_SET
 AC_PROG_CC
-AC_PROG_CXX
 AC_LIBTOOL_WIN32_DLL
 AM_PROG_LIBTOOL
 AC_PROG_INSTALL
@@ -274,32 +273,6 @@ fi
 dnl Add the source include directories
 CFLAGS="$CFLAGS -I.. -DNOCONTROLS"
 CFLAGS="$CFLAGS -I\$(top_srcdir) -I\$(top_srcdir)/audio -I\$(top_srcdir)/video"
-CXXFLAGS="$CFLAGS"
-
-
-dnl C++ flags are the same as the C flags
-CXXFLAGS="$CFLAGS"
-if test x$GCC = xyes; then
-    # Check to see if options -fno-rtti -fno-exceptions are supported
-    AC_MSG_CHECKING(if $CXX supports -fno-rtti -fno-exceptions)
-    use_fnoexceptions=no
-    save_CFLAGS="$CFLAGS"
-    save_CC="$CC"
-    CFLAGS="-fno-rtti -fno-exceptions"
-    CC="$CXX"
-    AC_TRY_COMPILE([
-    ],[
-    ],[
-    use_fnoexceptions=yes
-    ])
-    AC_MSG_RESULT($use_fnoexceptions)
-    if test x$use_fnoexceptions = xyes; then
-        CXXFLAGS="$CXXFLAGS -fno-exceptions -fno-rtti"
-    fi
-    CC="$save_CC"
-    CFLAGS="$save_CFLAGS"
-fi
-
 
 # Finally create all the generated files
 AC_OUTPUT([

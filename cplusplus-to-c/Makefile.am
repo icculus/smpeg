@@ -4,7 +4,7 @@
 # These are the subdirectories that are always built
 SUBDIRS = audio video
 
-#CXXLD = cc
+CXXLD = cc
 
 bin_SCRIPTS = smpeg-config
 
@@ -12,6 +12,8 @@ bin_SCRIPTS = smpeg-config
 lib_LTLIBRARIES = libsmpeg.la
 
 libsmpeg_la_SOURCES =		\
+	MPEGerror.c		\
+	MPEGaction.c		\
 	MPEG.c			\
 	MPEGring.c		\
 	MPEGlist.c		\
@@ -34,9 +36,6 @@ libsmpeginclude_HEADERS =	\
 	MPEGvideo.h		\
 	smpeg.h
 
-#libsmpeg_la_LDFLAGS = 		\
-#        -release $(LT_RELEASE)	\
-#	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE) -lstdc++
 libsmpeg_la_LDFLAGS = 		\
         -release $(LT_RELEASE)	\
 	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)

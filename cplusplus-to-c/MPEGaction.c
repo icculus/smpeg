@@ -19,120 +19,91 @@
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+/* A virtual class to provide basic MPEG playback actions */
+
+
+#include "SDL.h"
+#include "MPEGfilter.h"
 #include "MPEGaction.h"
 
-/* XXX: into a .h? */
-//#define false 0
-//#define true (!false)
-//#define bool int
 
 #undef _THIS
 #define _THIS MPEGaction *self
+#define METH(m) MPEGaction_##m
 
-void
-MPEGaction_Loop (_THIS, bool toggle)
+
+/* base methods. */
+
+
+MPEGaction *METH(init) (_THIS)
 {
-  self->looping = toggle;
-}
-
-double
-MPEGaction_Time (_THIS)
-{
-  return self->play_time;
-}
-
-#define DEFMETH(name) MPEGaction_##name
-void DEFMETH(Play) (_THIS) { }
-void DEFMETH(Stop) (_THIS) { }
-void DEFMETH(Rewind) (_THIS) { }
-void DEFMETH(Skip) (_THIS, float seconds) { }
-
-void
-MPEGaction_Pause (_THIS)
-{
-  if (self->paused)
-    {
-      self->paused = false;
-      self->Play(self);
-    }
-  else
-    {
-      self->Stop(self);
-      self->paused = true;
-    }
-}
-
-MPEGstatus
-MPEGaction_GetStatus (_THIS)
-{
-  return MPEG_ERROR;
-}
-
-void
-MPEGaction_ResetPause (_THIS)
-{
-  self->paused = false;
-}
-
-MPEGaction *
-MPEGaction_init (_THIS)
-{
-  if (self == NULL)
-      self = calloc(sizeof(MPEGaction));
+  MAKE_OBJECT(MPEGaction);
   self->playing = false;
   self->paused = false;
   self->looping = false;
   self->play_time = 0.0;
-  self->Loop = MPEGaction_Loop;
-  self->Time = MPEGaction_Time;
-  self->Play = MPEGaction_Play;
-  self->Stop = MPEGaction_Stop;
-  self->Rewind = MPEGaction_Rewind;
-  self->Skip = MPEGaction_Skip;
-  self->Pause = MPEGaction_Pause;
-  self->GetStatus = MPEGaction_GetStatus;
-  self->ResetPause = MPEGaction_ResetPause;
   return self;
 }
 
-MPEGaction *
-MPEGaction_new ()
-{
-  return MPEGaction_init(NULL);
-}
-
-
-
-
-
-
-bool
-MPEGaudioaction_GetAudioInfo (_THIS, MPEG_AudioInfo *info)
-{
-  return (true);
-}
-
-void
-MPEGaudioaction_Volume (_THIS, int vol)
+void METH(destroy) (_THIS)
 {
 }
 
-void
-MPEGaudioaction_init (_THIS)
+void METH(ResetPause) (_THIS)
 {
-  MPEGaction_init(self);
-  self->GetAudioInfo = MPEGaudioaction_GetAudioInfo;
-  self->Volume = MPEGaudioaction_Volume;
+  self->paused = false;
 }
 
-MPEGaction *
-MPEGaudioaction_new ()
+/*virtual*/ void METH(Loop) (_THIS, bool toggle)
 {
-  MPEGaction *self;
-
-  self = MPEGaction_new();
-  MPEGaction_init(self);
-  MPEGaudioaction_init(self);
-  return self;
+  self->looping = toggle;
 }
+
+/* Returns the time in seconds since start */
+/*virtual*/ double METH(Time) (_THIS)
+{
+  return self->play_time;
+}
+
+/*virtual*/ double METH(Play) (_THIS)
+{
+  return 0;
+}
+
+/*virtual*/ double METH(Stop) (_THIS)
+{
+  return 0;
+}
+
+/*virtual*/ double METH(Rewind) (_THIS)
+{
+  return 0;
+}
+
+/*virtual*/ double METH(ResetSynchro) (_THIS, double time)
+{
+  return 0;
+}
+
+/*virtual*/ double METH(Skip) (_THIS, float seconds)
+{
+  return 0;
+}
+
+/* A toggle action */
+/*virtual*/ void METH(Pause) (_THIS)
+{
+#if 0
+        if ( paused ) {
+            paused = false;
+            Play();
+        } else {
+            Stop();
+            paused = true;
+        }
+    }
+#endif /* 0 */
+
+};
+
 

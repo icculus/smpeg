@@ -95,7 +95,8 @@ static inline void TimestampFPS( VidStream* vid_stream )
 {
     MPEGvideo* mpeg = (MPEGvideo*) vid_stream->_smpeg;
 
-    vid_stream->frame_time[vid_stream->timestamp_index] = mpeg->Time();
+//    vid_stream->frame_time[vid_stream->timestamp_index] = mpeg->Time();
+    vid_stream->frame_time[vid_stream->timestamp_index] = MPEGvideo_Time(mpeg);
     ++vid_stream->timestamp_index;
     if ( vid_stream->timestamp_index == FPS_WINDOW ) {
         vid_stream->timestamp_index = 0;
@@ -137,16 +138,23 @@ inline double CurrentTime( VidStream* vid_stream )
     double now;
 
 //    if ( mpeg->TimeSource() ) {
-    if (MPEG_TimeSource(mpeg)) {
+    if (MPEGvideo_TimeSource(mpeg)) {
 //        now = mpeg->TimeSource()->Time();
-        MPEG_TimeSource(mpeg);
+      now = MPEGvideo_Time(MPEGvideo_TimeSource(mpeg));
     } else {
         now = ReadSysClock() - vid_stream->realTimeStart;
     }
     return now;
 }
 
-int MPEGvideo_timeSync( MPEGvideo *self, VidStream* vid_stream )
+
+#undef _THIS
+#define _THIS MPEGvideo *self
+#undef METH
+#define METH(m) MPEGvideo_##m
+
+int
+METH(timeSync) ( _THIS, VidStream* vid_stream )
 {
     static double correction = -1;
 
@@ -175,14 +183,14 @@ int MPEGvideo_timeSync( MPEGvideo *self, VidStream* vid_stream )
     }
 
     /* Update the current play time */
-    self->videoaction->play_time += vid_stream->_oneFrameTime;
+    self->action->play_time += vid_stream->_oneFrameTime;
 
     /* Synchronize using system timestamps */
     if(vid_stream->current && vid_stream->current->show_time > 0){
 #ifdef DEBUG_TIMESTAMP_SYNC
       fprintf(stderr, "video: time:%.3f  shift:%.3f\r",
-          play_time,
-          play_time - vid_stream->current->show_time);
+	      play_time,
+	      play_time - vid_stream->current->show_time);
 #endif
       if(correction == -1)
 #ifdef STRANGE_SYNC_TEST
@@ -190,10 +198,10 @@ int MPEGvideo_timeSync( MPEGvideo *self, VidStream* vid_stream )
           all the time, and is only usefull for testing */
         correction = play_time - vid_stream->current->show_time;
 #else
-        correction = 0;
+       correction = 0;
 #endif
 #ifdef USE_TIMESTAMP_SYNC
-        play_time = vid_stream->current->show_time + correction ;
+      play_time = vid_stream->current->show_time + correction ;
 #endif
       vid_stream->current->show_time = -1;
     }
@@ -221,7 +229,7 @@ int MPEGvideo_timeSync( MPEGvideo *self, VidStream* vid_stream )
         double time_behind;
 
         /* Calculate the frame time relative to real time */
-        time_behind = CurrentTime(vid_stream) - Time();
+        time_behind = CurrentTime(vid_stream) - METH(Time)(self);
 
 #ifdef DEBUG_MPEG_SCHEDULING
 printf("Frame %d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, Time(), CurrentTime(vid_stream), time_behind);
@@ -283,12 +291,13 @@ printf("A lot behind, skipping %d frames\n", vid_stream->_skipFrame);
 /* Do the hard work of copying from the video stream working buffer to the
    screen display and then calling the update callback.
 */
-void MPEGvideo_DisplayFrame(MPEGvideo *self, VidStream *vid_stream)
+void
+METH(DisplayFrame) ( _THIS, VidStream * vid_stream )
 {
   SMPEG_FilterInfo info;
 
-  if (self->_filter_mutex)
-    SDL_mutexP(self->_filter_mutex);
+  if ( self->_filter_mutex )
+    SDL_mutexP( self->_filter_mutex );
 
   /* Get a pointer to _image pixels */
   if ( SDL_LockYUVOverlay( self->_image ) ) {
@@ -302,13 +311,13 @@ void MPEGvideo_DisplayFrame(MPEGvideo *self, VidStream *vid_stream)
     register Uint16 * ptr;
 
     /* Compute quantization error for each pixel */
-    info.yuv_pixel_square_error = (Uint16 *) malloc(self->_w * self->_h * 12 / 8 * sizeof(Uint16));
+    info.yuv_pixel_square_error = (Uint16 *) malloc(self->_w*self->_h*12/8*sizeof(Uint16));
 
-    ptr = info.yuv_pixel_square_error;
+    ptr =  info.yuv_pixel_square_error;
     for(y = 0; y < self->_h; y++)
       for(x = 0; x < self->_w; x++)
-    *ptr++ = (Uint16) (((Uint32) vid_stream->noise_base_matrix[x & 7][y & 7] * 
-                vid_stream->current->mb_qscale[((y >> 4) * (self->_w >> 4)) + (x >> 4)]) >> 8);
+	*ptr++ = (Uint16) (((Uint32) vid_stream->noise_base_matrix[x & 7][y & 7] * 
+			    vid_stream->current->mb_qscale[((y>>4) * (self->_w>>4)) + (x >> 4)]) >> 8);
   }
   
   if((self->_filter->flags & SMPEG_FILTER_INFO_MB_ERROR) && vid_stream->current->mb_qscale)
@@ -342,7 +351,7 @@ void MPEGvideo_DisplayFrame(MPEGvideo *self, VidStream *vid_stream)
     src.pixels = pixels;
 #endif
 
-    self->_filter->callback(self->_image, &src, &self->_srcrect, &info, self->_filter->data);
+    self->_filter->callback(self->_image, &src, &(self->_srcrect), &info, self->_filter->data );
 
 #ifdef USE_ATI
     vhar128_unlockimage(vid_stream->ati_handle, vid_stream->current->image, &src);
@@ -388,22 +397,28 @@ void MPEGvideo_DisplayFrame(MPEGvideo *self, VidStream *vid_stream)
  *
  *--------------------------------------------------------------
  */
-void MPEGvideo_ExecuteDisplay(MPEGvideo *self, VidStream *vid_stream)
+
+
+void
+METH(ExecuteDisplay) (_THIS, VidStream* vid_stream )
 {
     if( ! vid_stream->_skipFrame )
     {
-      MPEGvideo_DisplayFrame(self, vid_stream);
+//      DisplayFrame(vid_stream);
+      METH(DisplayFrame) (self, vid_stream);
 
 #ifdef CALCULATE_FPS
       TimestampFPS(vid_stream);
 #endif
     }
-    MPEGvideo_timeSync( self, vid_stream );
+    METH(timeSync) ( self, vid_stream );
 }
 
-SMPEG_Filter *MPEGvideo_Filter(MPEGvideo *self, SMPEG_Filter *filter)
+
+SMPEG_Filter *
+METH(Filter) (_THIS, SMPEG_Filter *filter)
 {
-  SMPEG_Filter *old_filter;
+  SMPEG_Filter * old_filter;
 
   old_filter = self->_filter;
   if ( self->_filter_mutex )

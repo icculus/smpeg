@@ -27,10 +27,12 @@
 #define SMPEG_FILTER_INFO_PIXEL_ERROR 2
 
 /* Filter info from SMPEG */
-typedef struct SMPEG_FilterInfo {
+struct SMPEG_FilterInfo {
   Uint16* yuv_mb_square_error;
   Uint16* yuv_pixel_square_error;
-} SMPEG_FilterInfo;
+};
+
+typedef struct SMPEG_FilterInfo SMPEG_FilterInfo;
 
 /* MPEG filter definition */
 struct SMPEG_Filter;
@@ -40,12 +42,14 @@ typedef void (* SMPEG_FilterCallback)( SDL_Overlay * dest, SDL_Overlay * source,
 typedef void (* SMPEG_FilterDestroy)( struct SMPEG_Filter * filter );
 
 /* The filter definition itself */
-typedef struct SMPEG_Filter {
+struct SMPEG_Filter {
   Uint32 flags;
   void * data;
   SMPEG_FilterCallback callback;
   SMPEG_FilterDestroy destroy;
-} SMPEG_Filter;
+};
+
+typedef struct SMPEG_Filter SMPEG_Filter;
 
 /* SMPEG built-in filters. */
 #ifdef __cplusplus

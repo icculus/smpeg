@@ -15,35 +15,93 @@
     You should have received a copy of the GNU Library General Public
     License along with this library; if not, write to the Free
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- */
+*/
+
+/* A class used for error reporting in the MPEG classes */
+
+#include <stdio.h>
+#include <stdarg.h>
 
 #include "MPEGerror.h"
 
-MPEGerror *MPEGerror_new() {
-    MPEGerror *ret = (MPEGerror *)malloc(sizeof(MPEGerror));
+#if 0
+class MPEGerror {
+public:
+    MPEGerror() {
+        ClearError();
+    }
 
-    if (ret) MPEGerror_ClearError(ret);
+    /* Set an error message */
+    void SetError(char *fmt, ...) {
+        va_list ap;
 
-    return ret;
+        va_start(ap, fmt);
+        vsprintf(errbuf, fmt, ap);
+        va_end(ap);
+        error = errbuf;
+    }
+
+    /* Find out if an error occurred */
+    bool WasError(void) {
+        return(error != NULL);
+    }
+    char *TheError(void) {
+        return(error);
+    }
+
+    /* Clear any error message */
+    void ClearError(void) {
+        error = NULL;
+    }
+
+protected:
+    char errbuf[512];
+    char *error;
+};
+#endif /* 0 */
+
+
+
+/* Error methods. */
+#undef _THIS
+#define _THIS MPEGerror *self
+#define METH(method) MPEGerror_##method
+
+
+MPEGerror * METH(init) (_THIS)
+{
+  MAKE_OBJECT(MPEGerror);
+  MPEGerror_ClearError(self);
+  return self;
 }
 
-void MPEGerror_SetError(MPEGerror *self, char *fmt, ...) {
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsprintf(self->errbuf, fmt, ap);
-    va_end(ap);
-    self->error = self->errbuf;
+void METH(destroy) (_THIS)
+{
+  return;
 }
 
-int MPEGerror_WasError(MPEGerror *self) {
-    return (self->error != NULL);
+void METH(SetError) (_THIS, char *fmt, ...)
+{
+  va_list ap;
+
+  va_start(ap, fmt);
+  vsprintf(self->errbuf, fmt, ap);
+  va_end(ap);
+  self->error = self->errbuf;
 }
 
-char *MPEGerror_TheError(MPEGerror *self) {
-    return(self->error);
+bool METH(WasError) (_THIS)
+{
+  return (self->error != NULL);
 }
 
-void MPEGerror_ClearError(MPEGerror *self) {
-    self->error = NULL;
+char *METH(TheError) (_THIS)
+{
+  return (self->error);
 }
+
+void METH(ClearError) (_THIS)
+{
+  self->error = NULL;
+}
+

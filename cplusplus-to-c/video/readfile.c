@@ -122,7 +122,7 @@ get_more_data( VidStream* vid_stream )
   
   data_pos = vid_stream->_smpeg->mpeg->pos;  
 //  num_read = vid_stream->_smpeg->mpeg->copy_data(mark, request);
-  num_read = MPEG_copy_data(vid_stream->_smpeg->mpeg, mark, request, false);
+  num_read = MPEGstream_copy_data(vid_stream->_smpeg->mpeg, mark, request, false);
 
   vid_stream->timestamp = vid_stream->_smpeg->mpeg->timestamp;
   timestamp_offset = vid_stream->_smpeg->mpeg->timestamp_pos - data_pos;

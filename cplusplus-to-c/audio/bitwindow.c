@@ -17,7 +17,32 @@
 #define _KEY 3
 #endif
 
-int Mpegbitwindow_getbits (Mpegbitwindow *self, int bits)
+
+#undef _THIS
+#define _THIS Mpegbitwindow *self
+#undef METH
+#define METH(m) Mpegbitwindow_##m
+
+inline int METH(getbit) (_THIS)
+{
+  register int r=(self->buffer[self->bitindex>>3]>>(7-(self->bitindex&7)))&1;
+  self->bitindex++;
+  return r;
+}
+
+inline int METH(getbits9) (_THIS, int bits)
+{
+  register unsigned short a;
+  int offset = self->bitindex>>3;
+
+  a=(((unsigned char)self->buffer[offset])<<8) | ((unsigned char)self->buffer[offset+1]);
+
+  a<<=(self->bitindex&7);
+  self->bitindex+=bits;
+  return (int)((unsigned int)(a>>(16-bits)));
+}
+
+int METH(getbits) (Mpegbitwindow *self, int bits)
 {
   union
   {

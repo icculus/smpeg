@@ -15,6 +15,12 @@
 
 #include "MPEGaudio.h"
 
+
+
+#define getbits(n) MPEGaudio_getbits(self, n)
+
+
+
 #define MAXTABLE 2
 
 // Tables for layer 2
@@ -438,8 +444,8 @@ void MPEGaudio_extractlayer2 (MPEGaudio *self)
 
     for(i=0;i<s;i++,t++)
     {
-      bitalloc[LS][i]=MPEGaudio_getbits(self, *t);
-      bitalloc[RS][i]=MPEGaudio_getbits(self, *t);
+      bitalloc[LS][i]=getbits(*t);
+      bitalloc[RS][i]=getbits(*t);
     }
     for(;i<n;i++,t++)
       bitalloc[LS][i]=bitalloc[RS][i]=getbits(*t);
@@ -450,12 +456,12 @@ void MPEGaudio_extractlayer2 (MPEGaudio *self)
   if(self->inputstereo)
     for(i=0;i<n;i++)
     {
-      if(bitalloc[LS][i])scaleselector[LS][i]=MPEGaudio_getbits(self, 2);
-      if(bitalloc[RS][i])scaleselector[RS][i]=MPEGaudio_getbits(self, 2);
+      if(bitalloc[LS][i])scaleselector[LS][i]=getbits(2);
+      if(bitalloc[RS][i])scaleselector[RS][i]=getbits(2);
     }
   else
     for(i=0;i<n;i++)
-      if(bitalloc[LS][i])scaleselector[LS][i]=MPEGaudio_getbits(self, 2);
+      if(bitalloc[LS][i])scaleselector[LS][i]=getbits(2);
 
   // Scale index
   {
@@ -616,7 +622,7 @@ void MPEGaudio_extractlayer2 (MPEGaudio *self)
 	  if(group[LS][i])
 	  {
 	    register const REAL *s;
-	    int code=MPEGaudio_getbits(self, codelength[LS][i]);
+	    int code=getbits(codelength[LS][i]);
 
 	    code+=code<<1;
             if (code > 2184) {
@@ -632,11 +638,11 @@ void MPEGaudio_extractlayer2 (MPEGaudio *self)
 	  else
 	  {
 	    fraction[LS][0][i]=
-	      (REAL)(MPEGaudio_getbits(self, codelength[LS][i]))*factor[LS][i]-1.0;
+	      (REAL)(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
 	    fraction[LS][1][i]=
-	      (REAL)(MPEGaudio_getbits(self, codelength[LS][i]))*factor[LS][i]-1.0;
+	      (REAL)(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
 	    fraction[LS][2][i]=
-	      (REAL)(MPEGaudio_getbits(self, codelength[LS][i]))*factor[LS][i]-1.0;
+	      (REAL)(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
 	  }
 	}
 	else fraction[LS][0][i]=fraction[LS][1][i]=fraction[LS][2][i]=0.0;
@@ -646,7 +652,7 @@ void MPEGaudio_extractlayer2 (MPEGaudio *self)
 	  if(group[RS][i])
 	  {
 	    const REAL *s;
-	    int code=MPEGaudio_getbits(self, codelength[RS][i]);
+	    int code=getbits(codelength[RS][i]);
 
 	    code+=code<<1;
             if (code > 2184) {
@@ -662,11 +668,11 @@ void MPEGaudio_extractlayer2 (MPEGaudio *self)
 	  else
 	  {
 	    fraction[RS][0][i]=
-	      (REAL)(MPEGaudio_getbits(self, codelength[RS][i]))*factor[RS][i]-1.0;
+	      (REAL)(getbits(codelength[RS][i]))*factor[RS][i]-1.0;
 	    fraction[RS][1][i]=
-	      (REAL)(MPEGaudio_getbits(self, codelength[RS][i]))*factor[RS][i]-1.0;
+	      (REAL)(getbits(codelength[RS][i]))*factor[RS][i]-1.0;
 	    fraction[RS][2][i]=
-	      (REAL)(MPEGaudio_getbits(self, codelength[RS][i]))*factor[RS][i]-1.0;
+	      (REAL)(getbits(codelength[RS][i]))*factor[RS][i]-1.0;
 	  }
 	}
 	else fraction[RS][0][i]=fraction[RS][1][i]=fraction[RS][2][i]=0.0;
@@ -679,7 +685,7 @@ void MPEGaudio_extractlayer2 (MPEGaudio *self)
 	  if(group[LS][i])
 	  {
 	    register const REAL *s;
-	    int code=MPEGaudio_getbits(self, codelength[LS][i]);
+	    int code=getbits(codelength[LS][i]);
 
 	    code+=code<<1;
 	    s=group[LS][i]+code;
@@ -691,11 +697,11 @@ void MPEGaudio_extractlayer2 (MPEGaudio *self)
 	  else
 	  {
 	    fraction[LS][0][i]=fraction[RS][0][i]=
-	      (REAL)(MPEGaudio_getbits(self, codelength[LS][i]))*factor[LS][i]-1.0;
+	      (REAL)(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
 	    fraction[LS][1][i]=fraction[RS][1][i]=
-	      (REAL)(MPEGaudio_getbits(self, codelength[LS][i]))*factor[LS][i]-1.0;
+	      (REAL)(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
 	    fraction[LS][2][i]=fraction[RS][2][i]=
-	      (REAL)(MPEGaudio_getbits(self, codelength[LS][i]))*factor[LS][i]-1.0;
+	      (REAL)(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
 	  }
 	}
 	else fraction[LS][0][i]=fraction[LS][1][i]=fraction[LS][2][i]=

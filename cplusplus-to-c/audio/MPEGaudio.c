@@ -31,11 +31,21 @@
 #undef PROP /* property */
 #define PROP(name) (self->name)
 
+void METH(ResetPause) (_THIS)
+{
+  self->action->paused = false;
+}
+
+
 MPEGaudio *
 METH(init) (_THIS, MPEGstream *stream, bool initSDL)
 {
     int i;
+
+    MAKE_OBJECT(MPEGaudio);
     self->sdl_audio = initSDL;
+    self->error = MPEGerror_init(self->error);
+    self->action = MPEGaction_init(self->action);
 
     /* Initialize MPEG audio */
     PROP(mpeg) = stream;
@@ -71,19 +81,23 @@ METH(init) (_THIS, MPEGstream *stream, bool initSDL)
                 METH(ActualSpec)(self, &actual);
                 PROP(valid_stream) = true;
             } else {
-                METH(SetError)(self->error, SDL_GetError());
+//                METH(SetError)(self->error, SDL_GetError());
+                MPEGerror_SetError(self->error, SDL_GetError());
             }
             SDL_PauseAudio(0);
         } else { /* The stream is always valid if we don't initialize SDL */
             PROP(valid_stream) = true; 
         }
-//        METH(Volume)(self->audioaction, 100);
-        MPEGaudioaction_Volume(self->audioaction, 100);
+        METH(Volume)(self, 100);
+//        MPEGaudioaction_Volume(self->audioaction, 100);
+        
     }
 
     /* For using system timestamp */
     for (i=0; i<N_TIMESTAMPS; i++)
       PROP(timestamp[i]) = -1;
+
+  return self;
 }
 
 void
@@ -96,8 +110,8 @@ METH(destroy) (_THIS)
 #endif
 
     /* Remove ourselves from the mixer hooks */
-//    METH(Stop)(_THIS);
-    self->audioaction->Stop(self->audioaction);
+    METH(Stop)(self);
+//    self->audioaction->Stop(self->audioaction);
     if ( PROP(sdl_audio) ) {
         /* Close up the audio so others may play */
         SDL_CloseAudio();
@@ -166,7 +180,7 @@ METH(StartDecoding) (_THIS)
     PROP(decoding) = true;
     /* Create the ring buffer to hold audio */
     if ( ! PROP(ring) ) {
-        PROP(ring) = MPEG_ring_new(PROP(samplesperframe)*2, 16);
+        PROP(ring) = MPEG_ring_init(NULL, PROP(samplesperframe)*2, 16);
     }
     if ( ! PROP(decode_thread) ) {
         PROP(decode_thread) = SDL_CreateThread(Decode_MPEGaudio, self);
@@ -196,7 +210,7 @@ METH(Time) (_THIS)
     double now;
     double play_time;
 
-    play_time = self->audioaction->play_time;
+    play_time = self->action->play_time;
     if ( PROP(frag_time) ) {
         now = (play_time + (double)(SDL_GetTicks() - PROP(frag_time))/1000.0);
     } else {
@@ -213,7 +227,7 @@ METH(Play) (_THIS)
         METH(StartDecoding)(self);
 #endif
 //        playing = true;
-        PROP(audioaction->playing) = true;
+        PROP(action->playing) = true;
     }
 }
 void
@@ -224,7 +238,7 @@ METH(Stop) (_THIS)
             SDL_LockAudio();
 
 //        playing = false;
-        PROP(audioaction->playing) = false;
+        PROP(action->playing) = false;
 
         if ( PROP(sdl_audio) )
             SDL_UnlockAudio();
@@ -250,7 +264,7 @@ void
 METH(ResetSynchro)(_THIS, double time)
 {
     int i;
-    PROP(audioaction->play_time) = time;
+    PROP(action->play_time) = time;
     PROP(frag_time) = 0;
 
     /* Reinit the timestamp FIFO */
@@ -282,11 +296,11 @@ METH(GetStatus) (_THIS)
     if ( PROP(valid_stream) ) {
         /* Has decoding stopped because of end of stream? */
 //        if ( mpeg->eof() && (decodedframe <= currentframe) ) {
-        if (MPEG_eof(self->mpeg) && (PROP(decodedframe) <= PROP(currentframe))) {
+        if (MPEGstream_eof(self->mpeg) && (PROP(decodedframe) <= PROP(currentframe))) {
             return(MPEG_STOPPED);
         }
         /* Have we been told to play? */
-        if ( PROP(audioaction->playing) ) {
+        if ( PROP(action->playing) ) {
             return(MPEG_PLAYING);
         } else {
             return(MPEG_STOPPED);
@@ -315,7 +329,8 @@ METH(fillbuffer) (_THIS, int size)
       PROP(bitwindow.bitindex)=0;
       PROP(_buffer_pos) = PROP(mpeg->pos);
 //      return(mpeg->copy_data(_buffer, size) > 0);
-      return (MPEG_copy_data(self->mpeg, PROP(_buffer), size) > 0);
+//      return (MPEG_copy_data(PROP(mpeg), PROP(_buffer), size) > 0);
+      return (MPEGstream_copy_data(PROP(mpeg), PROP(_buffer), size, false) > 0);
   };
   
 void
@@ -372,4 +387,24 @@ METH(getbits9) (_THIS, int bits)
   a<<=(PROP(bitwindow.bitindex)&7);
   PROP(bitwindow.bitindex)+=bits;
   return (int)((unsigned int)(a>>(16-bits)));
+}
+
+
+
+/* other virtual methods of MPEGaction */
+
+void METH(Loop) (_THIS, bool toggle)
+{
+  self->action->looping = toggle;
+}
+
+/*virtual*/ void METH(Pause) (_THIS) /* A toggle action */
+{
+    if ( self->action->paused ) {
+        self->action->paused = false;
+        METH(Play) (self);
+    } else {
+        METH(Stop) (self);
+        self->action->paused = true;
+    }
 }

@@ -161,7 +161,7 @@ struct Mpegbitwindow
 typedef struct Mpegbitwindow Mpegbitwindow;
 
 #undef _THIS
-#define _THIS struct Mpegbitwindow*
+#define _THIS struct Mpegbitwindow *self
 #undef METH
 #define METH(name) Mpegbitwindow_##name
 //  Mpegbitwindow(){bitindex=point=0;};
@@ -194,7 +194,7 @@ void METH(wrap) (_THIS);
 //      return r;
 //  }
 #if 0
-inline static int METH(getbit) (_THIS self) {
+inline static int METH(getbit) (_THIS) {
   register int r=(self->buffer[self->bitindex>>3]>>(7-(self->bitindex&7)))&1;
   self->bitindex++;
   return r;
@@ -213,7 +213,7 @@ inline static int METH(getbit) (_THIS self) {
 //      return (int)((unsigned int)(a>>(16-bits)));
 //  }
 #if 0
-inline static int METH(getbits9) (_THIS self, int bits)
+inline static int METH(getbits9) (_THIS, int bits)
 {
   register unsigned short a;
   int offset = self->bitindex>>3;
@@ -227,7 +227,9 @@ inline static int METH(getbits9) (_THIS self, int bits)
 #endif /* 0 */
 
 
-int METH(getbits) (_THIS self, int bits);
+int METH(getbit) (_THIS);
+int METH(getbits9) (_THIS, int bits);
+int METH(getbits) (_THIS, int bits);
 
 
 
@@ -472,7 +474,7 @@ typedef enum MPEGaudio_frequency MPEGaudio_frequency;
 
 struct MPEGaudio {
   MPEGerror *error;
-  MPEGaudioaction *audioaction;
+  MPEGaction *action;
 
     bool sdl_audio;
     struct MPEGstream *mpeg;
@@ -553,11 +555,11 @@ struct MPEGaudio {
 
   struct Mpegbitwindow bitwindow;
 //  int wgetbit  (void)    {return bitwindow.getbit  ();    }
-#define MPEGaudio_wgetbit(self) (Mpegbitwindow_getbit(self->bitwindow))
+#define MPEGaudio_wgetbit(self) (Mpegbitwindow_getbit(&(self->bitwindow)))
 //  int wgetbits9(int bits){return bitwindow.getbits9(bits);}
-#define MPEGaudio_wgetbits9(self, bits) (Mpegbitwindow_getbits9(self->bitwindow))
+#define MPEGaudio_wgetbits9(self, bits) (Mpegbitwindow_getbits9(&(self->bitwindow), bits))
 //  int wgetbits (int bits){return bitwindow.getbits (bits);}
-#define MPEGaudio_wgetbits(self, bits) (Mpegwindow_getbits(self->bitwindow))
+#define MPEGaudio_wgetbits(self, bits) (Mpegbitwindow_getbits(&(self->bitwindow), bits))
 
 
   /*************************************/
@@ -593,9 +595,9 @@ struct MPEGaudio {
 //        rawdatawriteoffset=0;
 //        rawdata=NULL;
 //  }
-#define Mpegaudio_clearrawdata(self) (self->rawdatareadoffset = 0, self->rawdatawriteoffset = 0, self->rawdata = 0)
+#define MPEGaudio_clearrawdata(self) (self->rawdatareadoffset = 0, self->rawdatawriteoffset = 0, self->rawdata = 0)
 //  void putraw(short int pcm) {rawdata[rawdatawriteoffset++]=pcm;}
-#define Mpegaudio_putraw(self, pcm) (self->rawdata[self->rawdatawriteoffset++] = pcm)
+#define MPEGaudio_putraw(self, pcm) (self->rawdata[self->rawdatawriteoffset++] = pcm)
 
   /********************/
   /* Timestamp sync   */
@@ -789,6 +791,10 @@ REAL MPEGaudio_hcos_64[16],
      MPEGaudio_hcos_8[2],
      MPEGaudio_hcos_4;
 
+
+
+/* other virtual methods in MPEGaction */
+void METH(ResetPause) (_THIS);
 
 
 #endif /* _MPEGAUDIO_H_ */

@@ -24,31 +24,74 @@
 #ifndef _MPEGVIDEO_H_
 #define _MPEGVIDEO_H_
 
-#include "pthread.h"
 #include "SDL.h"
 #include "SDL_thread.h"
 #include "MPEGerror.h"
 #include "MPEGaction.h"
+#include "video/video.h"
+
+#if 0
+class MPEGstream;
 
 /* This is the MPEG video stream structure in the mpeg_play code */
 struct vid_stream;
 //typedef struct vid_stream VidStream;
-#define VidStream struct vid_stream
 
 /* Temporary definition of time stamp structure. */
 
 typedef double TimeStamp;
 
-struct MPEGvideo {
-    struct MPEGerror *error;
-    struct MPEGstream *mpeg;
-//    MPEGvideoaction *videoaction;
-    struct MPEGaction *videoaction;
+class MPEGvideo : public MPEGerror, public MPEGvideoaction {
 
-    VidStream *_stream;
-    SDL_Surface *_dst;
-    SDL_mutex *_mutex;
-    SDL_Thread *_thread;
+    /* Thread to play the video asynchronously */
+    friend int Play_MPEGvideo(void *udata);
+
+    /* Various mpeg_play functions that need our data */
+    friend VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first );
+    friend VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first );
+    friend int get_more_data( VidStream* vid_stream );
+
+public:
+    MPEGvideo(MPEGstream *stream);
+    virtual ~MPEGvideo();
+
+    /* MPEG actions */
+    void Play(void);
+    void Stop(void);
+    void Rewind(void);
+    void ResetSynchro(double time);
+     void Skip(float seconds);
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name in popcorn */
+    MPEGstatus GetStatus(void);
+
+    /* MPEG video actions */
+    bool GetVideoInfo(MPEG_VideoInfo *info);
+    bool SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
+                                            MPEG_DisplayCallback callback);
+    void MoveDisplay(int x, int y);
+    void ScaleDisplayXY(int w, int h);
+    void SetDisplayRegion(int x, int y, int w, int h);
+    void RenderFrame(int frame);
+    void RenderFinal(SDL_Surface *dst, int x, int y);
+    SMPEG_Filter * Filter(SMPEG_Filter * filter);
+
+    /* Display and sync functions */
+    void DisplayFrame( VidStream* vid_stream );
+    void ExecuteDisplay( VidStream* vid_stream );
+    int timeSync( VidStream* vid_stream );
+
+    /* Yes, it's a hack.. */
+    MPEGaudioaction *TimeSource(void ) {
+        return time_source;
+    }
+
+protected:
+    MPEGstream *mpeg;
+
+    VidStream* _stream;
+    SDL_Surface* _dst;
+    SDL_mutex* _mutex;
+    SDL_Thread* _thread;
 
     MPEG_DisplayCallback _callback;
 
@@ -60,53 +103,120 @@ struct MPEGvideo {
     SDL_Rect _dstrect;	// display area
     SDL_Overlay *_image;// source image
     float _fps;         // frames per second
-    SMPEG_Filter *_filter; // pointer to the current filter used
-    SDL_mutex *_filter_mutex; // make sure the filter is not changed while being used
+    SMPEG_Filter * _filter; // pointer to the current filter used
+    SDL_mutex* _filter_mutex; // make sure the filter is not changed while being used
 
+    void RewindStream(void);
+};
+#endif /* 0 */
+
+
+/***********
+ * Start C *
+ ***********/
+
+
+
+struct MPEGstream;
+
+/* This is the MPEG video stream structure in the mpeg_play code */
+struct vid_stream;
+//typedef struct vid_stream VidStream;
+#define VidStream struct vid_stream
+
+/* Temporary definition of time stamp structure. */
+//typedef double TimeStamp;
+
+
+
+#undef _THIS
+#define _THIS struct MPEGvideo *self
+#undef METH
+#define METH(m) MPEGvideo_##m
+
+struct MPEGvideo {
+  MPEGerror *error;
+  MPEGaction *action;
+
+
+//protected:
+    struct MPEGstream *mpeg;
+
+    VidStream* _stream;
+    SDL_Surface* _dst;
+    SDL_mutex* _mutex;
+    SDL_Thread* _thread;
+
+    MPEG_DisplayCallback _callback;
+
+    int _ow;            // original width of the movie
+    int _oh;            // original height of the movie
+    int _w;             // mb aligned width of the movie
+    int _h;             // mb aligned height of the movie
+    SDL_Rect _srcrect;	// source area
+    SDL_Rect _dstrect;	// display area
+    SDL_Overlay *_image;// source image
+    float _fps;         // frames per second
+    SMPEG_Filter * _filter; // pointer to the current filter used
+    SDL_mutex* _filter_mutex; // make sure the filter is not changed while being used
 };
 
 typedef struct MPEGvideo MPEGvideo;
 
-/* Thread to play the video asynchronously */
-int Play_MPEGvideo(void *udata);
 
-/* Various mpeg_play functions that need our data */
-VidStream *mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first );
-int get_more_data( VidStream* vid_stream );
 
-struct MPEGvideo *MPEGvideo_new(struct MPEGstream *stream);
-void MPEGvideo_destroy(struct MPEGvideo *self);
+void METH(RewindStream) (_THIS);
 
-/* MPEG actions */
-void MPEGvideo_Play(MPEGvideo *self);
-void MPEGvideo_Stop(MPEGvideo *self);
-void MPEGvideo_Rewind(MPEGvideo *self);
-void MPEGvideo_ResetSynchro(MPEGvideo *self, double time);
-void MPEGvideo_Skip(MPEGvideo *self, float seconds);
+//    /* Thread to play the video asynchronously */
+//    friend int Play_MPEGvideo(void *udata);
+//
+//    /* Various mpeg_play functions that need our data */
+//    friend VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first );
+//    friend int get_more_data( VidStream* vid_stream );
 
-/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name in popcorn */
-MPEGstatus MPEGvideo_GetStatus(MPEGvideo *self);
+MPEGvideo * METH(init) (_THIS, struct MPEGstream *stream);
+void METH(destroy) (_THIS);
 
-/* MPEG video actions */
-bool MPEGvideo_GetVideoInfo(MPEGvideo *self, MPEG_VideoInfo *info);
-//bool MPEGvideo_SetDisplay(MPEGvideo *self, SDL_Surface *dst, pthread_mutex_t *lock, MPEG_DisplayCallback callback);
-bool MPEGvideo_SetDisplay(MPEGvideo *self, SDL_Surface *dst, SDL_mutex *lock, MPEG_DisplayCallback callback);
-void MPEGvideo_MoveDisplay(MPEGvideo *self, int x, int y);
-void MPEGvideo_ScaleDisplayXY(MPEGvideo *self, int w, int h);
-void MPEGvideo_SetDisplayRegion(MPEGvideo *self, int x, int y, int w, int h);
-void MPEGvideo_RenderFrame(MPEGvideo *self, int frame);
-void MPEGvideo_RenderFinal(MPEGvideo *self, SDL_Surface *dst, int x, int y);
+    /* MPEG actions */
+void METH(Play) (_THIS);
+void METH(Stop) (_THIS);
+void METH(Rewind) (_THIS);
+void METH(ResetSynchro) (_THIS, double time);
+void METH(Skip) (_THIS, float seconds);
+MPEGstatus METH(GetStatus) (_THIS);
 
-SMPEG_Filter *MPEGvideo_Filter(MPEGvideo *self, SMPEG_Filter * filter);
+    /* MPEG video actions */
+bool METH(GetVideoInfo) (_THIS, MPEG_VideoInfo *info);
+bool METH(SetDisplay) (_THIS, SDL_Surface *dst, SDL_mutex *lock, MPEG_DisplayCallback callback);
+void METH(MoveDisplay) (_THIS, int x, int y);
+void METH(ScaleDisplayXY) (_THIS, int w, int h);
+void METH(SetDisplayRegion) (_THIS, int x, int y, int w, int h);
+void METH(RenderFrame) (_THIS, int frame);
+void METH(RenderFinal) (_THIS, SDL_Surface *dst, int x, int y);
+SMPEG_Filter * METH(Filter) (_THIS, SMPEG_Filter * filter);
 
 /* Display and sync functions */
-void MPEGvideo_DisplayFrame( MPEGvideo *self, VidStream* vid_stream );
-void MPEGvideo_ExecuteDisplay( MPEGvideo *self, VidStream* vid_stream );
-int MPEGvideo_timeSync( MPEGvideo *self, VidStream* vid_stream );
+void METH(DisplayFrame) ( _THIS, VidStream* vid_stream );
+void METH(ExecuteDisplay) ( _THIS, VidStream* vid_stream );
+int METH(timeSync) ( _THIS, VidStream* vid_stream );
 
-/* Yes, it's a hack.. */
-MPEGaction *MPEGvideo_TimeSource(MPEGvideo *self);
-void RewindStream(void);
+struct MPEGaudio * METH(TimeSource) (_THIS);
 
-#undef VidStream //struct vid_stream
+//    MPEGaudioaction *TimeSource(void ) {
+//        return time_source;
+//    }
+
+
+/* virtual methods of MPEGaction. */
+
+void METH(SetTimeSource) (_THIS, struct MPEGaudio *source);
+void METH(Loop) (_THIS, bool toggle);
+double METH(Time) (_THIS);
+void METH(ResetPause) (_THIS);
+void METH(Pause) (_THIS);
+
+
+
+#undef VidStream
+
 #endif /* _MPEGVIDEO_H_ */

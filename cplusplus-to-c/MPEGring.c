@@ -26,52 +26,57 @@
 #include "SDL_timer.h"
 
 #include "MPEGring.h"
+#include "MPEGerror.h"
 
+
+#undef _THIS
+#define _THIS MPEG_ring *self
+#undef METH
+#define METH(m) MPEG_ring_##m
 
 MPEG_ring*
-MPEG_ring_new(Uint32 size, Uint32 count)
+METH(init) (_THIS, Uint32 size, Uint32 count)
 {
-    MPEG_ring *ring;
     Uint32 tSize;
 
-    ring = malloc(sizeof(MPEG_ring));
-    /* Set up the 'ring' pointer for all the old C code */
-//    ring = this;
+    MAKE_OBJECT(MPEG_ring);
 
     tSize = (size + sizeof(Uint32)) * count;
     if( tSize )
     {
-        ring->begin = (Uint8 *) malloc( tSize );
-        ring->timestamps = (double *) malloc( sizeof(double)*count );
+        self->begin = (Uint8 *) malloc( tSize );
+        self->timestamps = (double *) malloc( sizeof(double)*count );
     }
     else
-        ring->begin = 0;
+        self->begin = 0;
 
-    if( ring->begin && count )
+    if( self->begin && count )
     {
-        ring->end   = ring->begin + tSize;
-        ring->read  = ring->begin;
-        ring->write = ring->begin;
-        ring->timestamp_read  = ring->timestamps;
-        ring->timestamp_write = ring->timestamps;
-        ring->bufSize  = size;
+        self->end   = self->begin + tSize;
+        self->read  = self->begin;
+        self->write = self->begin;
+        self->timestamp_read  = self->timestamps;
+        self->timestamp_write = self->timestamps;
+        self->bufSize  = size;
         
-        ring->readwait = SDL_CreateSemaphore(0);
-        ring->writewait = SDL_CreateSemaphore(count);
+        self->readwait = SDL_CreateSemaphore(0);
+        self->writewait = SDL_CreateSemaphore(count);
     }
     else
     {
-        ring->end   = 0;
-        ring->read  = 0;
-        ring->write = 0;
-        ring->bufSize  = 0;
+        self->end   = 0;
+        self->read  = 0;
+        self->write = 0;
+        self->bufSize  = 0;
 
-        ring->readwait = 0;
+        self->readwait = 0;
     }
 
-    if ( ring->begin && ring->readwait && ring->writewait ) {
-        ring->active = 1;
+    if ( self->begin && self->readwait && self->writewait ) {
+        self->active = 1;
     }
+
+  return self;
 }
 
 /* Release any waiting threads on the ring so they can be cleaned up.
@@ -79,71 +84,71 @@ MPEG_ring_new(Uint32 size, Uint32 count)
    should call MPRing_sdelete() on the ring.
  */
 void
-MPEG_ring_ReleaseThreads (MPEG_ring *ring)
+METH(ReleaseThreads) (_THIS)
 {
     /* Let the threads know that the ring is now inactive */
-    ring->active = 0;
+    self->active = 0;
 
-    if ( ring->readwait ) {
-        while ( SDL_SemValue(ring->readwait) == 0 ) {
-            SDL_SemPost(ring->readwait);
+    if ( self->readwait ) {
+        while ( SDL_SemValue(self->readwait) == 0 ) {
+            SDL_SemPost(self->readwait);
         }
     }
-    if ( ring->writewait ) {
-        while ( SDL_SemValue(ring->writewait) == 0 ) {
-            SDL_SemPost(ring->writewait);
+    if ( self->writewait ) {
+        while ( SDL_SemValue(self->writewait) == 0 ) {
+            SDL_SemPost(self->writewait);
         }
     }
 }
 
 
 void
-MPEG_ring_destroy (MPEG_ring *ring)
+METH(destroy) (_THIS)
 {
-    if( ring )
+    if( self )
     {
         /* Free up the semaphores */
-        MPEG_ring_ReleaseThreads(ring);
+        MPEG_ring_ReleaseThreads(self);
 
 	/* Destroy the semaphores */
-	if( ring->readwait )
+	if( self->readwait )
 	{
-	    SDL_DestroySemaphore( ring->readwait );
-	    ring->readwait = 0;
+	    SDL_DestroySemaphore( self->readwait );
+	    self->readwait = 0;
 	}
-	if( ring->writewait )
+	if( self->writewait )
 	{
-	    SDL_DestroySemaphore( ring->writewait );
-	    ring->writewait = 0;
+	    SDL_DestroySemaphore( self->writewait );
+	    self->writewait = 0;
 	}
 
         /* Free data buffer */
-        if ( ring->begin ) {
-            free( ring->begin );
-            free( ring->timestamps );
-            ring->begin = 0;
-            ring->timestamps = 0;
+        if ( self->begin ) {
+            free( self->begin );
+            free( self->timestamps );
+            self->begin = 0;
+            self->timestamps = 0;
         }
     }
 }
 
 /*
-  Returns free buffer of ring->bufSize to be filled with data.
+  Returns free buffer of self->bufSize to be filled with data.
   Zero is returned if there is no free buffer.
 */
 
 Uint8 *
-MPEG_ring_NextWriteBuffer (MPEG_ring *ring)
+METH(NextWriteBuffer) (_THIS)
 {
     Uint8 *buffer;
 
     buffer = 0;
-    if ( ring->active ) {
-	//printf("Waiting for write buffer (%d available)\n", SDL_SemValue(ring->writewait));
-        SDL_SemWait(ring->writewait);
+    if ( self->active ) {
+	//printf("Waiting for write buffer (%d available)\n", SDL_SemValue(self->writewait));
+        SDL_SemWait(self->writewait);
 	//printf("Finished waiting for write buffer\n");
-	if ( ring->active ) {
-            buffer = ring->write + sizeof(Uint32);
+	if ( self->active ) {
+            buffer = self->write + sizeof(Uint32);
         }
     }
     return buffer;
@@ -152,30 +157,30 @@ MPEG_ring_NextWriteBuffer (MPEG_ring *ring)
 
 /*
   Call this when the buffer returned from MPRing_nextWriteBuffer() has
-  been filled.  The passed length must not be larger than ring->bufSize.
+  been filled.  The passed length must not be larger than self->bufSize.
 */
 
 void
-MPEG_ring_WriteDone(MPEG_ring *ring, Uint32 len, double timestamp)
+METH(WriteDone) (_THIS, Uint32 len, double timestamp)
 {
-    if ( ring->active ) {
+    if ( self->active ) {
 #ifdef NO_GRIFF_MODS
-        assert(len <= ring->bufSize);
+        assert(len <= self->bufSize);
 #else
-	if ( len > ring->bufSize )
-            len = ring->bufSize;
+	if ( len > self->bufSize )
+            len = self->bufSize;
 #endif
-        *((Uint32*) ring->write) = len;
+        *((Uint32*) self->write) = len;
 
-        ring->write += ring->bufSize + sizeof(Uint32);
-        *(ring->timestamp_write++) = timestamp;
-        if( ring->write >= ring->end )
+        self->write += self->bufSize + sizeof(Uint32);
+        *(self->timestamp_write++) = timestamp;
+        if( self->write >= self->end )
         {
-            ring->write = ring->begin;
-            ring->timestamp_write = ring->timestamps;
+            self->write = self->begin;
+            self->timestamp_write = self->timestamps;
         }
-//printf("Finished write buffer of %u bytes, making available for reads (%d+1 available for reads)\n", len, SDL_SemValue(ring->readwait));
-        SDL_SemPost(ring->readwait);
+//printf("Finished write buffer of %u bytes, making available for reads (%d+1 available for reads)\n", len, SDL_SemValue(self->readwait));
+        SDL_SemPost(self->readwait);
     }
 }
 
@@ -187,19 +192,19 @@ MPEG_ring_WriteDone(MPEG_ring *ring, Uint32 len, double timestamp)
 */
 
 Uint32
-MPEG_ring_NextReadBuffer (MPEG_ring *ring, Uint8** buffer)
+METH(NextReadBuffer) (_THIS, Uint8** buffer)
 {
     Uint32 size;
 
     size = 0;
-    if ( ring->active ) {
+    if ( self->active ) {
         /* Wait for a buffer to become available */
-//printf("Waiting for read buffer (%d available)\n", SDL_SemValue(ring->readwait));
-        SDL_SemWait(ring->readwait);
+//printf("Waiting for read buffer (%d available)\n", SDL_SemValue(self->readwait));
+        SDL_SemWait(self->readwait);
 //printf("Finished waiting for read buffer\n");
-	if ( ring->active ) {
-            size = *((Uint32*) ring->read);
-            *buffer = ring->read + sizeof(Uint32);
+	if ( self->active ) {
+            size = *((Uint32*) self->read);
+            *buffer = self->read + sizeof(Uint32);
         }
     }
     return size;
@@ -212,28 +217,28 @@ MPEG_ring_NextReadBuffer (MPEG_ring *ring, Uint8** buffer)
 */
 
 double
-MPEG_ring_ReadTimeStamp (MPEG_ring *ring)
+METH(ReadTimeStamp) (_THIS)
 {
-  if(ring->active)
-    return *ring->timestamp_read;
+  if(self->active)
+    return *self->timestamp_read;
   return(0);
 }
 
 void
-MPEG_ring_ReadSome (MPEG_ring *ring, Uint32 used)
+METH(ReadSome) (_THIS, Uint32 used)
 {
     Uint8 *data;
     Uint32 oldlen;
     Uint32 newlen;
 
-    if ( ring->active ) {
-        data = ring->read + sizeof(Uint32);
-        oldlen = *((Uint32*) ring->read);
+    if ( self->active ) {
+        data = self->read + sizeof(Uint32);
+        oldlen = *((Uint32*) self->read);
         newlen = oldlen - used;
         memmove(data, data+used, newlen);
-        *((Uint32*) ring->read) = newlen;
-//printf("Reusing read buffer (%d+1 available)\n", SDL_SemValue(ring->readwait));
-        SDL_SemPost(ring->readwait);
+        *((Uint32*) self->read) = newlen;
+//printf("Reusing read buffer (%d+1 available)\n", SDL_SemValue(self->readwait));
+        SDL_SemPost(self->readwait);
     }
 }
 
@@ -244,18 +249,18 @@ MPEG_ring_ReadSome (MPEG_ring *ring, Uint32 used)
 */
 
 void
-MPEG_ring_ReadDone (MPEG_ring *ring)
+METH(ReadDone) (_THIS)
 {
-    if ( ring->active ) {
-        ring->read += ring->bufSize + sizeof(Uint32);
-        ring->timestamp_read++;
-        if( ring->read >= ring->end )
+    if ( self->active ) {
+        self->read += self->bufSize + sizeof(Uint32);
+        self->timestamp_read++;
+        if( self->read >= self->end )
         {
-            ring->read = ring->begin;
-            ring->timestamp_read = ring->timestamps;
+            self->read = self->begin;
+            self->timestamp_read = self->timestamps;
         }
-//printf("Finished read buffer, making available for writes (%d+1 available for writes)\n", SDL_SemValue(ring->writewait));
-        SDL_SemPost(ring->writewait);
+//printf("Finished read buffer, making available for writes (%d+1 available for writes)\n", SDL_SemValue(self->writewait));
+        SDL_SemPost(self->writewait);
     }
 }
 
@@ -267,12 +272,12 @@ MPEG_ring_ReadDone (MPEG_ring *ring)
 #if 0
 Uint32 MPEG_ring_BufferSize (MPEG_ring *ring)
 {
-  return (ring->bufSize);
+  return (self->bufSize);
 }
 
 int MPEG_ring_BuffersWritten (MPEG_ring *ring)
 {
-    return (SDL_SemValue(ring->readwait));
+    return (SDL_SemValue(self->readwait));
 }
 #endif /* 0 */
 

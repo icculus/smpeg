@@ -47,28 +47,24 @@
 
 /* Structure for an entry in the decoding table of 
  * macroblock_address_increment */
-struct mb_addr_inc_entry {
+typedef struct {
   int value;       /* value for macroblock_address_increment */
   int num_bits;             /* length of the Huffman code */
-};
-
-typedef struct mb_addr_inc_entry mb_addr_inc_entry;
+} mb_addr_inc_entry;
 
 /* Decoding table for macroblock_address_increment */
 extern mb_addr_inc_entry mb_addr_inc[2048];
 
 
 /* Structure for an entry in the decoding table of macroblock_type */
-struct mb_type_entry {
+typedef struct {
   unsigned int mb_quant;              /* macroblock_quant */
   unsigned int mb_motion_forward;     /* macroblock_motion_forward */
   unsigned int mb_motion_backward;    /* macroblock_motion_backward */
   unsigned int mb_pattern;            /* macroblock_pattern */
   unsigned int mb_intra;              /* macroblock_intra */
   int num_bits;                       /* length of the Huffman code */
-};
-
-typedef struct mb_type_entry mb_type_entry;
+} mb_type_entry;
 
 /* Decoding table for macroblock_type in predictive-coded pictures */
 extern mb_type_entry mb_type_P[64];
@@ -78,12 +74,10 @@ extern mb_type_entry mb_type_B[64];
 
 
 /* Structures for an entry in the decoding table of coded_block_pattern */
-struct coded_block_pattern_entry {
+typedef struct {
   unsigned int cbp;            /* coded_block_pattern */
   int num_bits;                /* length of the Huffman code */
-};
-
-typedef struct coded_block_pattern_entry coded_block_pattern_entry;
+} coded_block_pattern_entry;
 
 /* External declaration of coded block pattern table. */
 
@@ -92,16 +86,14 @@ extern const coded_block_pattern_entry coded_block_pattern[512];
 
 
 /* Structure for an entry in the decoding table of motion vectors */
-struct motion_vectors_entry {
+typedef struct {
   int code;              /* value for motion_horizontal_forward_code,
 			  * motion_vertical_forward_code, 
 			  * motion_horizontal_backward_code, or
 			  * motion_vertical_backward_code.
 			  */
   int num_bits;          /* length of the Huffman code */
-};
-
-typedef struct motion_vectors_entry motion_vectors_entry;
+} motion_vectors_entry;
 
 
 /* Decoding table for motion vectors */
@@ -109,12 +101,10 @@ extern motion_vectors_entry motion_vectors[2048];
 
 
 /* Structure for an entry in the decoding table of dct_dc_size */
-struct dct_dc_size_entry {
+typedef struct {
   unsigned int value;    /* value of dct_dc_size (luminance or chrominance) */
   int num_bits;          /* length of the Huffman code */
-};
-
-typedef struct dct_dc_size_entry dct_dc_size_entry;
+} dct_dc_size_entry;
 
 /* External declaration of dct dc size lumiance table. */
 

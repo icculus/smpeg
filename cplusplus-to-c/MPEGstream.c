@@ -28,31 +28,34 @@
 /* This is the limit of the quantity of pre-read data */
 #define MAX_QUEUE (256 * 1024)
 
-MPEGstream *MPEGstream_new(MPEGsystem *System, Uint8 Streamid)
-{
-    MPEGstream *ret;
-    
-    ret = (MPEGstream *)malloc(sizeof(MPEGstream));
-    
-    if (ret) {
-        ret->system = System;
-        ret->streamid = Streamid;
-        ret->br = MPEGlist_new();
-        ret->cleareof = true;
-        
-        ret->data = 0;
-        ret->stop = 0;
-        ret->pos = 0;
-        
-        ret->preread_size = 0;
-        ret->enabled = true;
-        ret->mutex = SDL_CreateMutex();
-    }
+#undef _THIS
+#define _THIS MPEGstream *self
+#undef METH
+#define METH(m) MPEGstream_##m
 
-    return ret;
+MPEGstream *
+METH(init) (_THIS, MPEGsystem *System, Uint8 Streamid)
+{
+    MAKE_OBJECT(MPEGstream);
+    
+    self->system = System;
+    self->streamid = Streamid;
+    self->br = MPEGlist_init(NULL);
+    self->cleareof = true;
+        
+    self->data = 0;
+    self->stop = 0;
+    self->pos = 0;
+        
+    self->preread_size = 0;
+    self->enabled = true;
+    self->mutex = SDL_CreateMutex();
+
+    return self;
 }
 
-void MPEGstream_destroy(MPEGstream *self)
+void
+METH(destroy) (_THIS)
 {
     MPEGlist *newbr;
 
@@ -69,7 +72,8 @@ void MPEGstream_destroy(MPEGstream *self)
     MPEGlist_destroy(newbr);
 }
 
-void MPEGstream_reset_stream(MPEGstream *self)
+void
+METH(reset_stream) (_THIS)
 {
     MPEGlist *newbr;
 
@@ -85,7 +89,7 @@ void MPEGstream_reset_stream(MPEGstream *self)
     }
     MPEGlist_destroy(newbr);
     
-    self->br = MPEGlist_new();
+    self->br = MPEGlist_init(NULL);
     self->cleareof = true;
     self->data = 0;
     self->stop = 0;
@@ -94,7 +98,8 @@ void MPEGstream_reset_stream(MPEGstream *self)
     SDL_mutexV(self->mutex);
 }
 
-void MPEGstream_rewind_stream(MPEGstream *self)
+void
+METH(rewind_stream) (_THIS)
 {
     /* Note that this will rewind all streams, and other streams than this one */
     /* will finish reading their prebuffured data (they are not reseted) */
@@ -106,12 +111,13 @@ void MPEGstream_rewind_stream(MPEGstream *self)
     MPEGsystem_Rewind(self->system);
 }
 
-bool MPEGstream_next_system_buffer(MPEGstream *self)
+bool
+METH(next_system_buffer) (_THIS)
 {
     bool has_data = true;
     
     /* No more buffer ? */
-    while(has_data && !MPEGlist_next(self->br))
+    while(has_data && !MPEGlist_Next(self->br))
     {
         SDL_mutexV(self->mutex);
         MPEGsystem_RequestBuffer(self->system);
@@ -122,12 +128,13 @@ bool MPEGstream_next_system_buffer(MPEGstream *self)
     if (has_data && (MPEGlist_Size(self->br) || self->cleareof)) {
         self->cleareof = false;
         self->br = MPEGlist_Next(self->br);
-        preread_size -= MPEGlist_Size(self->br);
+        self->preread_size -= MPEGlist_Size(self->br);
     }
     return(has_data);
 }
 
-bool MPEGstream_next_packet(MPEGstream *self, bool recurse, bool update_timestamp)
+bool
+METH(next_packet) (_THIS, bool recurse, bool update_timestamp)
 {
     SDL_mutexP(self->mutex);
     
@@ -161,7 +168,8 @@ bool MPEGstream_next_packet(MPEGstream *self, bool recurse, bool update_timestam
     return(true);
 }
 
-MPEGstream_marker *MPEGstream_new_marker(MPEGstream *self, int offset)
+MPEGstream_marker *
+METH(new_marker) (_THIS, int offset)
 {
     MPEGstream_marker *marker;
 
@@ -173,7 +181,8 @@ MPEGstream_marker *MPEGstream_new_marker(MPEGstream *self, int offset)
     }
 
     /* It may be possible to seek in the data stream, but punt for now */
-    if (((self->data + offset) < MPEGlist_Buffer(self->br) || ((self->data + offset) > stop) ) {
+//    if ( ((data+offset) < br->Buffer()) || ((data+offset) > stop) ) {
+    if ( ((void*)(self->data+offset) < MPEGlist_Buffer(self->br)) || ((self->data+offset) > self->stop) ) {
         SDL_mutexV(self->mutex);
         return(0);
     }
@@ -192,7 +201,8 @@ MPEGstream_marker *MPEGstream_new_marker(MPEGstream *self, int offset)
     return(marker);
 }
 
-bool MPEGstream_seek_marker(MPEGstream *self, MPEGstream_marker const *marker)
+bool
+METH(seek_marker) (_THIS, MPEGstream_marker const *marker)
 {
     SDL_mutexP(self->mutex);
     if (marker) {
@@ -212,15 +222,17 @@ bool MPEGstream_seek_marker(MPEGstream *self, MPEGstream_marker const *marker)
     return(marker != 0);
 }
 
-void MPEGstream_delete_marker(MPEGstream_marker *marker)
+void
+METH(delete_marker) (_THIS, MPEGstream_marker *marker)
 {
-    if (marker && marker->marked_buffer) {
+    if (self && marker->marked_buffer) {
         MPEGlist_Unlock(marker->marked_buffer);
         free(marker);
     }
 }
 
-Uint32 MPEGstream_copy_data(MPEGstream *self, Uint8 *area, Sint32 size, bool short_read)
+Uint32
+METH(copy_data) (_THIS, Uint8 *area, Sint32 size, bool short_read)
 {
     Uint32 copied = 0;
     bool timestamped = false;
@@ -231,7 +243,7 @@ Uint32 MPEGstream_copy_data(MPEGstream *self, Uint8 *area, Sint32 size, bool sho
         /* Get new data if necessary */
         if (self->data == self->stop) {
             /* try to use the timestamp of the first packet */
-            if (!MPEGstream_next_packet(self, true, (timestamp == -1) || !timestamped) ) {
+            if (!MPEGstream_next_packet(self, true, (self->timestamp == -1) || !timestamped) ) {
                 break;
             }
             timestamped = true;
@@ -265,7 +277,8 @@ Uint32 MPEGstream_copy_data(MPEGstream *self, Uint8 *area, Sint32 size, bool sho
     return(copied);
 }
 
-int MPEGstream_copy_byte(MPEGstream *self)
+int
+METH(copy_byte) (_THIS)
 {
     /* Get new data if necessary */
     if (self->data == self->stop) {
@@ -277,12 +290,14 @@ int MPEGstream_copy_byte(MPEGstream *self)
     return(*self->data++);
 }
 
-bool MPEGstream_eof(MPEGstream *self) const
+bool
+METH(eof) (_THIS)
 {
     return(!MPEGlist_Size(self->br));
 }
 
-void MPEGstream_insert_packet(MPEGstream *self, Uint8 *Data, Uint32 Size, double timestamp)
+void
+METH(insert_packet) (_THIS, Uint8 *Data, Uint32 Size, double timestamp)
 {
     MPEGlist *newbr;
 
@@ -308,7 +323,8 @@ void MPEGstream_insert_packet(MPEGstream *self, Uint8 *Data, Uint32 Size, double
 }
 
 /* - Check for unused buffers and free them - */
-void MPEGstream_garbage_collect(MPEGstream *self)
+void
+METH(garbage_collect) (_THIS)
 {
     MPEGlist *newbr;
     
@@ -331,12 +347,14 @@ void MPEGstream_garbage_collect(MPEGstream *self)
     SDL_mutexV(self->mutex);
 }
 
-void MPEGstream_enable(MPEGstream *self, bool toggle)
+void
+METH(enable) (_THIS, bool toggle)
 {
     self->enabled = toggle;
 }
 
-double MPEGstream_time(MPEGstream *self)
+double
+METH(time) (_THIS)
 {
     return (self->br->TimeStamp);
 }

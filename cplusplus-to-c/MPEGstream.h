@@ -28,6 +28,15 @@
 #include "MPEGaudio.h"
 #include "MPEGlist.h"
 
+/* MPEG stream can be:
+ - a video stream (2D over time)
+ - an audio stream (1D over time)
+ - a system stream (combination video and audio)
+*/
+/* The idea of smpeg is to split the system stream (if any) into separate audio
+and video stream, then feed the separated stream into their corresponding
+decoders. */
+
 #define AUDIO_STREAMID  0xc0
 #define VIDEO_STREAMID  0xe0
 #define SYSTEM_STREAMID 0xbb
@@ -35,74 +44,96 @@
 struct MPEGstream_marker
 {
     /* Data to mark part of the stream */
-    MPEGlist *marked_buffer;
+    MPEGlist * marked_buffer;
     Uint8 *marked_data;
-    Uint8 *marked_stop;
+    Uint8 *marked_stop;  
 };
 
 typedef struct MPEGstream_marker MPEGstream_marker;
 
-struct MPEGstream {
-    Uint32 pos;
-    Uint8 streamid;
+
+struct MPEGstream
+{
     Uint8 *data;
     Uint8 *stop;
+
     Uint32 preread_size;
-    struct MPEGsystem *system;
-    struct MPEGlist *br;
+
+    struct MPEGsystem * system; /* points to the system stream (for audio/video streams). */
+    MPEGlist * br;
     bool cleareof;
     bool enabled;
-    struct SDL_mutex *mutex;
+
+    SDL_mutex * mutex;
+
+//    /* Get a buffer from the stream */
+//    bool next_system_buffer(void);
+
     /* "pos" where "timestamp" belongs */
     Uint32 timestamp_pos;
     double timestamp;
+
+    Uint32 pos;
+
+    Uint8 streamid;
+
 };
 
 typedef struct MPEGstream MPEGstream;
 
-MPEGstream *MPEGstream_new (struct MPEGsystem * System, Uint8 Streamid);
-void MPEGstream_destroy (MPEGstream *self);
+
+#undef _THIS
+#define _THIS MPEGstream *self
+#undef METH
+#define METH(m) MPEGstream_##m
+
+MPEGstream * METH(init) (_THIS, struct MPEGsystem *System, Uint8 Streamid);
+void METH(destroy) (_THIS);
+
+bool METH(next_system_buffer) (_THIS);
 
 /* Cleanup the buffers and reset the stream */
-void MPEGstream_reset_stream (MPEGstream *self);
+void METH(reset_stream) (_THIS);
 
 /* Rewind the stream */
-void MPEGstream_rewind_stream (MPEGstream *self);
+void METH(rewind_stream) (_THIS);
 
 /* Go to the next packet in the stream */
-bool MPEGstream_next_packet (MPEGstream *self, bool recurse, bool update_timestamp);
+//bool METH(next_packet) (_THIS, bool recurse = true, bool update_timestamp = true);
+bool METH(next_packet) (_THIS, bool recurse, bool update_timestamp);
 
 /* Mark a position in the data stream */
-struct MPEGstream_marker *MPEGstream_new_marker (MPEGstream *self, int offset);
+MPEGstream_marker *METH(new_marker) (_THIS, int offset);
 
 /* Jump to the marked position */
-bool MPEGstream_seek_marker (MPEGstream *self, struct MPEGstream_marker const *marker);
+bool METH(seek_marker) (_THIS, MPEGstream_marker const * marker);
 
 /* Jump to last successfully marked position */
-void MPEGstream_delete_marker (MPEGstream *self, struct MPEGstream_marker *marker);
+void METH(delete_marker) (_THIS, MPEGstream_marker * marker);
 
 /* Copy data from the stream to a local buffer */
-Uint32 MPEGstream_copy_data (MPEGstream *self, Uint8 *area, Sint32 size, bool short_read);
+//Uint32 METH(copy_data) (_THIS, Uint8 *area, Sint32 size, bool short_read = false);
+Uint32 METH(copy_data) (_THIS, Uint8 *area, Sint32 size, bool short_read);
 
 /* Copy a byte from the stream */
-int MPEGstream_copy_byte (MPEGstream *self);
+int METH(copy_byte) (_THIS);
 
 /* Check for end of file or an error in the stream */
-bool MPEGstream_eof (MPEGstream *self); // const;
+bool METH(eof) (_THIS); // const;
 
 /* Insert a new packet at the end of the stream */
-void MPEGstream_insert_packet (MPEGstream *self, Uint8 *data, Uint32 size, double timestamp); //=-1);
+//void METH(insert_packet) (_THIS, Uint8 * data, Uint32 size, double timestamp=-1);
+void METH(insert_packet) (_THIS, Uint8 * data, Uint32 size, double timestamp);
 
 /* Check for unused buffers and free them */
-void MPEGstream_garbage_collect (MPEGstream *self);
+void METH(garbage_collect) (_THIS);
 
 /* Enable or disable the stream */
-void MPEGstream_enable (MPEGstream *self, bool toggle);
+void METH(enable) (_THIS, bool toggle);
 
 /* Get stream time */
-double MPEGstream_time (MPEGstream *self);
-
-/* Get a buffer from the stream */
-bool MPEGstream_next_system_buffer (MPEGstream *self);
+double METH(time) (_THIS);
 
 #endif /* _MPEGSTREAM_H_ */
+
+

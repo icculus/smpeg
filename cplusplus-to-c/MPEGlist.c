@@ -1,22 +1,32 @@
 #include "MPEGlist.h"
+#include "MPEGerror.h"
+
+
+/*
+2LL
+*/
+
+#undef _THIS
+#define _THIS MPEGlist *self
+#undef METH
+#define METH(m) MPEGlist_##m
 
 MPEGlist *
-MPEGlist_new ()
+METH(init) (_THIS)
 {
-  MPEGlist *ret;
-
-  ret = (MPEGlist*)malloc(sizeof(MPEGlist));
-  ret->size = 0;
-  ret->data = 0;
-  ret->lock = 0;
-  ret->next = 0;
-  ret->prev = 0;
-  ret->TimeStamp = -1;
-  return ret;
+  MAKE_OBJECT(MPEGlist);
+//  self = (MPEGlist*)malloc(sizeof(MPEGlist));
+  self->size = 0;
+  self->data = 0;
+  self->lock = 0;
+  self->next = 0;
+  self->prev = 0;
+  self->TimeStamp = -1;
+  return self;
 }
 
 void
-MPEGlist_destroy (MPEGlist *self)
+METH(destroy) (_THIS)
 {
   if (self->next) self->next->prev = self->prev;
   if (self->prev) self->prev->next = self->next;
@@ -30,12 +40,12 @@ MPEGlist_destroy (MPEGlist *self)
 
 /* Return the next free buffer or allocate a new one if none is empty */
 MPEGlist *
-MPEGlist_Alloc (MPEGlist *self, Uint32 bufsize)
+METH(Alloc) (_THIS, Uint32 bufsize)
 {
   MPEGlist *tmp;
 
   tmp = self->next;
-  self->next = MPEGlist_new();
+  self->next = MPEGlist_init(NULL);
   self->next->next = tmp;
 
   if (bufsize)
@@ -60,45 +70,45 @@ MPEGlist_Alloc (MPEGlist *self, Uint32 bufsize)
 
 /* Lock current buffer */
 void
-MPEGlist_lock (MPEGlist *self)
+METH(Lock) (_THIS)
 {
   self->lock++;
 }
 
 /* Unlock current buffer */
 void
-MPEGlist_unlock (MPEGlist *self)
+METH(Unlock) (_THIS)
 {
   if (self->lock != 0)
       self->lock--;
 }
 
 void*
-MPEGlist_Buffer (MPEGlist *self)
+METH(Buffer) (_THIS)
 {
   return self->data;
 }
 
 Uint32
-MPEGlist_Size (MPEGlist *self)
+METH(Size) (_THIS)
 {
   return self->size;
 }
 
 MPEGlist*
-MPEGlist_Next (MPEGlist *self)
+METH(Next) (_THIS)
 {
   return self->next;
 }
 
 MPEGlist*
-MPEGlist_Prev (MPEGlist *self)
+METH(Prev) (_THIS)
 {
   return self->prev;
 }
 
 Uint32
-MPEGlist_IsLocked (MPEGlist *self)
+METH(IsLocked) (_THIS)
 {
   return self->lock;
 }

@@ -130,9 +130,6 @@ extern DECLSPEC void SMPEG_setvolume( SMPEG* mpeg, int volume );
    'callback' is a function called when an area of 'dst' needs to be updated.
    If 'callback' is NULL, the default function (SDL_UpdateRect) will be used.
 */
-
-extern DECLSPEC void SMPEG2_setdisplay(SMPEG* mpeg, SDL_Surface* dst, pthread_mutex_t *surfLock, SMPEG_DisplayCallback callback);
-
 extern DECLSPEC void SMPEG_setdisplay(SMPEG* mpeg, SDL_Surface* dst, SDL_mutex* surfLock,
                                             SMPEG_DisplayCallback callback);
 

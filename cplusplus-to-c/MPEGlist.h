@@ -8,24 +8,31 @@
 
 #include "SDL.h"
 
-typedef struct MPEGlist {
+struct MPEGlist {
   struct MPEGlist *next;
   struct MPEGlist *prev;
   Uint32 lock;
   Uint8 *data;
   Uint32 size;
   double TimeStamp;
-} MPEGlist;
+};
 
-MPEGlist* MPEGlist_new();
-void MPEGlist_destroy(MPEGlist*);
-MPEGlist* MPEGlist_Alloc(MPEGlist*, Uint32);
-void MPEGlist_Lock(MPEGlist*);
-void MPEGlist_Unlock(MPEGlist*);
-void* MPEGlist_Buffer(MPEGlist*);
-Uint32 MPEGlist_Size(MPEGlist*);
-MPEGlist* MPEGlist_Next(MPEGlist*);
-MPEGlist* MPEGlist_Prev(MPEGlist*);
-Uint32 MPEGlist_IsLocked(MPEGlist*);
+typedef struct MPEGlist MPEGlist;
+
+#undef _THIS
+#define _THIS MPEGlist *self
+#undef METH
+#define METH(m) MPEGlist_##m
+
+MPEGlist* METH(init) (_THIS);
+void METH(destroy) (_THIS);
+MPEGlist* METH(Alloc) (_THIS, Uint32);
+void METH(Lock) (_THIS);
+void METH(Unlock) (_THIS);
+void* METH(Buffer) (_THIS);
+Uint32 METH(Size) (_THIS);
+MPEGlist* METH(Next) (_THIS);
+MPEGlist* METH(Prev) (_THIS);
+Uint32 METH(IsLocked) (_THIS);
 
 #endif

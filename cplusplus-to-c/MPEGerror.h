@@ -25,17 +25,78 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+/* This struct becomes a member of the other MPEG* structs. */
+
+#if 0
+class MPEGerror {
+public:
+    MPEGerror() {
+        ClearError();
+    }
+
+    /* Set an error message */
+    void SetError(char *fmt, ...) {
+        va_list ap;
+
+        va_start(ap, fmt);
+        vsprintf(errbuf, fmt, ap);
+        va_end(ap);
+        error = errbuf;
+    }
+
+    /* Find out if an error occurred */
+    bool WasError(void) {
+        return(error != NULL);
+    }
+    char *TheError(void) {
+        return(error);
+    }
+
+    /* Clear any error message */
+    void ClearError(void) {
+        error = NULL;
+    }
+
+protected:
+    char errbuf[512];
+    char *error;
+};
+#endif /* 0 */
+
+
+#define MAKE_OBJECT(objtype) objtype failsafe; \
+  if (!self) { \
+    self = (objtype *)malloc(sizeof(objtype)); \
+    if (!self) self = &failsafe; \
+    memset(self, 0, sizeof(*self)); \
+  } \
+  0
+
 struct MPEGerror {
     char errbuf[512];
     char *error;
+
+    void (*SetError)(char *fmt, ...);
 };
 
 typedef struct MPEGerror MPEGerror;
 
-MPEGerror *MPEGerror_new();
-void MPEGerror_SetError(MPEGerror *self, char *fmt, ...);
-int MPEGerror_WasError(MPEGerror *self);
-char *MPEGerror_TheError(MPEGerror *self);
-void MPEGerror_ClearError(MPEGerror *self);
+
+
+typedef int bool;
+#define false 0
+#define true (!false)
+
+
+
+#undef _THIS
+#define _THIS MPEGerror *self
+#define METH(method) MPEGerror_##method
+MPEGerror * METH(init) (_THIS);
+void METH(destroy) (_THIS);
+void METH(SetError) (_THIS, char *fmt, ...);
+bool METH(WasError) (_THIS);
+char *METH(TheError) (_THIS);
+void METH(ClearError) (_THIS);
 
 #endif /* _MPEGERROR_H_ */

@@ -24,6 +24,14 @@
 #pragma warning(disable: 4244 4305)
 #endif
 
+
+
+#define wgetbit() MPEGaudio_wgetbit(self)
+#define wgetbits(x) MPEGaudio_wgetbits(self, x)
+#define wgetbits9(x) MPEGaudio_wgetbits9(self, x)
+
+
+
 inline
 void
 Mpegbitwindow_wrap (Mpegbitwindow *self)
@@ -383,60 +391,60 @@ MPEGaudio_layer3getscalefactors (MPEGaudio *self, int ch, int gr)
   {
     if(gi->mixed_block_flag)
     {                                 /* MIXED */ /* NEW-ag 11/25 */
-      sf->l[0]=MPEGaudio_wgetbits9(self, l0);sf->l[1]=MPEGaudio_wgetbits9(self, l0);
-      sf->l[2]=MPEGaudio_wgetbits9(self, l0);sf->l[3]=MPEGaudio_wgetbits9(self, l0);
-      sf->l[4]=MPEGaudio_wgetbits9(self, l0);sf->l[5]=MPEGaudio_wgetbits9(self, l0);
-      sf->l[6]=MPEGaudio_wgetbits9(self, l0);sf->l[7]=MPEGaudio_wgetbits9(self, l0);
+      sf->l[0]=wgetbits9(l0);sf->l[1]=wgetbits9(l0);
+      sf->l[2]=wgetbits9(l0);sf->l[3]=wgetbits9(l0);
+      sf->l[4]=wgetbits9(l0);sf->l[5]=wgetbits9(l0);
+      sf->l[6]=wgetbits9(l0);sf->l[7]=wgetbits9(l0);
 
-      sf->s[0][ 3]=MPEGaudio_wgetbits9(self, l0);sf->s[1][ 3]=MPEGaudio_wgetbits9(self, l0);
-      sf->s[2][ 3]=MPEGaudio_wgetbits9(self, l0);
-      sf->s[0][ 4]=MPEGaudio_wgetbits9(self, l0);sf->s[1][ 4]=MPEGaudio_wgetbits9(self, l0);
-      sf->s[2][ 4]=MPEGaudio_wgetbits9(self, l0);
-      sf->s[0][ 5]=MPEGaudio_wgetbits9(self, l0);sf->s[1][ 5]=MPEGaudio_wgetbits9(self, l0);
-      sf->s[2][ 5]=MPEGaudio_wgetbits9(self, l0);
+      sf->s[0][ 3]=wgetbits9(l0);sf->s[1][ 3]=wgetbits9(l0);
+      sf->s[2][ 3]=wgetbits9(l0);
+      sf->s[0][ 4]=wgetbits9(l0);sf->s[1][ 4]=wgetbits9(l0);
+      sf->s[2][ 4]=wgetbits9(l0);
+      sf->s[0][ 5]=wgetbits9(l0);sf->s[1][ 5]=wgetbits9(l0);
+      sf->s[2][ 5]=wgetbits9(l0);
 
-      sf->s[0][ 6]=MPEGaudio_wgetbits9(self, l1);sf->s[1][ 6]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[2][ 6]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[0][ 7]=MPEGaudio_wgetbits9(self, l1);sf->s[1][ 7]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[2][ 7]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[0][ 8]=MPEGaudio_wgetbits9(self, l1);sf->s[1][ 8]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[2][ 8]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[0][ 9]=MPEGaudio_wgetbits9(self, l1);sf->s[1][ 9]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[2][ 9]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[0][10]=MPEGaudio_wgetbits9(self, l1);sf->s[1][10]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[2][10]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[0][11]=MPEGaudio_wgetbits9(self, l1);sf->s[1][11]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[2][11]=MPEGaudio_wgetbits9(self, l1);
+      sf->s[0][ 6]=wgetbits9(l1);sf->s[1][ 6]=wgetbits9(l1);
+      sf->s[2][ 6]=wgetbits9(l1);
+      sf->s[0][ 7]=wgetbits9(l1);sf->s[1][ 7]=wgetbits9(l1);
+      sf->s[2][ 7]=wgetbits9(l1);
+      sf->s[0][ 8]=wgetbits9(l1);sf->s[1][ 8]=wgetbits9(l1);
+      sf->s[2][ 8]=wgetbits9(l1);
+      sf->s[0][ 9]=wgetbits9(l1);sf->s[1][ 9]=wgetbits9(l1);
+      sf->s[2][ 9]=wgetbits9(l1);
+      sf->s[0][10]=wgetbits9(l1);sf->s[1][10]=wgetbits9(l1);
+      sf->s[2][10]=wgetbits9(l1);
+      sf->s[0][11]=wgetbits9(l1);sf->s[1][11]=wgetbits9(l1);
+      sf->s[2][11]=wgetbits9(l1);
 
       sf->s[0][12]=sf->s[1][12]=sf->s[2][12]=0;
     }
     else 
     {  /* SHORT*/
-      sf->s[0][ 0]=MPEGaudio_wgetbits9(self, l0);sf->s[1][ 0]=MPEGaudio_wgetbits9(self, l0);
-      sf->s[2][ 0]=MPEGaudio_wgetbits9(self, l0);
-      sf->s[0][ 1]=MPEGaudio_wgetbits9(self, l0);sf->s[1][ 1]=MPEGaudio_wgetbits9(self, l0);
-      sf->s[2][ 1]=MPEGaudio_wgetbits9(self, l0);
-      sf->s[0][ 2]=MPEGaudio_wgetbits9(self, l0);sf->s[1][ 2]=MPEGaudio_wgetbits9(self, l0);
-      sf->s[2][ 2]=MPEGaudio_wgetbits9(self, l0);
-      sf->s[0][ 3]=MPEGaudio_wgetbits9(self, l0);sf->s[1][ 3]=MPEGaudio_wgetbits9(self, l0);
-      sf->s[2][ 3]=MPEGaudio_wgetbits9(self, l0);
-      sf->s[0][ 4]=MPEGaudio_wgetbits9(self, l0);sf->s[1][ 4]=MPEGaudio_wgetbits9(self, l0);
-      sf->s[2][ 4]=MPEGaudio_wgetbits9(self, l0);
-      sf->s[0][ 5]=MPEGaudio_wgetbits9(self, l0);sf->s[1][ 5]=MPEGaudio_wgetbits9(self, l0);
-      sf->s[2][ 5]=MPEGaudio_wgetbits9(self, l0);
+      sf->s[0][ 0]=wgetbits9(l0);sf->s[1][ 0]=wgetbits9(l0);
+      sf->s[2][ 0]=wgetbits9(l0);
+      sf->s[0][ 1]=wgetbits9(l0);sf->s[1][ 1]=wgetbits9(l0);
+      sf->s[2][ 1]=wgetbits9(l0);
+      sf->s[0][ 2]=wgetbits9(l0);sf->s[1][ 2]=wgetbits9(l0);
+      sf->s[2][ 2]=wgetbits9(l0);
+      sf->s[0][ 3]=wgetbits9(l0);sf->s[1][ 3]=wgetbits9(l0);
+      sf->s[2][ 3]=wgetbits9(l0);
+      sf->s[0][ 4]=wgetbits9(l0);sf->s[1][ 4]=wgetbits9(l0);
+      sf->s[2][ 4]=wgetbits9(l0);
+      sf->s[0][ 5]=wgetbits9(l0);sf->s[1][ 5]=wgetbits9(l0);
+      sf->s[2][ 5]=wgetbits9(l0);
 
-      sf->s[0][ 6]=MPEGaudio_wgetbits9(self, l1);sf->s[1][ 6]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[2][ 6]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[0][ 7]=MPEGaudio_wgetbits9(self, l1);sf->s[1][ 7]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[2][ 7]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[0][ 8]=MPEGaudio_wgetbits9(self, l1);sf->s[1][ 8]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[2][ 8]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[0][ 9]=MPEGaudio_wgetbits9(self, l1);sf->s[1][ 9]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[2][ 9]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[0][10]=MPEGaudio_wgetbits9(self, l1);sf->s[1][10]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[2][10]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[0][11]=MPEGaudio_wgetbits9(self, l1);sf->s[1][11]=MPEGaudio_wgetbits9(self, l1);
-      sf->s[2][11]=MPEGaudio_wgetbits9(self, l1);
+      sf->s[0][ 6]=wgetbits9(l1);sf->s[1][ 6]=wgetbits9(l1);
+      sf->s[2][ 6]=wgetbits9(l1);
+      sf->s[0][ 7]=wgetbits9(l1);sf->s[1][ 7]=wgetbits9(l1);
+      sf->s[2][ 7]=wgetbits9(l1);
+      sf->s[0][ 8]=wgetbits9(l1);sf->s[1][ 8]=wgetbits9(l1);
+      sf->s[2][ 8]=wgetbits9(l1);
+      sf->s[0][ 9]=wgetbits9(l1);sf->s[1][ 9]=wgetbits9(l1);
+      sf->s[2][ 9]=wgetbits9(l1);
+      sf->s[0][10]=wgetbits9(l1);sf->s[1][10]=wgetbits9(l1);
+      sf->s[2][10]=wgetbits9(l1);
+      sf->s[0][11]=wgetbits9(l1);sf->s[1][11]=wgetbits9(l1);
+      sf->s[2][11]=wgetbits9(l1);
 
       sf->s[0][12]=sf->s[1][12]=sf->s[2][12]=0;
     }
@@ -445,44 +453,44 @@ MPEGaudio_layer3getscalefactors (MPEGaudio *self, int ch, int gr)
   {   /* LONG types 0,1,3 */
     if(gr==0)
     {
-      sf->l[ 0]=MPEGaudio_wgetbits9(self, l0);sf->l[ 1]=MPEGaudio_wgetbits9(self, l0);
-      sf->l[ 2]=MPEGaudio_wgetbits9(self, l0);sf->l[ 3]=MPEGaudio_wgetbits9(self, l0);
-      sf->l[ 4]=MPEGaudio_wgetbits9(self, l0);sf->l[ 5]=MPEGaudio_wgetbits9(self, l0);
-      sf->l[ 6]=MPEGaudio_wgetbits9(self, l0);sf->l[ 7]=MPEGaudio_wgetbits9(self, l0);
-      sf->l[ 8]=MPEGaudio_wgetbits9(self, l0);sf->l[ 9]=MPEGaudio_wgetbits9(self, l0);
-      sf->l[10]=MPEGaudio_wgetbits9(self, l0);
-      sf->l[11]=MPEGaudio_wgetbits9(self, l1);sf->l[12]=MPEGaudio_wgetbits9(self, l1);
-      sf->l[13]=MPEGaudio_wgetbits9(self, l1);sf->l[14]=MPEGaudio_wgetbits9(self, l1);
-      sf->l[15]=MPEGaudio_wgetbits9(self, l1);
-      sf->l[16]=MPEGaudio_wgetbits9(self, l1);sf->l[17]=MPEGaudio_wgetbits9(self, l1);
-      sf->l[18]=MPEGaudio_wgetbits9(self, l1);sf->l[19]=MPEGaudio_wgetbits9(self, l1);
-      sf->l[20]=MPEGaudio_wgetbits9(self, l1);
+      sf->l[ 0]=wgetbits9(l0);sf->l[ 1]=wgetbits9(l0);
+      sf->l[ 2]=wgetbits9(l0);sf->l[ 3]=wgetbits9(l0);
+      sf->l[ 4]=wgetbits9(l0);sf->l[ 5]=wgetbits9(l0);
+      sf->l[ 6]=wgetbits9(l0);sf->l[ 7]=wgetbits9(l0);
+      sf->l[ 8]=wgetbits9(l0);sf->l[ 9]=wgetbits9(l0);
+      sf->l[10]=wgetbits9(l0);
+      sf->l[11]=wgetbits9(l1);sf->l[12]=wgetbits9(l1);
+      sf->l[13]=wgetbits9(l1);sf->l[14]=wgetbits9(l1);
+      sf->l[15]=wgetbits9(l1);
+      sf->l[16]=wgetbits9(l1);sf->l[17]=wgetbits9(l1);
+      sf->l[18]=wgetbits9(l1);sf->l[19]=wgetbits9(l1);
+      sf->l[20]=wgetbits9(l1);
     }
     else
     {
       if(self->sideinfo.ch[ch].scfsi[0]==0)
       {
-	sf->l[ 0]=MPEGaudio_wgetbits9(self, l0);sf->l[ 1]=MPEGaudio_wgetbits9(self, l0);
-	sf->l[ 2]=MPEGaudio_wgetbits9(self, l0);sf->l[ 3]=MPEGaudio_wgetbits9(self, l0);
-	sf->l[ 4]=MPEGaudio_wgetbits9(self, l0);sf->l[ 5]=MPEGaudio_wgetbits9(self, l0);
+	sf->l[ 0]=wgetbits9(l0);sf->l[ 1]=wgetbits9(l0);
+	sf->l[ 2]=wgetbits9(l0);sf->l[ 3]=wgetbits9(l0);
+	sf->l[ 4]=wgetbits9(l0);sf->l[ 5]=wgetbits9(l0);
       }
       if(self->sideinfo.ch[ch].scfsi[1]==0)
       {
-	sf->l[ 6]=MPEGaudio_wgetbits9(self, l0);sf->l[ 7]=MPEGaudio_wgetbits9(self, l0);
-	sf->l[ 8]=MPEGaudio_wgetbits9(self, l0);sf->l[ 9]=MPEGaudio_wgetbits9(self, l0);
-	sf->l[10]=MPEGaudio_wgetbits9(self, l0);
+	sf->l[ 6]=wgetbits9(l0);sf->l[ 7]=wgetbits9(l0);
+	sf->l[ 8]=wgetbits9(l0);sf->l[ 9]=wgetbits9(l0);
+	sf->l[10]=wgetbits9(l0);
       }
       if(self->sideinfo.ch[ch].scfsi[2]==0)
       {
-	sf->l[11]=MPEGaudio_wgetbits9(self, l1);sf->l[12]=MPEGaudio_wgetbits9(self, l1);
-	sf->l[13]=MPEGaudio_wgetbits9(self, l1);sf->l[14]=MPEGaudio_wgetbits9(self, l1);
-	sf->l[15]=MPEGaudio_wgetbits9(self, l1);
+	sf->l[11]=wgetbits9(l1);sf->l[12]=wgetbits9(l1);
+	sf->l[13]=wgetbits9(l1);sf->l[14]=wgetbits9(l1);
+	sf->l[15]=wgetbits9(l1);
       }
       if(self->sideinfo.ch[ch].scfsi[3]==0)
       {
-	sf->l[16]=MPEGaudio_wgetbits9(self, l1);sf->l[17]=MPEGaudio_wgetbits9(self, l1);
-	sf->l[18]=MPEGaudio_wgetbits9(self, l1);sf->l[19]=MPEGaudio_wgetbits9(self, l1);
-	sf->l[20]=MPEGaudio_wgetbits9(self, l1);
+	sf->l[16]=wgetbits9(l1);sf->l[17]=wgetbits9(l1);
+	sf->l[18]=wgetbits9(l1);sf->l[19]=wgetbits9(l1);
+	sf->l[20]=wgetbits9(l1);
       }
     }
     sf->l[21]=sf->l[22]=0;
@@ -790,7 +798,7 @@ MPEGaudio_layer3huffmandecode (MPEGaudio *self, int ch, int gr, int out[SBLIMIT]
     if(h->treelen)
       while(i<end)
       {
-	huffmandecoder_1(h,&out[0][i],&out[0][i+1]);
+	METH(huffmandecoder_1)(self, h,&out[0][i],&out[0][i+1]);
 	i+=2;
       }
     else
@@ -804,7 +812,7 @@ MPEGaudio_layer3huffmandecode (MPEGaudio *self, int ch, int gr, int out[SBLIMIT]
 //  while(bitwindow.gettotalbit()<part2_3_end)
   while (Mpegbitwindow_gettotalbit(&(self->bitwindow)) < part2_3_end)
   {
-    huffmandecoder_2(h,&out[0][i+2],&out[0][i+3],
+    METH(huffmandecoder_2)(self, h,&out[0][i+2],&out[0][i+3],
 		     &out[0][i  ],&out[0][i+1]);
     i+=4;
 
@@ -833,7 +841,7 @@ MPEGaudio_layer3twopow2 (MPEGaudio *self, int scale, int preflag, int pretab_off
 }
 
 REAL
-MPEgaudio_layer3twopow2_1 (MPEGaudio *self, int a, int b, int c)
+MPEGaudio_layer3twopow2_1 (MPEGaudio *self, int a, int b, int c)
 {
   return POW2_1[a][b][c];
 }
@@ -859,7 +867,7 @@ MPEGaudio_layer3dequantizesample(MPEGaudio *self, int ch, int gr, int in[SBLIMIT
     {
       next_cb_boundary=sfBandIndex->l[(++cb)+1];
       factor=globalgain*
-	     layer3twopow2(gi->scalefac_scale,gi->preflag,
+	     METH(layer3twopow2)(self, gi->scalefac_scale,gi->preflag,
 			   pretab[cb],self->scalefactors[ch].l[cb]);
       for(;index<next_cb_boundary;)
       {
@@ -884,7 +892,7 @@ MPEGaudio_layer3dequantizesample(MPEGaudio *self, int ch, int gr, int in[SBLIMIT
 	register int count=cb_width;
 
 	factor=globalgain*
-	       layer3twopow2_1(gi->subblock_gain[k],gi->scalefac_scale,
+	       METH(layer3twopow2_1)(self, gi->subblock_gain[k],gi->scalefac_scale,
 			       self->scalefactors[ch].s[k][cb]);
 	do{
 	  out[0][index]=factor*TO_FOUR_THIRDS[in[0][index]];index++;
@@ -946,7 +954,7 @@ MPEGaudio_layer3dequantizesample(MPEGaudio *self, int ch, int gr, int in[SBLIMIT
 	}
       }
       /* LONG block types 0,1,3 & 1st 2 subbands of switched blocks */
-      out[0][index]*=layer3twopow2(gi->scalefac_scale,gi->preflag,
+      out[0][index]*=METH(layer3twopow2)(self, gi->scalefac_scale,gi->preflag,
 				   pretab[cb],self->scalefactors[ch].l[cb]);
     }
 
@@ -976,7 +984,7 @@ MPEGaudio_layer3dequantizesample(MPEGaudio *self, int ch, int gr, int in[SBLIMIT
       }
       {
 	int t_index=(index-cb_begin)/cb_width;
-	out[0][index]*=layer3twopow2_1(gi->subblock_gain[t_index],
+	out[0][index]*=METH(layer3twopow2_1)(self, gi->subblock_gain[t_index],
 				       gi->scalefac_scale,
 				       self->scalefactors[ch].s[t_index][cb]);
       }
@@ -1713,7 +1721,7 @@ MPEGaudio_extractlayer3 (MPEGaudio *self)
 
   if(self->version)
   {
-    extractlayer3_2();
+    METH(extractlayer3_2)(self);
     return;
   }
 
@@ -1722,9 +1730,9 @@ MPEGaudio_extractlayer3 (MPEGaudio *self)
     int bytes_to_discard;
     register int i;
 
-    layer3getsideinfo();
+    METH(layer3getsideinfo)(self);
 	 
-    if(issync())
+    if(MPEGaudio_issync(self))
     {
       for(i=self->layer3slots;i>0;i--)  // read main data.
 //	bitwindow.putbyte(getbyte());
@@ -1787,26 +1795,26 @@ MPEGaudio_extractlayer3 (MPEGaudio *self)
 
 //      layer3part2start=bitwindow.gettotalbit();
       self->layer3part2start=Mpegbitwindow_gettotalbit(&(self->bitwindow));
-      layer3getscalefactors (LS,gr);
-      layer3huffmandecode   (LS,gr      ,b1.is);
-      layer3dequantizesample(LS,gr,b1.is,b2.ro[LS]);
+      METH(layer3getscalefactors) (self, LS,gr);
+      METH(layer3huffmandecode)   (self, LS,gr      ,b1.is);
+      METH(layer3dequantizesample)(self, LS,gr,b1.is,b2.ro[LS]);
     if(self->inputstereo)
     {
       self->layer3part2start=Mpegbitwindow_gettotalbit(&(self->bitwindow));
-      layer3getscalefactors (RS,gr);
-      layer3huffmandecode   (RS,gr      ,b1.is);
-      layer3dequantizesample(RS,gr,b1.is,b2.ro[RS]);
+      METH(layer3getscalefactors) (self, RS,gr);
+      METH(layer3huffmandecode)   (self, RS,gr      ,b1.is);
+      METH(layer3dequantizesample)(self, RS,gr,b1.is,b2.ro[RS]);
     }
 
-    layer3fixtostereo(gr,b2.ro);   // b2.ro -> b2.lr
+    METH(layer3fixtostereo)(self, gr,b2.ro);   // b2.ro -> b2.lr
     
     self->currentprevblock^=1;
-      layer3reorderandantialias(LS,gr,b2.lr[LS],b1.hin[LS]);
-      layer3hybrid (LS,gr,b1.hin[LS],b2.hout[LS]);
+      METH(layer3reorderandantialias)(self, LS,gr,b2.lr[LS],b1.hin[LS]);
+      METH(layer3hybrid) (self, LS,gr,b1.hin[LS],b2.hout[LS]);
     if(self->outputstereo)
     {
-      layer3reorderandantialias(RS,gr,b2.lr[RS],b1.hin[RS]);
-      layer3hybrid (RS,gr,b1.hin[RS],b2.hout[RS]);
+      METH(layer3reorderandantialias)(self, RS,gr,b2.lr[RS],b1.hin[RS]);
+      METH(layer3hybrid) (self, RS,gr,b1.hin[RS],b2.hout[RS]);
 
       register int i=2*SSLIMIT*SBLIMIT-1;
       do{
@@ -1836,12 +1844,12 @@ MPEGaudio_extractlayer3 (MPEGaudio *self)
     }
 
     for(ss=0;ss<SSLIMIT;ss++)
-      subbandsynthesis(b2.hout[LS][ss],b2.hout[RS][ss]);
+      METH(subbandsynthesis)(self, b2.hout[LS][ss],b2.hout[RS][ss]);
   }
 }
 
 void
-MPEGaudio_extraclayer3_2 (MPEGaudio *self)
+MPEGaudio_extractlayer3_2 (MPEGaudio *self)
 {
   int ss;
   {
@@ -1849,9 +1857,9 @@ MPEGaudio_extraclayer3_2 (MPEGaudio *self)
     int bytes_to_discard;
     register int i;
 
-    layer3getsideinfo_2();
+    METH(layer3getsideinfo_2)(self);
 	 
-    if(issync())
+    if(MPEGaudio_issync(self))
     {
       for(i=self->layer3slots;i>0;i--)  // read main data.
 //	bitwindow.putbyte(getbyte());
@@ -1873,7 +1881,7 @@ MPEGaudio_extraclayer3_2 (MPEGaudio *self)
     if((flush_main=( Mpegbitwindow_gettotalbit(&(self->bitwindow)) & 0x7)))
     {
 //      bitwindow.forward(8-flush_main);
-      Mpegbitwindow_foward(&(self->bitwindow), 8-flush_main);
+      Mpegbitwindow_forward(&(self->bitwindow), 8-flush_main);
       main_data_end++;
     }
 
@@ -1909,27 +1917,27 @@ MPEGaudio_extraclayer3_2 (MPEGaudio *self)
 
 //      layer3part2start=bitwindow.gettotalbit();
       self->layer3part2start=Mpegbitwindow_gettotalbit(&(self->bitwindow));
-      layer3getscalefactors_2(LS);
-      layer3huffmandecode    (LS,0      ,b1.is);
-      layer3dequantizesample (LS,0,b1.is,b2.ro[LS]);
+      METH(layer3getscalefactors_2)(self, LS);
+      METH(layer3huffmandecode)    (self, LS,0      ,b1.is);
+      METH(layer3dequantizesample) (self, LS,0,b1.is,b2.ro[LS]);
     if(self->inputstereo)
     {
 //      layer3part2start=bitwindow.gettotalbit();
       self->layer3part2start=Mpegbitwindow_gettotalbit(&(self->bitwindow));
-      layer3getscalefactors_2(RS);
-      layer3huffmandecode    (RS,0      ,b1.is);
-      layer3dequantizesample (RS,0,b1.is,b2.ro[RS]);
+      METH(layer3getscalefactors_2)(self, RS);
+      METH(layer3huffmandecode)    (self, RS,0      ,b1.is);
+      METH(layer3dequantizesample) (self, RS,0,b1.is,b2.ro[RS]);
     }
 
-    layer3fixtostereo(0,b2.ro);          // b2.ro -> b2.lr
+    METH(layer3fixtostereo)(self, 0,b2.ro);          // b2.ro -> b2.lr
     
     self->currentprevblock^=1;
-      layer3reorderandantialias(LS,0,b2.lr[LS],b1.hin[LS]);
-      layer3hybrid (LS,0,b1.hin[LS],b2.hout[LS]);
+      METH(layer3reorderandantialias)(self, LS,0,b2.lr[LS],b1.hin[LS]);
+      METH(layer3hybrid) (self, LS,0,b1.hin[LS],b2.hout[LS]);
     if(self->outputstereo)
     {
-      layer3reorderandantialias(RS,0,b2.lr[RS],b1.hin[RS]);
-      layer3hybrid (RS,0,b1.hin[RS],b2.hout[RS]);
+      METH(layer3reorderandantialias)(self, RS,0,b2.lr[RS],b1.hin[RS]);
+      METH(layer3hybrid) (self, RS,0,b1.hin[RS],b2.hout[RS]);
 
       register int i=2*SSLIMIT*SBLIMIT-1;
       do{
@@ -1951,6 +1959,6 @@ MPEGaudio_extraclayer3_2 (MPEGaudio *self)
     }
 
     for(ss=0;ss<SSLIMIT;ss++)
-      subbandsynthesis(b2.hout[LS][ss],b2.hout[RS][ss]);
+      METH(subbandsynthesis)(self, b2.hout[LS][ss],b2.hout[RS][ss]);
   }
 }

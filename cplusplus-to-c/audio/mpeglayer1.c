@@ -15,6 +15,12 @@
 #pragma warning(disable: 4244 4305)
 #endif
 
+
+
+#define getbits(x) MPEGaudio_getbits(self, x)
+
+
+
 // Tables for layer 1
 static const REAL factortable[15] = 
 {

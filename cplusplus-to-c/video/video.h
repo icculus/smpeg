@@ -148,9 +148,12 @@ typedef Uint8 UINT8;
 /* Brown - changed to const int because it is a help variable */
 extern const int scan[][8];
 
+/* Temporary definition of time stamp structure. */
+typedef double TimeStamp;
+
 /* Structure with reconstructed pixel values. */
 
-struct pict_image {
+typedef struct pict_image {
 #ifdef USE_ATI
   struct vhar128_image *image;
 #else
@@ -162,13 +165,11 @@ struct pict_image {
   unsigned short int *mb_qscale;         /* macroblock info    */
   int locked;                            /* Lock flag.         */
   TimeStamp show_time;                   /* Presentation time. */
-};
-
-typedef struct pict_image PictImage;
+} PictImage;
 
 /* Group of pictures structure. */
 
-struct GoP {
+typedef struct GoP {
   BOOLEAN drop_flag;                     /* Flag indicating dropped frame. */
   unsigned int tc_hours;                 /* Hour component of time code.   */
   unsigned int tc_minutes;               /* Minute component of time code. */
@@ -179,13 +180,11 @@ struct GoP {
   BOOLEAN broken_link;                   /* B frame unable to be decoded.  */
   char *ext_data;                        /* Extension data.                */
   char *user_data;                       /* User data.                     */
-};
-
-typedef struct GoP GoP;
+} GoP;
 
 /* Picture structure. */
 
-struct pict {
+typedef struct pict {
   unsigned int temp_ref;                 /* Temporal reference.             */
   unsigned int code_type;                /* Frame type: P, B, I             */
   unsigned int vbv_delay;                /* Buffer delay.                   */
@@ -200,23 +199,19 @@ struct pict {
   char *extra_info;                      /* Extra bit picture info.         */
   char *ext_data;                        /* Extension data.                 */
   char *user_data;                       /* User data.                      */
-};
-
-typedef struct pict Pict;
+} Pict;
 
 /* Slice structure. */
 
-struct slice {
+typedef struct slice {
   unsigned int vert_pos;                 /* Vertical position of slice. */
   unsigned int quant_scale;              /* Quantization scale.         */
   char *extra_info;                      /* Extra bit slice info.       */
-};
-
-typedef struct slice Slice;
+} Slice;
 
 /* Macroblock structure. */
 
-struct macroblock {
+typedef struct macroblock {
   int mb_address;                        /* Macroblock address.              */
   int past_mb_addr;                      /* Previous mblock address.         */
   int motion_h_forw_code;                /* Forw. horiz. motion vector code. */
@@ -236,13 +231,11 @@ struct macroblock {
   int recon_down_for_prev;               /* Past down forw. vector.          */
   int recon_right_back_prev;             /* Past right back vector.          */
   int recon_down_back_prev;              /* Past down back vector.           */
-};
-
-typedef struct macroblock Macroblock;
+} Macroblock;
 
 /* Block structure. */
 
-struct block {
+typedef struct block {
 #ifdef USE_ATI
   long int dct_recon[6][130];            /* Reconstructed dct runs & levels */
 #else
@@ -251,13 +244,11 @@ struct block {
   short int dct_dc_y_past;               /* Past lum. dc dct coefficient.   */
   short int dct_dc_cr_past;              /* Past cr dc dct coefficient.     */
   short int dct_dc_cb_past;              /* Past cb dc dct coefficient.     */
-};
-
-typedef struct block Block;
+} Block;
 
 /* Video stream structure. */
 
-struct vid_stream {
+typedef struct vid_stream {
   unsigned int h_size;                         /* Horiz. size in pixels.     */
   unsigned int v_size;                         /* Vert. size in pixels.      */
   unsigned int mb_height;                      /* Vert. size in mblocks.     */
@@ -317,7 +308,7 @@ struct vid_stream {
   double _skipCount;
   int _jumpFrame;
   double _oneFrameTime;
-  MPEGvideo* _smpeg;
+  struct MPEGvideo* _smpeg;
 /* KR - end of added variables */
 
 /* SL - beginning of added variables for FPS calculation */
@@ -340,9 +331,7 @@ struct vid_stream {
   unsigned int ati_handle;
 #endif
 
-};
-
-typedef struct vid_stream VidStream;   
+} VidStream;   
 
 /* Declaration of global display pointer. */
 
