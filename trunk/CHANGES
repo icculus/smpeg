@@ -1,4 +1,6 @@
 0.4.0:
+Sam Lantinga - Sat Jun  3 20:13:42 PDT 2000
+ * Ported (easily) to BeOS
 Sam Lantinga - Sat Jun  3 19:40:41 PDT 2000
  * Added aggresive optimizations by default, use --enable-debug to disable
 Mo DeJong - Sat Jun  3 19:37:00 PDT 2000

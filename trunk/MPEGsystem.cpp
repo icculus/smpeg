@@ -401,8 +401,10 @@ MPEGsystem::MPEGsystem(int Mpeg_FD)
   timedrift = 0.0;
   skip_timestamp = -1;
   start_timestamp = -1;
+  system_thread_running = false;
+  system_thread = 0;
 
-  /* Search the MPEG for the next header */
+  /* Search the MPEG for the first header */
   if(!seek_first_header())
   {
     errorstream = true;
@@ -413,7 +415,6 @@ MPEGsystem::MPEGsystem(int Mpeg_FD)
   request = PRE_BUFFERED_MAX;
 
   /* Start the system thread */
-  system_thread_running = false;
   system_thread = SDL_CreateThread(SystemThread, this);
 
   /* Wait for the thread to start */
@@ -441,8 +442,11 @@ MPEGsystem::~MPEGsystem()
   MPEGstream ** list;
 
   /* Kill the system thread */
-  system_thread_running = false;
-  SDL_WaitThread(system_thread, NULL);
+  if(system_thread)
+  {
+    system_thread_running = false;
+    SDL_WaitThread(system_thread, NULL);
+  }
 
   /* Delete the streams */
   for(list = stream_list; *list; list ++)
@@ -477,7 +481,7 @@ void MPEGsystem::Read()
     /* Replace unread data at the beginning of the stream */
     memmove(read_buffer, pointer, remaining);
 
-#ifndef WIN32
+#ifdef unix
     /* Wait for new data */
     fd_set fdset;
     do {
@@ -638,18 +642,38 @@ header_size, packet_size, stream_id, stream_timestamp);
       else
       {
 	/* Check for next slice, picture, gop or sequence header */
-	for(; (packet_size <= read_buffer + read_size - pointer - 4) && 
-	      !(sequence_header(pointer+packet_size, read_buffer - pointer + read_size - packet_size, &frametime) ||
-		gop_header(pointer+packet_size, read_buffer - pointer + read_size - packet_size) ||
-		picture_header(pointer+packet_size, read_buffer - pointer + read_size - packet_size) ||
-		slice_header(pointer+packet_size, read_buffer - pointer + read_size - packet_size))
-	      ; packet_size++);
-	if(packet_size > read_buffer - pointer + read_size - 4)
-	{
-	  SetError("Could not find next video header\n");
-	  errorstream = true;
-	  return(0);
-	}
+	register Uint8 * p;
+	register Uint8 c;
+	
+	p = pointer + packet_size;
+      state0:
+	c = *p;
+	p++;
+	if(p >= read_buffer + read_size) goto end;
+	if(c != 0) goto state0;
+      state1:
+	c = *p;
+	p++;
+	if(p >= read_buffer + read_size) goto end;
+	if(c != 0) goto state0;
+      state2:
+	c = *p;
+	p++;
+	if(p >= read_buffer + read_size) goto end;
+	if(c == 0) goto state2;
+	if(c != 1) goto state0;
+      state3:
+	c = *p;
+	p++;
+	if(p >= read_buffer + read_size) goto end;
+	if(c <= 0xaf) goto end;
+	if(c == 0xb8) goto end;
+	if(c == 0xb3) goto end;
+	goto state0;
+      end:
+
+	if(p >= read_buffer + read_size) packet_size = read_size;
+	else packet_size = p - pointer - 4;
       }
 
       if(stream_id == SYSTEM_STREAMID)
@@ -795,7 +819,10 @@ Uint32 MPEGsystem::Tell()
   for(i = 0, t = 0; stream_list[i]; i++)
     t += stream_list[i]->pos;
 
-  return(t);
+  if(t > TotalSize())
+    return(TotalSize());
+  else
+    return(t);
 }
 
 Uint32 MPEGsystem::TotalSize()
@@ -805,24 +832,33 @@ Uint32 MPEGsystem::TotalSize()
 
   /* I made it this way (instead of fstat) to avoid #ifdef WIN32 everywhere */
   /* in case 'in some weird perversion of nature' someone wants to port this to Win32 :-) */
- if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) == (off_t) -1)
+  if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) == (off_t) -1)
   {
-    errorstream = true;
-    SetError(strerror(errno));
+    if(errno != ESPIPE)
+    {
+      errorstream = true;
+      SetError(strerror(errno));
+    }
     return(0);
   }
 
- if((size = lseek(mpeg_fd, 0, SEEK_END)) == (off_t) -1)
+  if((size = lseek(mpeg_fd, 0, SEEK_END)) == (off_t) -1)
   {
-    errorstream = true;
-    SetError(strerror(errno));  
+    if(errno != ESPIPE)
+    {
+      errorstream = true;
+      SetError(strerror(errno));  
+    }
     return(0);
   }
   
- if((pos = lseek(mpeg_fd, pos, SEEK_SET)) == (off_t) -1)
+  if((pos = lseek(mpeg_fd, pos, SEEK_SET)) == (off_t) -1)
   {
-    errorstream = true;
-    SetError(strerror(errno));  
+    if(errno != ESPIPE)
+    {
+      errorstream = true;
+      SetError(strerror(errno));  
+    }
     return(0);
   }
 
@@ -868,8 +904,8 @@ double MPEGsystem::Seek(int length)
   start_timestamp = -1;
   skip_timestamp = -1;
 
-  /* Get the first header */
-  if(!seek_first_header())
+  /* Get the next header */
+  if(!seek_next_header())
   {
     if(!Eof())
     {
@@ -921,7 +957,7 @@ int MPEGsystem::SystemThread(void * udata)
 {
   MPEGsystem * system = (MPEGsystem *) udata;
 
-#ifndef WIN32
+#ifdef unix
   /* Set low priority */
   nice(1);
 #endif
@@ -1086,14 +1122,10 @@ bool MPEGsystem::seek_next_header()
   if(Eof())
     return(false);
 
-  while(!( ((stream_list[0]->streamid == AUDIO_STREAMID) && audio_aligned(pointer, read_buffer + read_size - pointer)) ||
-	   ((stream_list[0]->streamid == SYSTEM_STREAMID) && system_aligned(pointer, read_buffer + read_size - pointer)) ||
-	   ((stream_list[0]->streamid == VIDEO_STREAMID) && (
-							     Match4(pointer, VIDEO_CODE, VIDEO_MASK) ||
-							     Match4(pointer, END_CODE, END_MASK) ||
-							     Match4(pointer, GOP_CODE, GOP_MASK) ||
-							     Match4(pointer, PICTURE_CODE, PICTURE_MASK)))
-	) )
+  while(!( (stream_list[0]->streamid == AUDIO_STREAMID && audio_aligned(pointer, read_buffer + read_size - pointer)) ||
+	   (stream_list[0]->streamid == SYSTEM_STREAMID && system_aligned(pointer, read_buffer + read_size - pointer)) ||
+	   (stream_list[0]->streamid == VIDEO_STREAMID && Match4(pointer, GOP_CODE, GOP_MASK))
+	 ) )
   {
        ++pointer;
        stream_list[0]->pos++;

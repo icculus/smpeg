@@ -119,6 +119,7 @@ void MPEGaudio::initialize()
   ring = NULL;
 #endif
   Rewind();
+  ResetSynchro(0);
 };
 
 
@@ -354,7 +355,8 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
 
     /* Increment the current play time (assuming fixed frag size) */
     switch (audio->frags_playing++) {
-#if 0 /* This is how it theoretically should work */
+      // Vivien: Well... the theorical way seems good to me :-)
+#if 1 /* This is how it theoretically should work */
         case 0:        /* The first audio buffer is being filled */
             break;
         case 1:        /* The first audio buffer is starting playback */

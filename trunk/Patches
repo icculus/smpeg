@@ -1,5 +1,385 @@
 *************************************************************************
 *** Applied ***
+Date: Sun, 04 Jun 2000 16:42:54 +0200
+From: Vivien Chappelier <vivien.chappelier@enst-bretagne.fr>
+Subject: Re: Buffering problems
+
+
+Daniel Vogel wrote:
+> starts playing a movie. Here the sound starts playing but the first few
+> frames of the movie get skipped... As this happens only in special
+cases
+> I guess we can live with that as long as it fixes the bug on Mike's box
+> upstairs.
+thanks for your debug log Daniel.
+
+Sam Lantinga wrote:
+> This is a bug, and I'm CC'ing the guys who implemented the buffering,
+so
+[...]
+> It looks like the buffering state isn't reset when you stop and then
+> start a movie.  To see this, try loading ab.mpg in gtv and then let it
+> play all the way through twice.
+>
+> It stops before showing the final frames of the boy sitting on the
+moon.
+
+The bug hunting was good this week-end :-)
+
+This patch fixes your bug and should fix Daniel's (Daniel: feedback
+please :-))
+It also includes the patch I sent to you on 28/05/2000 (fixed a crash
+when playing empty files, added current directory persistence in gtv).
+
+Here is the detail of what I did:
+        - check for the existence of the system thread before waiting for
+it to
+end, in ~MPEGsystem
+                * fixes crash when playing empty files
+        - kept the last visited directory in gtv
+
+        - wrote a much faster video-only frame splitter in
+MPEGsystem::FillBuffer()
+        - fixed TotalSize to report 0 on a pipe (and not to generate an
+error)
+        - forced MPEGsystem::Tell() to return current position <
+TotalSize
+                * fixes end skipping bug
+        This fix might sound weird, but actually there is no way of
+knowing
+*exactly* where we are, as the system layer is read in advance. Current
+position is defined as the sum of all the MPEGstream positions for
+now... if someone has a better idea, let me know.
+        - fixed seek_next_header/seek_first_header mess that caused hangs
+on
+video-only MPEGs (and maybe other)
+        - added initialization of the audio time in
+MPEGaudio::initialized()
+                * should fix start skipping bug
+        - reverted back to theorical audio play time instead of
+experimental in
+Play_MPEGaudio
+                * fixes synchro
+        I find synchro much better this way (actually ..perfect..), but
+you
+should test and tell me what you think of this compared to the
+experimental way. With streams I used to test, sound was slightly before
+video with the experimental way.
+        - fixed realTimeStart value setting in MPEGvideo::Play and
+MPEGvideo::Stop that caused smpeg to hang sometimes
+(video thought it was in advance and slept for a long long time :-( )
+
+> Great, thanks! :)
+
+You're welcome :-)
+ 
+> BTW, you, Daniel, and Manuel are going to get a big thank-you in the
+> release README. :)
+
+Hehe. And don't forget to also thank Metallica (especially Lars Ulrich)
+for their great help in fixing the synchro (drums are very nice for
+this) :-)
+
+see ya,
+Vivien
+
+diff -Naur smpeg/MPEG.cpp smpeg.patched/MPEG.cpp
+--- smpeg/MPEG.cpp	Fri May 26 20:04:52 2000
++++ smpeg.patched/MPEG.cpp	Sun Jun  4 13:09:05 2000
+@@ -158,11 +158,11 @@
+   system->Loop(toggle);
+ }
+ void MPEG::Play(void) {
+-  if ( VideoEnabled() ) {
+-    videoaction->Play();
+-  }
+   if ( AudioEnabled() ) {
+     audioaction->Play();
++  }
++  if ( VideoEnabled() ) {
++    videoaction->Play();
+   }
+ }
+ void MPEG::Stop(void) {
+diff -Naur smpeg/MPEGsystem.cpp smpeg.patched/MPEGsystem.cpp
+--- smpeg/MPEGsystem.cpp	Fri Jun  2 14:18:57 2000
++++ smpeg.patched/MPEGsystem.cpp	Sat Jun  3 14:44:14 2000
+@@ -401,8 +401,10 @@
+   timedrift = 0.0;
+   skip_timestamp = -1;
+   start_timestamp = -1;
++  system_thread_running = false;
++  system_thread = 0;
+ 
+-  /* Search the MPEG for the next header */
++  /* Search the MPEG for the first header */
+   if(!seek_first_header())
+   {
+     errorstream = true;
+@@ -413,7 +415,6 @@
+   request = PRE_BUFFERED_MAX;
+ 
+   /* Start the system thread */
+-  system_thread_running = false;
+   system_thread = SDL_CreateThread(SystemThread, this);
+ 
+   /* Wait for the thread to start */
+@@ -441,8 +442,11 @@
+   MPEGstream ** list;
+ 
+   /* Kill the system thread */
+-  system_thread_running = false;
+-  SDL_WaitThread(system_thread, NULL);
++  if(system_thread)
++  {
++    system_thread_running = false;
++    SDL_WaitThread(system_thread, NULL);
++  }
+ 
+   /* Delete the streams */
+   for(list = stream_list; *list; list ++)
+@@ -638,18 +642,38 @@
+       else
+       {
+ 	/* Check for next slice, picture, gop or sequence header */
+-	for(; (packet_size <= read_buffer + read_size - pointer - 4) && 
+-	      !(sequence_header(pointer+packet_size, read_buffer - pointer + read_size - packet_size, &frametime) ||
+-		gop_header(pointer+packet_size, read_buffer - pointer + read_size - packet_size) ||
+-		picture_header(pointer+packet_size, read_buffer - pointer + read_size - packet_size) ||
+-		slice_header(pointer+packet_size, read_buffer - pointer + read_size - packet_size))
+-	      ; packet_size++);
+-	if(packet_size > read_buffer - pointer + read_size - 4)
+-	{
+-	  SetError("Could not find next video header\n");
+-	  errorstream = true;
+-	  return(0);
+-	}
++	register Uint8 * p;
++	register Uint8 c;
++	
++	p = pointer + packet_size;
++      state0:
++	c = *p;
++	p++;
++	if(p >= read_buffer + read_size) goto end;
++	if(c != 0) goto state0;
++      state1:
++	c = *p;
++	p++;
++	if(p >= read_buffer + read_size) goto end;
++	if(c != 0) goto state0;
++      state2:
++	c = *p;
++	p++;
++	if(p >= read_buffer + read_size) goto end;
++	if(c == 0) goto state2;
++	if(c != 1) goto state0;
++      state3:
++	c = *p;
++	p++;
++	if(p >= read_buffer + read_size) goto end;
++	if(c <= 0xaf) goto end;
++	if(c == 0xb8) goto end;
++	if(c == 0xb3) goto end;
++	goto state0;
++      end:
++
++	if(p >= read_buffer + read_size) packet_size = read_size;
++	else packet_size = p - pointer - 4;
+       }
+ 
+       if(stream_id == SYSTEM_STREAMID)
+@@ -795,7 +819,10 @@
+   for(i = 0, t = 0; stream_list[i]; i++)
+     t += stream_list[i]->pos;
+ 
+-  return(t);
++  if(t > TotalSize())
++    return(TotalSize());
++  else
++    return(t);
+ }
+ 
+ Uint32 MPEGsystem::TotalSize()
+@@ -805,24 +832,33 @@
+ 
+   /* I made it this way (instead of fstat) to avoid #ifdef WIN32 everywhere */
+   /* in case 'in some weird perversion of nature' someone wants to port this to Win32 :-) */
+- if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) == (off_t) -1)
++  if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) == (off_t) -1)
+   {
+-    errorstream = true;
+-    SetError(strerror(errno));
++    if(errno != ESPIPE)
++    {
++      errorstream = true;
++      SetError(strerror(errno));
++    }
+     return(0);
+   }
+ 
+- if((size = lseek(mpeg_fd, 0, SEEK_END)) == (off_t) -1)
++  if((size = lseek(mpeg_fd, 0, SEEK_END)) == (off_t) -1)
+   {
+-    errorstream = true;
+-    SetError(strerror(errno));  
++    if(errno != ESPIPE)
++    {
++      errorstream = true;
++      SetError(strerror(errno));  
++    }
+     return(0);
+   }
+   
+- if((pos = lseek(mpeg_fd, pos, SEEK_SET)) == (off_t) -1)
++  if((pos = lseek(mpeg_fd, pos, SEEK_SET)) == (off_t) -1)
+   {
+-    errorstream = true;
+-    SetError(strerror(errno));  
++    if(errno != ESPIPE)
++    {
++      errorstream = true;
++      SetError(strerror(errno));  
++    }
+     return(0);
+   }
+ 
+@@ -868,8 +904,8 @@
+   start_timestamp = -1;
+   skip_timestamp = -1;
+ 
+-  /* Get the first header */
+-  if(!seek_first_header())
++  /* Get the next header */
++  if(!seek_next_header())
+   {
+     if(!Eof())
+     {
+@@ -1086,14 +1122,10 @@
+   if(Eof())
+     return(false);
+ 
+-  while(!( ((stream_list[0]->streamid == AUDIO_STREAMID) && audio_aligned(pointer, read_buffer + read_size - pointer)) ||
+-	   ((stream_list[0]->streamid == SYSTEM_STREAMID) && system_aligned(pointer, read_buffer + read_size - pointer)) ||
+-	   ((stream_list[0]->streamid == VIDEO_STREAMID) && (
+-							     Match4(pointer, VIDEO_CODE, VIDEO_MASK) ||
+-							     Match4(pointer, END_CODE, END_MASK) ||
+-							     Match4(pointer, GOP_CODE, GOP_MASK) ||
+-							     Match4(pointer, PICTURE_CODE, PICTURE_MASK)))
+-	) )
++  while(!( (stream_list[0]->streamid == AUDIO_STREAMID && audio_aligned(pointer, read_buffer + read_size - pointer)) ||
++	   (stream_list[0]->streamid == SYSTEM_STREAMID && system_aligned(pointer, read_buffer + read_size - pointer)) ||
++	   (stream_list[0]->streamid == VIDEO_STREAMID && Match4(pointer, GOP_CODE, GOP_MASK))
++	 ) )
+   {
+        ++pointer;
+        stream_list[0]->pos++;
+diff -Naur smpeg/audio/mpegtoraw.cpp smpeg.patched/audio/mpegtoraw.cpp
+--- smpeg/audio/mpegtoraw.cpp	Fri Jun  2 14:18:59 2000
++++ smpeg.patched/audio/mpegtoraw.cpp	Sun Jun  4 14:13:34 2000
+@@ -119,6 +119,7 @@
+   ring = NULL;
+ #endif
+   Rewind();
++  ResetSynchro(0);
+ };
+ 
+ 
+@@ -354,7 +355,8 @@
+ 
+     /* Increment the current play time (assuming fixed frag size) */
+     switch (audio->frags_playing++) {
+-#if 0 /* This is how it theoretically should work */
++      // Vivien: Well... the theorical way seems good to me :-)
++#if 1 /* This is how it theoretically should work */
+         case 0:        /* The first audio buffer is being filled */
+             break;
+         case 1:        /* The first audio buffer is starting playback */
+diff -Naur smpeg/gtv.c smpeg.patched/gtv.c
+--- smpeg/gtv.c	Fri Jun  2 14:18:59 2000
++++ smpeg.patched/gtv.c	Sat Jun  3 17:27:10 2000
+@@ -49,6 +49,7 @@
+ 
+ 
+ static int gtv_trackbar_dragging;
++static gchar * gtv_default_directory = 0;
+ 
+ static void gtv_fix_toggle_state( gpointer raw )
+ {
+@@ -140,6 +141,13 @@
+ 
+     if( filename ) {
+ 	gtv_open_file( filename, raw );
++	if( strrchr( filename, '/') )
++	{
++	  if( gtv_default_directory ) free( gtv_default_directory );
++	  gtv_default_directory = (gchar *) malloc( (strlen(filename) + 1) * sizeof(gchar) );
++	  strcpy( gtv_default_directory, filename);
++	  *(strrchr( gtv_default_directory, '/' ) + 1) = 0;
++	}
+     }
+ 
+     gtv_dialog_cleanup( raw );
+@@ -154,6 +162,8 @@
+ 			GTK_SIGNAL_FUNC( gtv_open_ok ), raw );
+     gtk_signal_connect( GTK_OBJECT( GTK_FILE_SELECTION( file_sel )->cancel_button ), "clicked",
+ 			GTK_SIGNAL_FUNC( gtv_dialog_cancel ), raw );
++    if( gtv_default_directory )
++      gtk_file_selection_complete( GTK_FILE_SELECTION( file_sel ), gtv_default_directory );
+     gtk_file_selection_hide_fileop_buttons( GTK_FILE_SELECTION( file_sel ) );
+ 
+     /* HACK HACK HACK */
+diff -Naur smpeg/video/MPEGvideo.cpp smpeg.patched/video/MPEGvideo.cpp
+--- smpeg/video/MPEGvideo.cpp	Fri May 26 20:05:05 2000
++++ smpeg.patched/video/MPEGvideo.cpp	Sun Jun  4 15:17:26 2000
+@@ -229,6 +229,8 @@
+ 	  mpeg->playing = false;
+         }
+     }
++    /* Get the time the playback stopped */
++    mpeg->_stream->realTimeStart -= ReadSysClock();
+ #ifdef TIME_MPEG
+     stop_time = SDL_GetTicks();
+     stop_frames = mpeg->_stream->totNumFrames;
+@@ -271,9 +273,6 @@
+         _thread = NULL;
+     }
+     ResetPause();
+-    if ( _stream ) {
+-        _stream->realTimeStart -= ReadSysClock();
+-    }
+ }
+ 
+ void
+@@ -287,12 +286,14 @@
+       init_stats();
+ #endif
+       /* Process start codes */
++      /* Vivien: seems unnecessary */
++#if 0
+       if( mpegVidRsrc( 0, _stream, 1 ) == NULL )
+       {
+ 	SetError("Not an MPEG video stream");
+ 	return;
+       }
+-      _stream->realTimeStart = 0.0;
++#endif
+     }
+ }
+ 
+diff -Naur smpeg/video/video.cpp smpeg.patched/video/video.cpp
+--- smpeg/video/video.cpp	Fri May 26 20:05:05 2000
++++ smpeg.patched/video/video.cpp	Sun Jun  4 14:44:41 2000
+@@ -795,6 +795,7 @@
+   vid->_skipFrame = 0;
+   vid->_skipCount = 0;
+   vid->_jumpFrame = -1;
++  vid->realTimeStart = 0;
+ 
+   /* Reset EOF_flag to 0 */
+   vid->EOF_flag = FALSE;
+*************************************************************************
+*** Applied ***
 Date: Sat, 27 May 2000 15:43:08 -0700
 From: Mo <mo@nospam.com>
 Subject: A bug, a patch, and a question.
