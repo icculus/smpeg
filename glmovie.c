@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <malloc.h>
 #include <string.h>
-#include <unistd.h>
+/*#include <unistd.h>*/
 #include "glmovie.h"
 
 static void glmpeg_update( SDL_Surface*, Sint32, Sint32, Uint32, Uint32 );
