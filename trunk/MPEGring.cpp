@@ -28,22 +28,13 @@
 #include "MPEGring.h"
 
 
-MPEG_ring:: MPEG_ring( Uint32 size, int count )
+MPEG_ring:: MPEG_ring( Uint32 size, Uint32 count )
 {
     Uint32 tSize;
 
     /* Set up the 'ring' pointer for all the old C code */
     ring = this;
 
-    /* Our thread waiting code assumes that the writer will not fill all
-       buffers within its timeslice, nor will the reader drain all buffers
-       within its timeslice.  If this happens, potential deadlock could
-       occur.
-       Set this value to the number of buffers that could be processed.
-     */
-    if ( count <= 1 ) {
-        fprintf(stderr, "MPRing: Potential deadlock - use more buffers!\n");
-    }
     tSize = (size + sizeof(Uint32)) * count;
     if( tSize )
         ring->begin = (Uint8 *) malloc( tSize );
@@ -56,11 +47,9 @@ MPEG_ring:: MPEG_ring( Uint32 size, int count )
         ring->read  = ring->begin;
         ring->write = ring->begin;
         ring->bufSize  = size;
-        ring->bufCount = count;
         
-        ring->readwait = SDL_CreateMutex();
-        SDL_mutexP(ring->readwait);
-        ring->read_waiting = 0;
+        ring->readwait = SDL_CreateSemaphore(0);
+        ring->writewait = SDL_CreateSemaphore(count);
     }
     else
     {
@@ -68,15 +57,13 @@ MPEG_ring:: MPEG_ring( Uint32 size, int count )
         ring->read  = 0;
         ring->write = 0;
         ring->bufSize  = 0;
-        ring->bufCount = 0;
 
         ring->readwait = 0;
-        ring->read_waiting = 0;
     }
 
-    ring->usedCount = 0;
-    ring->active = 1;
-    ring->reader_active = 0;
+    if ( ring->begin && ring->readwait && ring->writewait ) {
+        ring->active = 1;
+    }
 }
 
 /* Release any waiting threads on the ring so they can be cleaned up.
@@ -89,12 +76,19 @@ MPEG_ring:: ReleaseThreads( void )
     /* Let the threads know that the ring is now inactive */
     ring->active = 0;
 
-    /* Wait for the threads to get off of the ring */
-    while ( ring->reader_active ) {
-        if ( ring->reader_active ) {
-            SDL_mutexV(ring->readwait);
+    if ( ring->readwait ) {
+        while ( SDL_SemValue(ring->readwait) == 0 ) {
+            SDL_SemPost(ring->readwait);
         }
-        SDL_Delay(10);
+        SDL_DestroySemaphore( ring->readwait );
+        ring->readwait = 0;
+    }
+    if ( ring->writewait ) {
+        while ( SDL_SemValue(ring->writewait) == 0 ) {
+            SDL_SemPost(ring->writewait);
+        }
+        SDL_DestroySemaphore( ring->writewait );
+        ring->writewait = 0;
     }
 }
 
@@ -103,13 +97,8 @@ MPEG_ring:: ~MPEG_ring( void )
 {
     if( ring )
     {
-        /* Free up the mutexes */
+        /* Free up the semaphores */
         ReleaseThreads();
-        if( ring->readwait )
-        {
-            SDL_DestroyMutex( ring->readwait );
-            ring->readwait = 0;
-        }
 
         /* Free data buffer */
         if ( ring->begin ) {
@@ -127,10 +116,18 @@ MPEG_ring:: ~MPEG_ring( void )
 Uint8 *
 MPEG_ring:: NextWriteBuffer( void )
 {
-    if ( ring->active && (ring->usedCount < ring->bufCount) ) {
-        return( ring->write + sizeof(Uint32) );
+    Uint8 *buffer;
+
+    buffer = 0;
+    if ( ring->active ) {
+//printf("Waiting for write buffer (%d available)\n", SDL_SemValue(ring->writewait));
+        SDL_SemWait(ring->writewait);
+//printf("Finished waiting for write buffer\n");
+	if ( ring->active ) {
+            buffer = ring->write + sizeof(Uint32);
+        }
     }
-    return(NULL);
+    return buffer;
 }
 
 
@@ -151,13 +148,8 @@ MPEG_ring:: WriteDone( Uint32 len )
         {
             ring->write = ring->begin;
         }
-        ring->usedCount++;
-
-        if ( ring->read_waiting ) {
-//fprintf(stderr, "Allowing read thread to continue on ring %p\n", ring);
-            ring->read_waiting = 0;
-            SDL_mutexV(ring->readwait);
-        }
+//printf("Finished write buffer, making available for reads (%d+1 available for reads)\n", SDL_SemValue(ring->readwait));
+        SDL_SemPost(ring->readwait);
     }
 }
 
@@ -171,23 +163,20 @@ MPEG_ring:: WriteDone( Uint32 len )
 Uint32
 MPEG_ring:: NextReadBuffer( Uint8** buffer )
 {
-    if ( ring->active ) {
-        if ( ! ring->usedCount ) {
-            ring->read_waiting = 1;
-//fprintf(stderr, "Waiting for read buffers on ring %p\n", ring);
-            ring->reader_active = 1;
-            SDL_mutexP(ring->readwait);
-            ring->reader_active = 0;
-            if ( ! ring->active ) {
-                goto inactive;
-            }
-        }
+    Uint32 size;
 
-        *buffer = ring->read + sizeof(Uint32);
-        return( *((Uint32*) ring->read) );
+    size = 0;
+    if ( ring->active ) {
+        /* Wait for a buffer to become available */
+//printf("Waiting for read buffer (%d available)\n", SDL_SemValue(ring->readwait));
+        SDL_SemWait(ring->readwait);
+//printf("Finished waiting for read buffer\n");
+	if ( ring->active ) {
+            size = *((Uint32*) ring->read);
+            *buffer = ring->read + sizeof(Uint32);
+        }
     }
-inactive:
-    return(0);
+    return size;
 }
 
 /*
@@ -209,6 +198,8 @@ MPEG_ring:: ReadSome( Uint32 used )
         newlen = oldlen - used;
         memcpy(data, data+used, newlen);
         *((Uint32*) ring->read) = newlen;
+//printf("Reusing read buffer (%d+1 available)\n", SDL_SemValue(ring->readwait));
+        SDL_SemPost(ring->readwait);
     }
 }
 
@@ -227,7 +218,8 @@ MPEG_ring:: ReadDone( void )
         {
             ring->read = ring->begin;
         }
-        ring->usedCount--;
+//printf("Finished read buffer, making available for writes (%d+1 available for writes)\n", SDL_SemValue(ring->writewait));
+        SDL_SemPost(ring->writewait);
     }
 }
 
