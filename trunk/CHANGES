@@ -1,5 +1,7 @@
 
 0.3.3:
+Sam Lantinga - Mon Jan 17 19:52:32 PST 2000
+ * Updated for the new SDL mixer library release (1.0.3)
 Sam Lantinga - Tue Jan 11 16:17:50 PST 2000
  * Fixed so SMPEG compiles on stock RedHat 5.2 systems
 Stephane Peter, Sam Lantinga - Thu Jan  10 15:22:33 PST 2000
