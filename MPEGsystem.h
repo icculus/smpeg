@@ -67,6 +67,9 @@ public:
     bool seek_next_header();
 
 protected:
+    /* Run the loop to fill the stream buffers */
+    static bool SystemLoop(MPEGsystem *system);
+
     /* Fill a buffer */
     Uint8 FillBuffer();
 
