@@ -385,7 +385,8 @@ int Decode_MPEGaudio(void *udata)
     }
 
     audio->decoding = false;
-    audio->decode_thread = NULL;
+/* Patch to allow audio to loop infinitely */
+//    audio->decode_thread = NULL;
     return(0);
 }
 #endif /* THREADED_AUDIO */
