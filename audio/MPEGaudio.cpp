@@ -122,8 +122,12 @@ MPEGaudio:: ActualSpec(const SDL_AudioSpec *actual)
     if ( (actual->freq/100) == ((frequencies[version][frequency]/2)/100) ) {
         downfrequency = 1;
     } else if ( actual->freq != frequencies[version][frequency] ) {
+#ifdef VERBOSE_WARNINGS
         fprintf(stderr, "Warning: wrong audio frequency (wanted %d, got %d)\n",
 		frequencies[version][frequency], actual->freq);
+#else
+	;
+#endif
     }
 #if SDL_BYTEORDER == SDL_LIL_ENDIAN
     if ( actual->format != AUDIO_S16LSB)
