@@ -2,7 +2,7 @@
 noinst_LTLIBRARIES = libvideo.la
 
 libvideo_la_SOURCES =		\
-	MPEGvideo.cpp		\
+	MPEGvideo.c		\
 	decoders.cpp		\
 	decoders.h		\
 	dither.h		\

@@ -122,108 +122,117 @@ int qualityFlag = 0;
 
 /*--------------------------------------------------------------*/
 
-MPEGvideo::MPEGvideo(MPEGstream *stream)
+MPEGvideo *MPEGvideo_create(MPEGstream *stream)
 {
-    Uint32 start_code;
-    MPEGstream_marker *marker;
+    MPEGvideo *ret;
 
-    /* Set the MPEG data stream */
-    mpeg = stream;
-    time_source = NULL;
+    ret = (MPEGvideo *)malloc(sizeof(MPEGvideo));
 
-    /* Set default playback variables */
-    _thread = NULL;
-    _dst = NULL;
-    _mutex = NULL;
-    _stream = NULL;
+    if (ret) {
+        Uint32 start_code;
+        MPEGstream_marker *marker;
 
-    /* Mark the data to leave the stream unchanged */
-    /* after parsing */
-    marker = mpeg->new_marker(0);
+        ret->err = MPEGerror_create();
+        ret->action = MPEGvideoaction_create(parent, play, stop);
 
-    /* Get the width and height of the video */
-    start_code = mpeg->copy_byte();
-    start_code <<= 8;
-    start_code |= mpeg->copy_byte();
-    start_code <<= 8;
-    start_code |= mpeg->copy_byte();
-    while ( ! mpeg->eof() && (start_code != SEQ_START_CODE) ) {
-        start_code <<= 8;
-        start_code |= mpeg->copy_byte();
-    }
-    if ( start_code == SEQ_START_CODE ) {
-        Uint8 buf[4];
+        /* Set the MPEG data stream */
+        ret->mpeg = stream;
 
+        /* Set default playback variables */
+        ret->_thread = NULL;
+        ret->_dst = NULL;
+        ret->_mutex = NULL;
+        ret->_stream = NULL;
+
+        /* Mark the data to leave the stream unchanged */
+        /* after parsing */
+        marker = MPEGstream_new_marker(ret->mpeg, 0);
+    
         /* Get the width and height of the video */
-        mpeg->copy_data(buf, 4);
-        _w = (buf[0]<<4)|(buf[1]>>4);    /* 12 bits of width */
-        _h = ((buf[1]&0xF)<<8)|buf[2];   /* 12 bits of height */
-	switch(buf[3]&0xF)                /*  4 bits of fps */
-	{
-	  case 1: _fps = 23.97f; break;
-	  case 2: _fps = 24.00f; break;
-	  case 3: _fps = 25.00f; break;
-	  case 4: _fps = 29.97f; break;
-	  case 5: _fps = 30.00f; break;
-	  case 6: _fps = 50.00f; break;
-	  case 7: _fps = 59.94f; break;
-	  case 8: _fps = 60.00f; break;
-	  case 9: _fps = 15.00f; break;
-	  default: _fps = 30.00f; break;
-	}
-    } else {
-        _w = 0;
-        _h = 0;
-	_fps = 0.00;
-        SetError("Not a valid MPEG video stream");
+        start_code = MPEGstream_copy_byte(ret->mpeg);
+        start_code <<= 8;
+        start_code |= MPEGstream_copy_byte(ret->mpeg);
+        start_code <<= 8;
+        start_code |= MPEGstream_copy_byte(ret->mpeg);
+        while ( !MPEGstream_eof(ret->mpeg) && (start_code != SEQ_START_CODE) ) {
+            start_code <<= 8;
+            start_code |= MPEGstream_copy_byte(ret->mpeg);
+        }
+        if ( start_code == SEQ_START_CODE ) {
+            Uint8 buf[4];
+    
+            /* Get the width and height of the video */
+            MPEGstream_copy_data(ret->mpeg, buf, 4);
+            ret->_w = (buf[0] << 4)|(buf[1] >> 4);  /* 12 bits of width */
+            ret->_h = ((buf[1] & 0xF) << 8)|buf[2]; /* 12 bits of height */
+            switch(buf[3] & 0xF)                    /*  4 bits of fps */
+            {
+              case 1: ret->_fps = 23.97f; break;
+              case 2: ret->_fps = 24.00f; break;
+              case 3: ret->_fps = 25.00f; break;
+              case 4: ret->_fps = 29.97f; break;
+              case 5: ret->_fps = 30.00f; break;
+              case 6: ret->_fps = 50.00f; break;
+              case 7: ret->_fps = 59.94f; break;
+              case 8: ret->_fps = 60.00f; break;
+              case 9: ret->_fps = 15.00f; break;
+              default: ret->_fps = 30.00f; break;
+            }
+        } else {
+            ret->_w = 0;
+            ret->_h = 0;
+            ret->_fps = 0.00;
+            MPEGerror_SetError(ret->err, "Not a valid MPEG video stream");
+        }
+        /* Rewind back to the old position */
+        MPEGstream_seek_marker(ret->mpeg, marker);
+        MPEGstream_delete_marker(ret->mpeg, marker);
+
+        /* Keep original width and height in _ow and _oh */
+        ret->_ow = ret->_w;
+        ret->_oh = ret->_h;
+
+        /* Now round up width and height to a multiple   */
+        /* of a macroblock size (16 pixels) to keep the  */
+        /* video decoder happy */
+        ret->_w = (ret->_w + 15) & ~15;
+        ret->_h = (ret->_h + 15) & ~15;
+
+        /* Set the default playback area */
+        ret->_dstrect.x = 0;
+        ret->_dstrect.y = 0;
+        ret->_dstrect.w = 0;
+        ret->_dstrect.h = 0;
+
+        /* Set the source area */
+        ret->_srcrect.x = 0;
+        ret->_srcrect.y = 0;
+        ret->_srcrect.w = ret->_ow;
+        ret->_srcrect.h = ret->_oh;
+
+        ret->_image = 0;
+        ret->_filter = SMPEGfilter_null();
+        ret->_filter_mutex = SDL_CreateMutex();
+//	    printf("[MPEGvideo::MPEGvideo]_filter_mutex[%lx] = SDL_CreateMutex()\n",ret->_filter_mutex);
     }
-    /* Rewind back to the old position */
-    mpeg->seek_marker(marker);
-    mpeg->delete_marker(marker);
-
-    /* Keep original width and height in _ow and _oh */
-    _ow = _w;
-    _oh = _h;
-
-    /* Now round up width and height to a multiple   */
-    /* of a macroblock size (16 pixels) to keep the  */
-    /* video decoder happy */
-    _w = (_w + 15) & ~15;
-    _h = (_h + 15) & ~15;
-
-    /* Set the default playback area */
-    _dstrect.x = 0;
-    _dstrect.y = 0;
-    _dstrect.w = 0;
-    _dstrect.h = 0;
-
-    /* Set the source area */
-    _srcrect.x = 0;
-    _srcrect.y = 0;
-    _srcrect.w = _ow;
-    _srcrect.h = _oh;
-
-    _image = 0;
-    _filter = SMPEGfilter_null();
-    _filter_mutex = SDL_CreateMutex();
-//	printf("[MPEGvideo::MPEGvideo]_filter_mutex[%lx] = SDL_CreateMutex()\n",_filter_mutex);
+    return ret;
 }
 
-MPEGvideo:: ~MPEGvideo()
+void MPEGvideo_destroy(MPEGvideo *self)
 {
     /* Stop it before we free everything */
-    Stop();
+    MPEGvideo_Stop(self);
 
     /* Free actual video stream */
-    if( _stream )
-        DestroyVidStream( _stream );
+    if( self->_stream )
+        DestroyVidStream(self->_stream);
 
     /* Free overlay */
-    if(_image) SDL_FreeYUVOverlay(_image);
+    if(self->_image) SDL_FreeYUVOverlay(self->_image);
 
     /* Release filter */
-    SDL_DestroyMutex(_filter_mutex);
-    _filter->destroy(_filter);
+    SDL_DestroyMutex(self->_filter_mutex);
+    filter_destroy(self->_filter);
 }
 
 /* Simple thread play function */
@@ -250,7 +259,7 @@ int Play_MPEGvideo( void *udata )
         /* make sure we do a whole frame */
         while( (mark == mpeg->_stream->totNumFrames) && mpeg->playing )
         {
-            mpegVidRsrc( 0, mpeg->_stream, 0 );
+            mpegVidRsrc(0, mpeg->_stream, 0);
         }
 
         if( mpeg->_stream->film_has_ended )
@@ -273,104 +282,96 @@ int Play_MPEGvideo( void *udata )
     return(0);
 }
 
-void
-MPEGvideo:: Play(void)
+void MPEGvideo_Play(MPEGvideo *self)
 {
-    ResetPause();
-    if ( _stream ) {
-		if ( playing ) {
-			Stop();
-		}
-        playing = true;
+    MPEGaction_ResetPause(self->act);
+    if ( self->_stream ) {
+        if ( self->playing ) {
+            MPEGvideo_Stop(self);
+        }
+        self->playing = true;
 #ifdef PROFILE_VIDEO	/* Profiling doesn't work well with threads */
-		Play_MPEGvideo(this);
+        Play_MPEGvideo(self);
 #else
-        _thread = SDL_CreateThread( Play_MPEGvideo, this );
-        if ( !_thread ) {
-            playing = false;
+        self->_thread = SDL_CreateThread(Play_MPEGvideo, self);
+        if ( !self->_thread ) {
+            self->playing = false;
         }
 #endif
     }
 }
 
-void
-MPEGvideo:: Stop(void)
+void MPEGvideo_Stop(MPEGvideo *self)
 {
-    if ( _thread ) {
-        playing = false;
-        SDL_WaitThread(_thread, NULL);
-        _thread = NULL;
+    if ( self->_thread ) {
+        self->playing = false;
+        SDL_WaitThread(self->_thread, NULL);
+        self->_thread = NULL;
     }
-    ResetPause();
+    MPEGaction_ResetPause(self->act);
 }
 
-void
-MPEGvideo:: Rewind(void)
+void MPEGvideo_Rewind(MPEGvideo *self)
 {
-    Stop();
-    if ( _stream ) {
+    MPEGvideo_Stop(self);
+    if ( self->_stream ) {
       /* Reinitialize vid_stream pointers */
-      ResetVidStream( _stream );
+      ResetVidStream(self->_stream);
 #ifdef ANALYSIS 
       init_stats();
 #endif
     }
 }
 
-void
-MPEGvideo:: ResetSynchro(double time)
+void MPEGvideo_ResetSynchro(MPEGvideo *self, double time)
 {
-  if( _stream )
-  {
-    _stream->_jumpFrame = -1;
-    _stream->realTimeStart = -time;
-    play_time = time;
-    if (time > 0) {
-	double oneframetime;
-	if (_stream->_oneFrameTime == 0)
-		oneframetime = 1.0 / _stream->_smpeg->_fps;	
-	else
-		oneframetime = _stream->_oneFrameTime;
+    if( self->_stream ) {
+        self->_stream->_jumpFrame = -1;
+        self->_stream->realTimeStart = -time;
+        self->play_time = time;
+        if (time > 0) {
+            double oneframetime;
 
-	/* time -> frame */
-	_stream->totNumFrames = (int)(time / oneframetime);
-
-	/* Set Current Frame To 0 & Frame Adjust Frag Set */
-	_stream->current_frame = 0;
-	_stream->need_frameadjust=true;
+            if (self->_stream->_oneFrameTime == 0)
+                oneframetime = 1.0 / self->_stream->_smpeg->_fps;	
+            else
+                oneframetime = self->_stream->_oneFrameTime;
+            
+            /* time -> frame */
+            self->_stream->totNumFrames = (int)(time / oneframetime);
+            
+            /* Set Current Frame To 0 & Frame Adjust Frag Set */
+            self->_stream->current_frame = 0;
+            self->_stream->need_frameadjust = true;
+        }
     }
-  }
 }
 
-
-void
-MPEGvideo::Skip(float seconds)
+void MPEGvideo_Skip(MPEGvideo *self, float seconds)
 {
   int frame;
 
   /* Called only when there is no timestamp info in the MPEG */
   /* This is quite slow however */
   printf("Video: Skipping %f seconds...\n", seconds);  
-  frame = (int) (_fps * seconds);
+  frame = (int) (self->_fps * seconds);
 
-  if( _stream )
-  {
-    _stream->_jumpFrame = frame;
-    while( (_stream->totNumFrames < frame) &&
-	   ! _stream->film_has_ended )
+  if( self->_stream ) {
+    self->_stream->_jumpFrame = frame;
+    while( (self->_stream->totNumFrames < frame) &&
+           !self->_stream->film_has_ended )
     {
-      mpegVidRsrc( 0, _stream, 0 );
+      mpegVidRsrc(0, self->_stream, 0);
     }
-    ResetSynchro(0);
+    MPEGvideo_ResetSynchro(self, 0);
   }
 }
 
-	/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name in popcorn */
-MPEGstatus
-MPEGvideo:: GetStatus(void)
+/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name in popcorn */
+MPEGstatus MPEGvideo_GetStatus(MPEGvideo *self)
 {
-    if ( _stream ) {
-        if( !_thread || (_stream->film_has_ended ) ) {
+    if ( self->_stream ) {
+        if( !self->_thread || (self->_stream->film_has_ended ) ) {
             return MPEG_STOPPED;
         } else {
             return MPEG_PLAYING;
@@ -379,26 +380,25 @@ MPEGvideo:: GetStatus(void)
     return MPEG_ERROR;
 }
 
-bool
-MPEGvideo:: GetVideoInfo(MPEG_VideoInfo *info)
+bool MPEGvideo_GetVideoInfo(MPEGvideo *self, MPEG_VideoInfo *info)
 {
     if ( info ) {
-        info->width = _ow;
-        info->height = _oh;
-        if ( _stream ) {
-            info->current_frame = _stream->current_frame;
+        info->width = self->_ow;
+        info->height = self->_oh;
+        if ( self->_stream ) {
+            info->current_frame = self->_stream->current_frame;
 #ifdef CALCULATE_FPS
 
             /* Get the appropriate indices for the timestamps */
             /* Calculate the frames-per-second from the timestamps */
-            if ( _stream->frame_time[_stream->timestamp_index] ) {
+            if ( self->_stream->frame_time[self->_stream->timestamp_index] ) {
                 double *timestamps;
                 double  time_diff;
                 int this_index;
                 int last_index;
 
-                timestamps = _stream->frame_time;
-                last_index = _stream->timestamp_index;
+                timestamps = self->_stream->frame_time;
+                last_index = self->_stream->timestamp_index;
                 this_index = last_index - 1;
                 if ( this_index < 0 ) {
                     this_index = FPS_WINDOW-1;
@@ -409,15 +409,15 @@ MPEGvideo:: GetVideoInfo(MPEG_VideoInfo *info)
                 info->current_fps = 0.0;
             }
 #else
-            info->current_fps = _stream->totNumFrames /
-                                (ReadSysClock() - _stream->realTimeStart);
+            info->current_fps = self->_stream->totNumFrames /
+                                (ReadSysClock() - self->_stream->realTimeStart);
 #endif
         } else {
             info->current_frame = 0;
             info->current_fps = 0.0;
         }
     }
-    return(!WasError());
+    return(!MPEGerror_WasError(self->err));
 }
 
 /*
@@ -427,41 +427,39 @@ MPEGvideo:: GetVideoInfo(MPEG_VideoInfo *info)
    lock - lock is held while MPEG stream is playing
    callback - called on every frame, for display update
 */
-bool
-MPEGvideo:: SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
-                             MPEG_DisplayCallback callback)
+bool MPEGvideo_SetDisplay(MPEGvideo *self, SDL_Surface *dst, SDL_mutex *lock, MPEG_DisplayCallback callback)
 {
-    _mutex = lock;
-    _dst = dst;
-    _callback = callback;
-    if ( _image ) {
-      SDL_FreeYUVOverlay(_image);
+    self->_mutex = lock;
+    self->_dst = dst;
+    self->_callback = callback;
+    if ( self->_image ) {
+      SDL_FreeYUVOverlay(self->_image);
     }
-    _image = SDL_CreateYUVOverlay(_srcrect.w, _srcrect.h, SDL_YV12_OVERLAY, dst);
-    if ( !_dstrect.w || !_dstrect.h ) {
-        _dstrect.w = dst->w;
-        _dstrect.h = dst->h;
+    self->_image = SDL_CreateYUVOverlay(self->_srcrect.w, self->_srcrect.h, SDL_YV12_OVERLAY, dst);
+    if ( !self->_dstrect.w || !self->_dstrect.h ) {
+        self->_dstrect.w = dst->w;
+        self->_dstrect.h = dst->h;
     }
 
-    if ( !_stream ) {
+    if ( !self->_stream ) {
         decodeInitTables();
 
         InitCrop();
         InitIDCT();
 
-        _stream = NewVidStream( (unsigned int) BUF_LENGTH );
-        if( _stream ) {
-            _stream->_smpeg        = this;
-            _stream->ditherType    = FULL_COLOR_DITHER;
-            _stream->matched_depth = dst->format->BitsPerPixel;
+        self->_stream = NewVidStream((unsigned int) BUF_LENGTH);
+        if( self->_stream ) {
+            self->_stream->_smpeg        = self;
+            self->_stream->ditherType    = FULL_COLOR_DITHER;
+            self->_stream->matched_depth = dst->format->BitsPerPixel;
 
-            if( mpegVidRsrc( 0, _stream, 1 ) == NULL ) {
-                SetError("Not an MPEG video stream");
+            if( mpegVidRsrc( 0, self->_stream, 1 ) == NULL ) {
+                MPEGerror_SetError(self->err, "Not an MPEG video stream");
                 return false;
             }
         }
 
-        if ( ! InitPictImages(_stream, _w, _h, _dst) )
+        if ( ! InitPictImages(self->_stream, self->_w, self->_h, self->_dst) )
             return false;
     }
     return true;
@@ -471,129 +469,124 @@ MPEGvideo:: SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
 /* If this is being called during play, the calling program is responsible
    for clearing the old area and coordinating with the update callback.
 */
-void
-MPEGvideo:: MoveDisplay( int x, int y )
+void MPEGvideo_MoveDisplay(MPEGvideo *self, int x, int y)
 {
-    SDL_mutexP( _mutex );
-    _dstrect.x = x;
-    _dstrect.y = y;
-    SDL_mutexV( _mutex );
+    SDL_mutexP(self->_mutex);
+    self->_dstrect.x = x;
+    self->_dstrect.y = y;
+    SDL_mutexV(self->_mutex);
 }
 
-void
-MPEGvideo:: ScaleDisplayXY( int w, int h )
+void MPEGvideo_ScaleDisplayXY(MPEGvideo *self, int w, int h)
 {
-    SDL_mutexP( _mutex );
-    _dstrect.w = w;
-    _dstrect.h = h;
-    SDL_mutexV( _mutex );
+    SDL_mutexP(self->_mutex);
+    self->_dstrect.w = w;
+    self->_dstrect.h = h;
+    SDL_mutexV(self->_mutex);
 }
 
-void
-MPEGvideo:: SetDisplayRegion(int x, int y, int w, int h)
+void MPEGvideo_SetDisplayRegion(MPEGvideo *self, int x, int y, int w, int h)
 {
-    SDL_mutexP( _mutex );
-    _srcrect.x = x;
-    _srcrect.y = y;
-    _srcrect.w = w;
-    _srcrect.h = h;
+    SDL_mutexP(self->_mutex);
+    self->_srcrect.x = x;
+    self->_srcrect.y = y;
+    self->_srcrect.w = w;
+    self->_srcrect.h = h;
 
-    if(_image)
+    if(self->_image)
     {
-      SDL_FreeYUVOverlay(_image);
-      _image = SDL_CreateYUVOverlay(_srcrect.w, _srcrect.h, SDL_YV12_OVERLAY, _dst);
+      SDL_FreeYUVOverlay(self->_image);
+      self->_image = SDL_CreateYUVOverlay(self->_srcrect.w, self->_srcrect.h, SDL_YV12_OVERLAY, self->_dst);
     }
 
-    SDL_mutexV( _mutex );
+    SDL_mutexV(self->_mutex);
 }
 
 /* API CHANGE: This function no longer takes a destination surface and x/y
    You must use SetDisplay() and MoveDisplay() to set those attributes.
 */
-void
-MPEGvideo:: RenderFrame( int frame )
+void MPEGvideo_RenderFrame(MPEGvideo *self, int frame)
 {
-    _stream->need_frameadjust = true;
+    self->_stream->need_frameadjust = true;
 
-    if( _stream->current_frame > frame ) {
-        mpeg->rewind_stream();
-        mpeg->next_packet();
-        Rewind();
+    if( self->_stream->current_frame > frame ) {
+        MPEGstream_rewind_stream(self->mpeg);
+        MPEGstream_next_packet(self->mpeg);
+        MPEGvideo_Rewind(self);
     }
 
-    _stream->_jumpFrame = frame;
+    self->_stream->_jumpFrame = frame;
 
-    while( (_stream->current_frame < frame) &&
-           ! _stream->film_has_ended )
+    while( (self->_stream->current_frame < frame) &&
+           !self->_stream->film_has_ended )
     {
-        mpegVidRsrc( 0, _stream, 0 );
+        mpegVidRsrc(0, self->_stream, 0);
     }
 
-    _stream->_jumpFrame = -1;
+    self->_stream->_jumpFrame = -1;
 }
 
-void
-MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
+void MPEGvideo_RenderFinal(MPEGvideo *self, SDL_Surface *dst, int x, int y)
 {
     SDL_Surface *saved_dst;
     int saved_x, saved_y;
 
     /* This operation can only be performed when stopped */
-    Stop();
+    MPEGvideo_Stop(self);
 
     /* Set (and save) the destination and location */
-    saved_dst = _dst;
-    saved_x = _dstrect.x;
-    saved_y = _dstrect.y;
-    SetDisplay(dst, _mutex, _callback);
-    MoveDisplay(x, y);
+    saved_dst = self->_dst;
+    saved_x = self->_dstrect.x;
+    saved_y = self->_dstrect.y;
+    MPEGvideo_SetDisplay(self, dst, self->_mutex, self->_callback);
+    MPEGvideo_MoveDisplay(self, x, y);
 
-    if ( ! _stream->film_has_ended ) {
+    if ( !self->_stream->film_has_ended ) {
         /* Search for the last "group of pictures" start code */
         Uint32 start_code;
-        MPEGstream_marker * marker, * oldmarker;
+        MPEGstream_marker *marker, *oldmarker;
 
         marker = 0;
-        start_code = mpeg->copy_byte();
+        start_code = MPEGstream_copy_byte(self->mpeg);
         start_code <<= 8;
-        start_code |= mpeg->copy_byte();
+        start_code |= MPEGstream_copy_byte(self->mpeg);
         start_code <<= 8;
-        start_code |= mpeg->copy_byte();
+        start_code |= MPEGstream_copy_byte(self->mpeg);
 
-        while ( ! mpeg->eof() ) {
+        while ( ! MPEGstream_eof(self->mpeg) ) {
             start_code <<= 8;
-            start_code |= mpeg->copy_byte();
+            start_code |= MPEGstream_copy_byte(self->mpeg);
             if ( start_code == GOP_START_CODE ) {
 	          oldmarker = marker;
-        	  marker = mpeg->new_marker(-4);
-        	  if( oldmarker ) mpeg->delete_marker( oldmarker );
-       		  mpeg->garbage_collect();
+        	  marker = MPEGstream_new_marker(self->mpeg, -4);
+        	  if( oldmarker ) MPEGstream_delete_marker(self->mpeg, oldmarker);
+       		  MPEGstream_garbage_collect(self->mpeg);
             }
         }
 
         /* Set the stream to the last spot marked */
-        if ( ! mpeg->seek_marker( marker ) ) {
-            mpeg->rewind_stream();
-            mpeg->next_packet();
+        if ( ! MPEGstream_seek_marker(self->mpeg, marker) ) {
+            MPEGstream_rewind_stream(self->mpeg);
+            MPEGstream_next_packet(self->mpeg);
         }
 
-        mpeg->delete_marker( marker );
-        _stream->buf_length = 0;
-        _stream->bit_offset = 0;
+        MPEGstream_delete_marker(self->mpeg, marker);
+        self->_stream->buf_length = 0;
+        self->_stream->bit_offset = 0;
 
         /* Process all frames without displaying any */
-        _stream->_skipFrame = 1;
+        self->_stream->_skipFrame = 1;
 
-        RenderFrame( INT_MAX );
+        MPEGvideo_RenderFrame(self, INT_MAX);
 
-        mpeg->garbage_collect();
+        MPEGstream_garbage_collect(self->mpeg);
     }
 
     /* Display the frame */
-    DisplayFrame(_stream);
+    MPEGvideo_DisplayFrame(self, self->_stream);
 
     /* Restore the destination and location */
-    SetDisplay(saved_dst, _mutex, _callback);
+    SetDisplay(saved_dst, self->_mutex, self->_callback);
     MoveDisplay(saved_x, saved_y);
 }
 

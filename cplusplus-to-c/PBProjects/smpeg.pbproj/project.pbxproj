@@ -714,7 +714,7 @@
 		};
 		F8508D5F03AD9BF301A8000A = {
 			isa = PBXFileReference;
-			path = MPEGvideo.cpp;
+			path = MPEGvideo.c;
 			refType = 4;
 		};
 		F8508D6003AD9BF301A8000A = {

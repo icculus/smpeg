@@ -30,8 +30,6 @@
 #include "MPEGerror.h"
 #include "MPEGaction.h"
 
-class MPEGstream;
-
 /* This is the MPEG video stream structure in the mpeg_play code */
 struct vid_stream;
 typedef struct vid_stream VidStream;
@@ -40,56 +38,13 @@ typedef struct vid_stream VidStream;
 
 typedef double TimeStamp;
 
-class MPEGvideo : public MPEGerror, public MPEGvideoaction {
-
-    /* Thread to play the video asynchronously */
-    friend int Play_MPEGvideo(void *udata);
-
-    /* Various mpeg_play functions that need our data */
-    friend VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first );
-    friend int get_more_data( VidStream* vid_stream );
-
-public:
-    MPEGvideo(MPEGstream *stream);
-    virtual ~MPEGvideo();
-
-    /* MPEG actions */
-    void Play(void);
-    void Stop(void);
-    void Rewind(void);
-    void ResetSynchro(double time);
-     void Skip(float seconds);
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name in popcorn */
-    MPEGstatus GetStatus(void);
-
-    /* MPEG video actions */
-    bool GetVideoInfo(MPEG_VideoInfo *info);
-    bool SetDisplay(SDL_Surface *dst, pthread_mutex_t *lock,
-                                            MPEG_DisplayCallback callback);
-    void MoveDisplay(int x, int y);
-    void ScaleDisplayXY(int w, int h);
-    void SetDisplayRegion(int x, int y, int w, int h);
-    void RenderFrame(int frame);
-    void RenderFinal(SDL_Surface *dst, int x, int y);
-    SMPEG_Filter * Filter(SMPEG_Filter * filter);
-
-    /* Display and sync functions */
-    void DisplayFrame( VidStream* vid_stream );
-    void ExecuteDisplay( VidStream* vid_stream );
-    int timeSync( VidStream* vid_stream );
-
-    /* Yes, it's a hack.. */
-    MPEGaudioaction *TimeSource(void ) {
-        return time_source;
-    }
-
-protected:
+typedef struct {
     MPEGstream *mpeg;
 
-    VidStream* _stream;
-    SDL_Surface* _dst;
+    VidStream *_stream;
+    SDL_Surface *_dst;
     SDL_mutex *_mutex;
-    SDL_Thread* _thread;
+    SDL_Thread *_thread;
 
     MPEG_DisplayCallback _callback;
 
@@ -101,10 +56,51 @@ protected:
     SDL_Rect _dstrect;	// display area
     SDL_Overlay *_image;// source image
     float _fps;         // frames per second
-    SMPEG_Filter * _filter; // pointer to the current filter used
-    SDL_mutex* _filter_mutex; // make sure the filter is not changed while being used
-    
-    void RewindStream(void);
-};
+    SMPEG_Filter *_filter; // pointer to the current filter used
+    SDL_mutex *_filter_mutex; // make sure the filter is not changed while being used
+
+    MPEGerror *err;
+    MPEGvideoaction *act;
+} MPEGvideo;
+
+/* Thread to play the video asynchronously */
+int Play_MPEGvideo(void *udata);
+
+/* Various mpeg_play functions that need our data */
+VidStream *mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first );
+int get_more_data( VidStream* vid_stream );
+
+MPEGvideo *MPEGvideo_create(MPEGstream *stream);
+MPEGvideo *MPEGvideo_destroy(MPEGvideo *self);
+
+/* MPEG actions */
+void MPEGvideo_Play(MPEGvideo *self);
+void MPEGvideo_Stop(MPEGvideo *self);
+void MPEGvideo_Rewind(MPEGvideo *self);
+void MPEGvideo_ResetSynchro(MPEGvideo *self, double time);
+void MPEGvideo_Skip(MPEGvideo *self, float seconds);
+
+/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name in popcorn */
+MPEGstatus MPEGvideo_GetStatus(MPEGvideo *self);
+
+/* MPEG video actions */
+bool MPEGvideo_GetVideoInfo(MPEGvideo *self, MPEG_VideoInfo *info);
+bool MPEGvideo_SetDisplay(MPEGvideo *self, SDL_Surface *dst, pthread_mutex_t *lock, MPEG_DisplayCallback callback);
+void MPEGvideo_MoveDisplay(MPEGvideo *self, int x, int y);
+void MPEGvideo_ScaleDisplayXY(MPEGvideo *self, int w, int h);
+void MPEGvideo_SetDisplayRegion(MPEGvideo *self, int x, int y, int w, int h);
+void MPEGvideo_RenderFrame(MPEGvideo *self, int frame);
+void MPEGvideo_RenderFinal(MPEGvideo *self, SDL_Surface *dst, int x, int y);
+
+SMPEG_Filter *Filter(SMPEG_Filter * filter);
+
+/* Display and sync functions */
+void MPEGvideo_DisplayFrame( MPEGvideo *self, VidStream* vid_stream );
+void MPEGvideo_ExecuteDisplay( VidStream* vid_stream );
+int MPEGvideo_timeSync( VidStream* vid_stream );
+
+/* Yes, it's a hack.. */
+MPEGaudioaction *MPEGvideo_TimeSource(MPEGvideo *self);
+void RewindStream(void);
 
 #endif /* _MPEGVIDEO_H_ */
