@@ -92,6 +92,21 @@ SMPEG* SMPEG_new_data(void *data, int size, SMPEG_Info* info, int sdl_audio)
     return(mpeg);
 }
 
+SMPEG* SMPEG_new_rwops(SDL_RWops *src, SMPEG_Info* info, int sdl_audio)
+{
+    SMPEG *mpeg;
+
+    /* Create a new SMPEG object! */
+    mpeg = new SMPEG;
+    mpeg->obj = new MPEG(src, sdl_audio ? true : false);
+
+    /* Find out the details of the stream, if requested */
+    SMPEG_getinfo(mpeg, info);
+
+    /* We're done! */
+    return(mpeg);
+}
+
 /* Get current information about an SMPEG object */
 void SMPEG_getinfo( SMPEG* mpeg, SMPEG_Info* info )
 {

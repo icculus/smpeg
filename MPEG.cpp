@@ -18,58 +18,56 @@
 MPEG::MPEG(const char * name, bool Sdlaudio) :
   MPEGerror()
 {
-  int new_fd;
-
-  new_fd = open(name, O_RDONLY|O_BINARY);
-  close_fd = true;
-
-  if(new_fd == -1)
-  {
-    audio = NULL;
-    video = NULL;
-    system = NULL;
-    close_fd = false;
-    error = NULL;
-
-    audiostream = videostream = NULL;
-    audioaction = NULL;
-    videoaction = NULL;
-    audio = NULL;
-    video = NULL;
-    audioaction_enabled = videoaction_enabled = false;
-    loop = false;
-    pause = false;
-
-    SetError(strerror(errno));
-
+  SDL_RWops *source = SDL_RWFromFile(name,"r");
+  if (!source) {
+    InitErrorState();
+    SetError(SDL_GetError());
     return;
   }
-
-  Init(new_fd, Sdlaudio);
+  Init(source, Sdlaudio);
 }
 
 MPEG::MPEG(int Mpeg_FD, bool Sdlaudio) :
   MPEGerror()
 {
-  close_fd = false;
-  Init(Mpeg_FD, Sdlaudio);
+  // *** FIXME we're leaking a bit of memory for the FILE *
+  // best solution would be to have SDL_RWFromFD
+  FILE *file = fdopen(Mpeg_FD,"r");
+  if (!file) {
+    InitErrorState();
+    SetError(strerror(errno));
+    return;
+  }
+
+  SDL_RWops *source = SDL_RWFromFP(file,false);
+  if (!source) {
+    InitErrorState();
+    SetError(SDL_GetError());
+    return;
+  }
+  Init(source, Sdlaudio);
 }
 
 MPEG::MPEG(void *data, int size, bool Sdlaudio) :
   MPEGerror()
 {
-  close_fd = false;
-  Init(data, size, Sdlaudio);
+  SDL_RWops *temp_source = SDL_RWFromMem(data,size);
+  Init(temp_source, Sdlaudio);
 }
 
-void MPEG::Init(int Mpeg_FD, bool Sdlaudio)
+MPEG::MPEG(SDL_RWops *mpeg_source,bool sdlaudio = true) :
+  MPEGerror()
 {
-    mpeg_fd = Mpeg_FD;
+  Init(mpeg_source, sdlaudio);
+}
 
+void MPEG::Init(SDL_RWops *mpeg_source,bool Sdlaudio)
+{
+    source = mpeg_source;
     sdlaudio = Sdlaudio;
 
     /* Create the system that will parse the MPEG stream */
-    system = new MPEGsystem(Mpeg_FD);
+    system = new MPEGsystem(source);
 
     /* Initialize everything to invalid values for cleanup */
     error = NULL;
@@ -109,14 +107,10 @@ void MPEG::Init(int Mpeg_FD, bool Sdlaudio)
     }
 }
 
-void MPEG::Init(void *data, int size, bool Sdlaudio)
-{
-    sdlaudio = Sdlaudio;
-
-    /* Create the system that will parse the MPEG stream */
-    system = new MPEGsystem(data, size);
-
-    /* Initialize everything to invalid values for cleanup */
+void MPEG::InitErrorState() {
+    audio = NULL;
+    video = NULL;
+    system = NULL;
     error = NULL;
 
     audiostream = videostream = NULL;
@@ -127,31 +121,6 @@ void MPEG::Init(void *data, int size, bool Sdlaudio)
     audioaction_enabled = videoaction_enabled = false;
     loop = false;
     pause = false;
-
-    parse_stream_list();
-
-    EnableAudio(audioaction_enabled);
-    EnableVideo(videoaction_enabled);
-
-    if ( ! audiostream && ! videostream ) {
-      SetError("No audio/video stream found in MPEG");
-    }
-
-    if ( system && system->WasError() ) {
-      SetError(system->TheError());
-    }
-
-    if ( audio && audio->WasError() ) {
-      SetError(audio->TheError());
-    }
-
-    if ( video && video->WasError() ) {
-      SetError(video->TheError());
-    }
-
-    if ( WasError() ) {
-      SetError(TheError());
-    }
 }
 
 MPEG::~MPEG()
@@ -160,10 +129,8 @@ MPEG::~MPEG()
   if(video) delete video;
   if(audio) delete audio;
   if(system) delete system;
-
-  if ( close_fd && mpeg_fd ) {
-    close(mpeg_fd);
-  }
+  
+  SDL_RWclose(source);
 }
 
 bool MPEG::AudioEnabled(void) {
