@@ -1,5 +1,76 @@
 *************************************************************************
 *** Applied ***
+Date: Tue, 18 Apr 2000 22:27:25 +0900
+From: Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
+Subject: Re: layer2audio fix.
+
+[...]
+
+It is the modification of the problem about the synchronism 
+of the video and audio. 
+Video is a little delayed in about three minitues.
+29.97 fps video has problem.
+30.00 fps video not problem.
+
+As for the details, see a patch(rate.diff).
+
+#I am sorry in poor English. 
+
+extra. plaympeg.diff
+#plaympeg --printfps N videofile.mpg
+printing fps every N seconds.
+an average is output when a program is finished.
+
+Thanks.
+
+-----------------------------------------------
+Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
+
+diff -Nru smpeg.old/video/MPEGvideo.cpp smpeg/video/MPEGvideo.cpp
+--- smpeg.old/video/MPEGvideo.cpp	Sat Apr 15 05:31:15 2000
++++ smpeg/video/MPEGvideo.cpp	Tue Apr 18 21:20:20 2000
+@@ -165,9 +165,13 @@
+ 	  case 1: _fps = 23.97; break;
+ 	  case 2: _fps = 24.00; break;
+ 	  case 3: _fps = 25.00; break;
+-	  case 4: _fps = 29.90; break;
++	  case 4: _fps = 29.97; break;
+ 	  case 5: _fps = 30.00; break;
+-	  default: _fps = 0.00; break;
++	  case 6: _fps = 50.00; break;
++	  case 7: _fps = 59.94; break;
++	  case 8: _fps = 60.00; break;
++	  case 9: _fps = 15.00; break;
++	  default: _fps = 30.00; break;
+ 	}
+     } else {
+         _w = 0;
+diff -Nru smpeg.old/video/gdith.cpp smpeg/video/gdith.cpp
+--- smpeg.old/video/gdith.cpp	Tue Apr 11 23:22:53 2000
++++ smpeg/video/gdith.cpp	Tue Apr 18 21:18:25 2000
+@@ -85,7 +85,7 @@
+ /* Cheat on Vid rates, round to 30, and use 30 if illegal value 
+    Except for 9, where Xing means 15, and given their popularity, we'll
+    be nice and do it */
+-static int VidRateNum[16]={ 30, 24, 24, 25, 30, 30, 50, 60, 
++static double VidRateNum[16]={ 30, 23.97, 24, 25, 29.97, 30, 50, 59.94, 
+                             60, 15, 30, 30, 30, 30, 30, 30 };
+ 
+ #ifdef CALCULATE_FPS
+diff -Nru smpeg.old/video/video.h smpeg/video/video.h
+--- smpeg.old/video/video.h	Tue Apr 11 23:22:53 2000
++++ smpeg/video/video.h	Tue Apr 18 21:18:37 2000
+@@ -288,7 +288,7 @@
+   PictImage *ring[RING_BUF_SIZE];              /* Ring buffer of frames.     */
+ 
+ /* KR - beginning of added variables */
+-  int rate_deal;
++  double rate_deal;
+   int _skipFrame;
+   double _skipCount;
+   int _jumpFrame;
+*************************************************************************
+*** Applied ***
 Date: Thu, 06 Apr 2000 10:51:41 +0900
 From: Atsushi Yamagata <yamagata@plathome.co.jp>
 Subject: tiny patch for smpeg

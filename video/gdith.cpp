@@ -85,7 +85,7 @@ extern int framerate;
 /* Cheat on Vid rates, round to 30, and use 30 if illegal value 
    Except for 9, where Xing means 15, and given their popularity, we'll
    be nice and do it */
-static int VidRateNum[16]={ 30, 24, 24, 25, 30, 30, 50, 60, 
+static double VidRateNum[16]={ 30, 23.97, 24, 25, 29.97, 30, 50, 59.94, 
                             60, 15, 30, 30, 30, 30, 30, 30 };
 
 #ifdef CALCULATE_FPS

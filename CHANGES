@@ -1,4 +1,6 @@
 0.4.0:
+Hiroshi Yamashita - Tue Apr 18 15:48:14 PDT 2000
+ * Improved audio synchronization with longer movies (double rate_deal)
 Sam Lantinga - Fri Apr 14 13:21:51 PDT 2000
  * Added support for SDL asynchronous blitting
  * Added support for FPS printing - see TIME_MPEG in video/MPEGvideo.cpp
