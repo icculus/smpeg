@@ -672,4 +672,4 @@ IDCT_mmx:
 	.size	 IDCT_mmx,.Lfe1-IDCT_mmx
 
 
-#endif
+#endif /* i386 && USE_MMX */
