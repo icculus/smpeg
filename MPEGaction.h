@@ -71,7 +71,12 @@ protected:
 
 /* For getting info about the audio portion of the stream */
 typedef struct MPEG_AudioInfo {
-    int unused;
+    int mpegversion;
+    int mode;
+    int frequency;
+    int layer;
+    int bitrate;
+    int current_frame;
 } MPEG_AudioInfo;
 
 /* Audio action class */

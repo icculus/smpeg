@@ -65,6 +65,14 @@ void SMPEG_getinfo( SMPEG* mpeg, SMPEG_Info* info )
             info->has_audio = (mpeg->obj->mpeg->audiostream != NULL);
             if ( info->has_audio ) {
                 mpeg->obj->GetAudioInfo(&ainfo);
+		info->audio_current_frame = ainfo.current_frame;
+		snprintf(info->audio_string, sizeof(info->audio_string),
+		         "MPEG-%d Layer %d %dkbit/s %dHz %s",
+			 ainfo.mpegversion+1,
+			 ainfo.layer,
+			 ainfo.bitrate,
+			 ainfo.frequency,
+			 (ainfo.mode == 3) ? "mono" : "stereo");
             }
             info->has_video = (mpeg->obj->mpeg->videostream != NULL);
             if ( info->has_video ) {

@@ -1,9 +1,15 @@
+0.3.5:
+Hiroshi Yamashita - Mon Mar  6 07:48:35 PST 2000
+ * Added audio information to the MPEG info.
+ * Added support for videos starting with Video Start Code 0xe0 0xe2.
+ * Added a fix for FreeBSD to ltmain.sh
+
 0.3.4:
 Sam Lantinga - Fri Mar  3 13:40:43 PST 2000
- * Split RPM into runtime and development packages
- * Added smpeg-config script to tell where the development runtime is installed
+ * Split RPM into runtime and development packages.
+ * Added smpeg-config script to tell where the development runtime is installed.
 Sam Lantinga - Fri Mar  3 13:25:10 PST 2000
- * Fixed MP3 audio on big-endian systems
+ * Fixed MP3 audio on big-endian systems.
 Sam Lantinga - Wed Mar  1 07:02:17 PST 2000
  * The control panel for the gtv player is placed in the upper left.
 Sam Lantinga - Wed Mar  1 00:26:49 PST 2000

@@ -167,7 +167,7 @@ bool MPEGaudio::loadheader()
     c = mpeg->copy_byte() >> 1;
     padding = (c & 1);
     c >>= 1;
-    frequency = (_frequency) (c&2);
+    frequency = (_frequency) (c&3);
     c >>= 2;
     bitrateindex = (int) c;
     if( bitrateindex == 15 )
