@@ -54,7 +54,7 @@ struct MPEGsystem {
     double skip_timestamp;
 #endif
 
-    struct MPEGerror *MPEGerror;
+    struct MPEGerror *error;
 };
 
 typedef struct MPEGsystem MPEGsystem;
