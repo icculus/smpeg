@@ -1,4 +1,6 @@
 0.4.2:
+Sam Lantinga - Sat Dec  2 13:51:21 PST 2000
+ * Added --enable-threaded-system configure option (defaults off)
 Sam Lantinga - Sat Dec  2 13:40:33 PST 2000
  * Fixed end of stream detection
 Sam Lantinga - Sat Dec  2 11:36:50 PST 2000
