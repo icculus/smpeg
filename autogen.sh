@@ -1,5 +1,8 @@
 #!/bin/sh
 #
+
+set -e
+
 aclocal $ACLOCAL_FLAGS
 automake --foreign
 autoconf
