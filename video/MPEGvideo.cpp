@@ -377,6 +377,7 @@ MPEGvideo:: SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
     }
 
     InitCrop();
+    InitIDCT();
 
     _stream = NewVidStream( (unsigned int) BUF_LENGTH );
     //_stream = NewVidStream( /* 32K buffer size */ 32*1024 );

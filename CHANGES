@@ -1,4 +1,6 @@
 0.3.5:
+Sam Lantinga - Tue Mar  7 15:47:27 PST 2000
+ * Added MMX IDCT code donated by Martin Vogt <mvogt@rhrk.uni-kl.de>
 Hiroshi Yamashita - Mon Mar  6 07:48:35 PST 2000
  * Added audio information to the MPEG info.
  * Added support for videos starting with Video Start Code 0xe0 0xe2.

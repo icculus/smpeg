@@ -17,7 +17,9 @@ libvideo_la_SOURCES =		\
 	util.cpp		\
 	util.h			\
 	video.cpp		\
-	video.h
+	video.h			\
+	mmxflags_asm.S		\
+	mmxidct_asm.S
 
 EXTRA_DIST =			\
 	README			\
