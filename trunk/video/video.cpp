@@ -1022,20 +1022,9 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
 
     show_bits32(data);
 
-    /*
-    * Process according to start code (or parse macroblock if not a start code
-    * at all).
-    */
-
-    switch( data )
+    /* Check for end of file */
+    if(vid_stream->EOF_flag)
     {
-    case SEQ_END_CODE:
-    case 0x000001b9:   /*  handle ISO_11172_END_CODE too */
-
-#ifdef VERBOSE_DEBUG
-        printf("SEQ_END_CODE\n");
-#endif
-        flush_bits32;
         /* Display last frame if not looping */
 
 	if(!vid_stream->_smpeg->mpeg->is_looping())
@@ -1054,10 +1043,28 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
 #ifdef ANALYSIS
 	  PrintAllStats(vid_stream);
 #endif
+	  goto done;
 	}
+	else
+	  vid_stream->EOF_flag = 0;
+    }
+
+    /*
+    * Process according to start code (or parse macroblock if not a start code
+    * at all).
+    */
+
+    switch( data )
+    {
+    case SEQ_END_CODE:
+    case 0x000001b9:   /*  handle ISO_11172_END_CODE too */
+
+#ifdef VERBOSE_DEBUG
+        printf("SEQ_END_CODE\n");
+#endif
+        flush_bits32;
         goto done;
         break;
-
 
     case SEQ_START_CODE:
 

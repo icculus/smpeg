@@ -20,16 +20,21 @@ class MPEGsystem : public MPEGerror
 {
 public:
     MPEGsystem(int MPEG_Fd);
+    MPEGsystem(void *data, int size);
     virtual ~MPEGsystem();
 
     /* Buffered I/O functions */
     void RequestBuffer();
+    void Wait();
     Uint32 Tell();
     void Rewind();
     void Loop(bool toggle);
+    void Start();
+    void Stop();
     bool Eof() const;
     bool Seek(int length);
     Uint32 TotalSize();
+    double TotalTime();
 
     /* Skip "seconds" seconds */
     void Skip(double seconds);
@@ -71,6 +76,15 @@ protected:
     /* The system thread which fills the FIFO */
     static int SystemThread(void * udata);
 
+    struct {
+    	bool fromData;
+
+	int size;
+	int offset;
+
+	void *data;
+    } data_reader;
+
     int mpeg_fd;
 
     SDL_Thread * system_thread;
@@ -84,6 +98,8 @@ protected:
     Uint32 read_total;
     Uint32 packet_total;
     int request;
+    SDL_semaphore * request_wait;
+    SDL_mutex * system_mutex;
 
     bool endofstream;
     bool errorstream;

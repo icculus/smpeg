@@ -51,10 +51,12 @@ class MPEG : public MPEGerror
 public:
     MPEG(const char * name, bool sdlaudio = true);
     MPEG(int Mpeg_FD, bool sdlaudio = true);
+    MPEG(void *data, int size, bool sdlaudio = true);
     virtual ~MPEG();
 
     /* Initialize the MPEG */
     void MPEG::Init(int Mpeg_FD, bool Sdlaudio);
+    void MPEG::Init(void *data, int size, bool Sdlaudio);
 
     /* Enable/Disable audio and video */
     bool AudioEnabled(void);
@@ -70,9 +72,8 @@ public:
     void Pause(void);
     void Seek(int bytes);
     void Skip(float seconds);
-    Uint32 Tell();
-    Uint32 TotalSize();
     MPEGstatus Status(void);
+    void GetSystemInfo(MPEG_SystemInfo *info);
 
     /* MPEG audio actions */
     bool GetAudioInfo(MPEG_AudioInfo *info);

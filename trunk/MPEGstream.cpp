@@ -107,16 +107,11 @@ MPEGstream:: next_packet(bool recurse, bool update_timestamp)
   br->Unlock();
 
   /* No more buffer ? */
-  if(!br->Next())
+  while(!br->Next())
   {
-    int timeout = 3000;
-
-    /* Then ask the system to read a new buffer */
     SDL_mutexV(mutex);
     system->RequestBuffer();
-    while(!br->Next() && timeout--)
-      SDL_Delay(1);
-    if(timeout<=0) return(false);
+    system->Wait();
     SDL_mutexP(mutex);
   }
 
@@ -134,6 +129,7 @@ MPEGstream:: next_packet(bool recurse, bool update_timestamp)
 	/* Then ask the system to read a new buffer */
 	SDL_mutexV(mutex);
 	system->RequestBuffer();
+	system->Wait();
 	SDL_mutexP(mutex);
       }
 

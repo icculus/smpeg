@@ -648,6 +648,9 @@ int main(int argc, char *argv[])
         if ( info.total_size ) {
 	    printf("\tSize: %d\n", info.total_size);
         }
+        if ( info.total_time ) {
+	    printf("\tTotal time: %f\n", info.total_time);
+        }
 
         /* Set up video display if needed */
         if ( info.has_video && use_video ) {

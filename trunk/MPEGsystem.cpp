@@ -57,10 +57,10 @@ Uint8 const FULL_MASK[]         = { 0xff, 0xff, 0xff, 0xff };
 #define LG2_GRANULARITY 12
 #define READ_ALIGN(x) (((x) >> LG2_GRANULARITY) << LG2_GRANULARITY)
 
-/* This defines the maximum data that can be preread */
+/* This defines the maximum number of buffers that can be preread */
 /* It is to prevent filling the whole memory with buffers on systems */
 /* where read is immediate such as in the case of files */
-#define PRE_BUFFERED_MAX (256 * 1024)
+#define MPEG_BUFFER_MAX 16
 
 /* Timeout before read fails */
 #define READ_TIME_OUT 1000000
@@ -103,6 +103,23 @@ static inline bool Match4(Uint8 const code1[4], Uint8 const code2[4], Uint8 cons
 	  ((code1[1] & mask[1]) == (code2[1] & mask[1])) &&
 	  ((code1[2] & mask[2]) == (code2[2] & mask[2])) &&
 	  ((code1[3] & mask[3]) == (code2[3] & mask[3])) );
+}
+
+static inline double read_time_code(Uint8 *pointer)
+{ 
+  double timestamp;
+  Uint8 hibit; Uint32 lowbytes;
+
+  hibit = (pointer[0]>>3)&0x01;
+  lowbytes = (((Uint32)pointer[0] >> 1) & 0x03) << 30;
+  lowbytes |= (Uint32)pointer[1] << 22;
+  lowbytes |= ((Uint32)pointer[2] >> 1) << 15;
+  lowbytes |= (Uint32)pointer[3] << 7;
+  lowbytes |= ((Uint32)pointer[4]) >> 1;
+  timestamp = (double)hibit*FLOAT_0x10000*FLOAT_0x10000+(double)lowbytes;
+  timestamp /= STD_SYSTEM_CLOCK_FREQ;
+
+  return timestamp;
 }
 
 /* Return true if there is a valid audio header at the beginning of pointer */
@@ -163,12 +180,12 @@ static inline Uint32 sequence_header(Uint8 * pointer, Uint32 size, double * _fra
   Uint32 header_size;
 
   header_size = 0;
-  if((header_size+=4) >= size) return(header_size);
+  if((header_size+=4) >= size) return(0);
   if(!Match4(pointer, VIDEO_CODE, VIDEO_MASK)) 
     return(0); /* Not a sequence start code */
   
   /* Parse the sequence header information */
-  if((header_size+=8) >= size) return(header_size);
+  if((header_size+=8) >= size) return(0);
   switch(pointer[7]&0xF)                /*  4 bits of fps */
   {
     case 1: frametime = 1/23.97; break;
@@ -189,17 +206,24 @@ static inline Uint32 sequence_header(Uint8 * pointer, Uint32 size, double * _fra
 }
 
 /* Return true if there is a valid gop header at the beginning of pointer */
-static inline Uint32 gop_header(Uint8 * pointer, Uint32 size)
+static inline Uint32 gop_header(Uint8 * pointer, Uint32 size, double * timestamp)
 {
   Uint32 header_size;
+  Uint32 hour, min, sec, frame;
 
   header_size = 0;
-  if((header_size+=4) >= size) return(header_size);
+  if((header_size+=4) >= size) return(0);
   if(!Match4(pointer, GOP_CODE, GOP_MASK)) 
     return(0); /* Not a gop start code */
   
   /* Parse the gop header information */
-  if((header_size+=4) >= size) return(header_size);
+  hour = (pointer[4] >> 2) & 31;
+  min = ((pointer[4] & 3) << 4) | ((pointer[5] >> 4) & 15);
+  sec = ((pointer[5] & 7) << 3) | ((pointer[6] >> 5) & 7);
+  frame = ((pointer[6] & 31) << 1) | ((pointer[7] >> 7) & 1);
+  if((header_size+=4) >= size) return(0);
+
+  if(timestamp) *timestamp = sec + 60.*min + 3600.*hour;
   
   return(header_size); /* gop header size */
 }
@@ -210,13 +234,13 @@ static inline Uint32 picture_header(Uint8 * pointer, Uint32 size)
   Uint32 header_size;
 
   header_size = 0;
-  if((header_size+=4) >= size) return(header_size);
+  if((header_size+=4) >= size) return(0);
 
   if(!Match4(pointer, PICTURE_CODE, PICTURE_MASK)) 
     return(0); /* Not a picture start code */
   
   /* Parse the picture header information */
-  if((header_size+=4) >= size) return(header_size);
+  if((header_size+=4) >= size) return(0);
   
   return(header_size); /* picture header size */
 }
@@ -227,29 +251,12 @@ static inline Uint32 slice_header(Uint8 * pointer, Uint32 size)
   Uint32 header_size;
 
   header_size = 0;
-  if((header_size+=4) >= size) return(header_size);
+  if((header_size+=4) >= size) return(0);
   if(!(Match4(pointer, SLICE_CODE, SLICE_MASK) && 
        pointer[3] >= 0x01 && pointer[3] <= 0xaf)) 
     return(0); /* Not a slice start code */
   
   return(header_size); /* slice header size */
-}
-
-static inline double read_time_code(Uint8 *pointer)
-{ 
-  double timestamp;
-  Uint8 hibit; Uint32 lowbytes;
-
-  hibit = (pointer[0]>>3)&0x01;
-  lowbytes = (((Uint32)pointer[0] >> 1) & 0x03) << 30;
-  lowbytes |= (Uint32)pointer[1] << 22;
-  lowbytes |= ((Uint32)pointer[2] >> 1) << 15;
-  lowbytes |= (Uint32)pointer[3] << 7;
-  lowbytes |= ((Uint32)pointer[4]) >> 1;
-  timestamp = (double)hibit*FLOAT_0x10000*FLOAT_0x10000+(double)lowbytes;
-  timestamp /= STD_SYSTEM_CLOCK_FREQ;
-
-  return timestamp;
 }
 
 /* Return true if there is a valid packet header at the beginning of pointer */
@@ -259,12 +266,12 @@ static inline Uint32 packet_header(Uint8 * pointer, Uint32 size, double * _times
   Uint32 header_size;
 
   header_size = 0;
-  if((header_size+=4) >= size) return(header_size);
+  if((header_size+=4) >= size) return(0);
   if(!Match4(pointer, PACKET_CODE, PACKET_MASK)) 
     return(0); /* Not a packet start code */
 
   /* Parse the packet information */
-  if((header_size+=8) >= size) return(header_size);
+  if((header_size+=8) >= size) return(0);
   timestamp = read_time_code(pointer+4);
 
   if(_timestamp) *_timestamp = timestamp;
@@ -280,7 +287,7 @@ static inline Uint32 stream_header(Uint8 * pointer, Uint32 size, Uint32 * _packe
   double stream_timestamp;
 
   header_size = 0;
-  if((header_size += 4) >= size) return(header_size); 
+  if((header_size += 4) >= size) return(0); 
 
   if(!Match4(pointer, SYSTEMSTREAM_CODE, SYSTEMSTREAM_MASK) &&
      !Match4(pointer, AUDIOSTREAM_CODE, AUDIOSTREAM_MASK) &&
@@ -292,19 +299,19 @@ static inline Uint32 stream_header(Uint8 * pointer, Uint32 size, Uint32 * _packe
   stream_id = pointer[3];
 
   pointer += 4;
-  if((header_size += 2) >= size) return(header_size); 
+  if((header_size += 2) >= size) return(0); 
   packet_size = (((unsigned short) pointer[0] << 8) | pointer[1]);
   pointer += 2;
 
   /* Skip stuffing bytes */
   while ( pointer[0] == 0xff ) {
       ++pointer;
-      if((++header_size) >= size) return(header_size); 
+      if((++header_size) >= size) return(0); 
       --packet_size;
   }
   if ( (pointer[0] & 0x40) == 0x40 ) {
       pointer += 2;
-      if((header_size += 2) >= size) return(header_size); 
+      if((header_size += 2) >= size) return(0); 
       packet_size -= 2;
   }
   if ( (pointer[0] & 0x20) == 0x20 ) {
@@ -313,11 +320,11 @@ static inline Uint32 stream_header(Uint8 * pointer, Uint32 size, Uint32 * _packe
       /* we don't care about DTS */
       if ( (pointer[0] & 0x30) == 0x30 ){
 	pointer += 5;
-	if((header_size += 5) >= size) return(header_size); 
+	if((header_size += 5) >= size) return(0); 
 	packet_size -= 5;
       }
       pointer += 4;
-      if((header_size += 4) >= size) return(header_size); 
+      if((header_size += 4) >= size) return(0); 
       packet_size -= 4;
   }
   else if ( pointer[0] != 0x0f && pointer[0] != 0x80)
@@ -325,7 +332,7 @@ static inline Uint32 stream_header(Uint8 * pointer, Uint32 size, Uint32 * _packe
   else
       stream_timestamp = -1;
     
-  if((++header_size) >= size) return(header_size); 
+  if((++header_size) >= size) return(0); 
   --packet_size;
 
   if(_packet_size) *_packet_size = packet_size;
@@ -357,16 +364,18 @@ Uint32 skip_zeros(Uint8 * pointer, Uint32 size)
   Uint32 header_size;
   Uint8 const one[4]  = {0x00,0x00,0x00,0x01};
 
+  if(!size) return(0);
+
   header_size = 0;
   while(Match4(pointer, ZERO_CODE, FULL_MASK))
   {
     pointer++;
-    if((++header_size) >= size - 4) return(header_size); 
+    if((++header_size) >= size - 4) return(0); 
 
     if(Match4(pointer, one, FULL_MASK))
     {
       pointer++;
-      if((++header_size) >= size - 4) return(header_size); 
+      if((++header_size) >= size - 4) return(0); 
     }
   }
   return(header_size);
@@ -378,6 +387,16 @@ MPEGsystem::MPEGsystem(int Mpeg_FD)
 
   /* Create a new buffer for reading */
   read_buffer = new Uint8[MPEG_BUFFER_SIZE];
+
+  /* Create a mutex to avoid concurrent access to the stream */
+  system_mutex = SDL_CreateMutex();
+
+  /*
+     We are not being passed data, so we don't need to simulate
+     file access.  Might something like MikMod's abstraction of
+     read/seek/tell be appropriate?
+   */
+  data_reader.fromData = false;
 
   /* Invalidate the read buffer */
   pointer = read_buffer;
@@ -411,8 +430,8 @@ MPEGsystem::MPEGsystem(int Mpeg_FD)
     SetError("Could not find the beginning of MPEG data\n");
     return;
   }
-
-  request = PRE_BUFFERED_MAX;
+  
+  request_wait = SDL_CreateSemaphore(0);
 
   /* Start the system thread */
   system_thread = SDL_CreateThread(SystemThread, this);
@@ -421,32 +440,96 @@ MPEGsystem::MPEGsystem(int Mpeg_FD)
   while(!system_thread_running && !Eof())
     SDL_Delay(1);
 
-  /* Wait for prebuffering */
-  while(request > 0 && !Eof())
+  /* Look for streams */
+  do
+  {
+    RequestBuffer();
+    Wait();
+  }
+  while(!exist_stream(VIDEO_STREAMID, 0xF0) &&
+	!exist_stream(AUDIO_STREAMID, 0xF0) &&
+	!Eof());
+}
+
+MPEGsystem::MPEGsystem(void *data, int size)
+{
+  /* Create a new buffer for reading */
+  read_buffer = new Uint8[MPEG_BUFFER_SIZE];
+
+  /* 
+     Our argument list indicates that we are being passed data, 
+     so we copy it and setup the data_reader data structure.
+    */
+  data_reader.fromData = true;
+  data_reader.data = malloc(size);
+  data_reader.size = size;
+  data_reader.offset = 0;
+
+  memcpy(data_reader.data, data, size);
+
+  /* Invalidate the read buffer */
+  pointer = read_buffer;
+  read_size = 0;
+  read_total = 0;
+  packet_total = 0;
+  endofstream = errorstream = false;
+  looping = false;
+  frametime = 0.0;
+  stream_timestamp = 0.0;
+
+  /* Create an empty stream list */
+  stream_list = 
+    (MPEGstream **) malloc(sizeof(MPEGstream *));
+  stream_list[0] = 0;
+
+  /* Create the system stream and add it to the list */
+  if(!get_stream(SYSTEM_STREAMID))
+    add_stream(new MPEGstream(this, SYSTEM_STREAMID));
+
+  timestamp = 0.0;
+  timedrift = 0.0;
+  skip_timestamp = -1;
+  system_thread_running = false;
+  system_thread = 0;
+
+  /* Search the MPEG for the first header */
+  if(!seek_first_header())
+  {
+    errorstream = true;
+    SetError("Could not find the beginning of MPEG data\n");
+    return;
+  }
+  
+  request_wait = SDL_CreateSemaphore(0);
+
+  /* Start the system thread */
+  system_thread = SDL_CreateThread(SystemThread, this);
+
+  /* Wait for the thread to start */
+  while(!system_thread_running && !Eof())
     SDL_Delay(1);
 
   /* Look for streams */
   do
+  {
     RequestBuffer();
+    Wait();
+  }
   while(!exist_stream(VIDEO_STREAMID, 0xF0) &&
 	!exist_stream(AUDIO_STREAMID, 0xF0) &&
 	!Eof());
-
-  /* Wait for prebuffering */
-  while(request > 0 && !Eof())
-    SDL_Delay(1);
 }
+
 
 MPEGsystem::~MPEGsystem()
 {
   MPEGstream ** list;
 
   /* Kill the system thread */
-  if(system_thread)
-  {
-    system_thread_running = false;
-    SDL_WaitThread(system_thread, NULL);
-  }
+  Stop();
+
+  SDL_DestroySemaphore(request_wait);
+  SDL_DestroyMutex(system_mutex);
 
   /* Delete the streams */
   for(list = stream_list; *list; list ++)
@@ -465,6 +548,9 @@ void MPEGsystem::Read()
   int remaining;
   int timeout;
 
+  /* Lock to prevent concurrent access to the stream */
+  SDL_mutexP(system_mutex);
+
   timeout = READ_TIME_OUT;
   remaining = read_buffer + read_size - pointer;
 
@@ -475,35 +561,56 @@ void MPEGsystem::Read()
     {
       /* Hum.. we'd better stop if we have already read past the buffer size */
       errorstream = true;
+      SDL_mutexV(system_mutex);
       return;
     }
 
     /* Replace unread data at the beginning of the stream */
     memmove(read_buffer, pointer, remaining);
 
-#ifdef unix
-    /* Wait for new data */
-    fd_set fdset;
-    do {
-       FD_ZERO(&fdset);
-       FD_SET(mpeg_fd, &fdset);
-    } while ( select(mpeg_fd+1, &fdset, NULL, NULL, NULL) < 0 );
-#endif
+    if(data_reader.fromData == true)
+    {
+      /*
+         We were initialized from a chunk of data, so we simulate
+	 the read call
+       */
 
-    /* Read new data */
-    read_size = 
-      read(mpeg_fd, read_buffer + remaining, 
-	   READ_ALIGN(MPEG_BUFFER_SIZE - remaining));
+       int size = READ_ALIGN(MPEG_BUFFER_SIZE - remaining);
+       char *frombuf = (char *) data_reader.data;
+
+       if(data_reader.offset > data_reader.size)
+       {
+         read_size = 0;
+       }
+       else 
+       {
+         if(data_reader.offset + size > data_reader.size)
+         {
+           size = data_reader.size - data_reader.offset;
+         }
+
+         frombuf += data_reader.offset;
+
+         memcpy(read_buffer + remaining, frombuf, size);
+
+         data_reader.offset += size;
+         read_size = size;
+       }
+    } else {
+       read_size = read(mpeg_fd,
+                        read_buffer + remaining, 
+                        READ_ALIGN(MPEG_BUFFER_SIZE - remaining));
+    }
 
     if(read_size < 0)
     {
       perror("Read");
       errorstream = true;
+      SDL_mutexV(system_mutex);
       return;
     }
     
     read_total += read_size;
-    request -= read_size;
 
     packet_total ++;
 
@@ -512,23 +619,26 @@ void MPEGsystem::Read()
       if(read_size != 0)
       {
 	errorstream = true;
+	SDL_mutexV(system_mutex);
 	return;
       }
     }
 
     read_size += remaining;
 
+    /* Move the pointer */
+    pointer = read_buffer;  
+
     if(read_size == 0)
     {
       /* There is no more data */
       endofstream = true;
+      SDL_mutexV(system_mutex);
       return;
     }
-
-    /* Move the pointer */
-    pointer = read_buffer;  
   }
 
+  SDL_mutexV(system_mutex);
 }
 
 /* ASSUME: stream_list[0] = system stream */
@@ -542,8 +652,11 @@ Uint8 MPEGsystem::FillBuffer()
   /* - Read a new packet - */
   Read();
 
-  if(Eof()) 
+  if(Eof())
+  {
+    RequestBuffer();
     return(0);
+  }
 
   pointer += skip_zeros(pointer, read_buffer + read_size - pointer); 
 
@@ -600,7 +713,7 @@ header_size, packet_size, stream_id, stream_timestamp);
       }
 
       /* GOP header */
-      while((header_size = gop_header(pointer+packet_size, read_buffer + read_size - pointer - packet_size)) != 0)
+      while((header_size = gop_header(pointer+packet_size, read_buffer + read_size - pointer - packet_size, 0)) != 0)
       {
 	packet_size += header_size; 
 #ifdef DEBUG_SYSTEM
@@ -692,12 +805,16 @@ header_size, packet_size, stream_id, stream_timestamp);
 	pointer++;
 	stream_list[0]->pos++;
 	seek_next_header();
+	RequestBuffer();
 	return(0);
     }
   }
 
   if(Eof())
+  {
+    RequestBuffer();
     return(0);
+  }
 
   assert(packet_size <= MPEG_BUFFER_SIZE);
 
@@ -713,7 +830,7 @@ header_size, packet_size, stream_id, stream_timestamp);
     stream_list[0]->pos += packet_size;
     /* since we skip data, request more */
     RequestBuffer();
-    return (1);
+    return (0);
   }
 
   switch(stream_id)
@@ -722,7 +839,8 @@ header_size, packet_size, stream_id, stream_timestamp);
       /* Unknown stream, just get another packet */
       pointer += packet_size;
       stream_list[0]->pos += packet_size;
-    return(stream_id);
+      RequestBuffer();
+    return(0);
 
     case SYSTEM_STREAMID:
       /* System header */
@@ -751,6 +869,7 @@ header_size, packet_size, stream_id, stream_timestamp);
 	  add_stream(new MPEGstream(this, VIDEO_STREAMID));
 	}
       }
+      RequestBuffer();
     return(stream_id);
 
     default:
@@ -782,6 +901,7 @@ header_size, packet_size, stream_id, stream_timestamp);
 	  /* No stream found for packet, skip it */
 	  pointer += packet_size;
 	  stream_list[0]->pos += packet_size;
+	  RequestBuffer();
 	  return(stream_id);
 	}
       }
@@ -829,6 +949,18 @@ Uint32 MPEGsystem::TotalSize()
   Uint32 size;
   Uint32 pos;
 
+  if(data_reader.fromData == true)
+  {
+    /*
+       we are using simulated data access routines, so we know in advance
+       what the size is.
+     */
+    return data_reader.size;
+  }
+
+  /* Lock to avoid concurrent access to the stream */
+  SDL_mutexP(system_mutex);
+
   /* I made it this way (instead of fstat) to avoid #ifdef WIN32 everywhere */
   /* in case 'in some weird perversion of nature' someone wants to port this to Win32 :-) */
   if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) == (off_t) -1)
@@ -838,6 +970,7 @@ Uint32 MPEGsystem::TotalSize()
       errorstream = true;
       SetError(strerror(errno));
     }
+    SDL_mutexV(system_mutex);
     return(0);
   }
 
@@ -848,6 +981,7 @@ Uint32 MPEGsystem::TotalSize()
       errorstream = true;
       SetError(strerror(errno));  
     }
+    SDL_mutexV(system_mutex);
     return(0);
   }
   
@@ -858,10 +992,191 @@ Uint32 MPEGsystem::TotalSize()
       errorstream = true;
       SetError(strerror(errno));  
     }
+    SDL_mutexV(system_mutex);
     return(0);
   }
 
+  SDL_mutexV(system_mutex);
   return(size);
+}
+
+double MPEGsystem::TotalTime()
+{
+  Uint32 size, pos;
+  Uint32 file_ptr;
+  Uint8 * buffer, * p;
+  Uint8 c;
+  double time;
+
+  /* Lock to avoid concurrent access to the stream */
+  SDL_mutexP(system_mutex);
+
+  /* Save current position */
+  if(data_reader.fromData == true) {
+	  /* from data, no lseek needed */
+	  pos = data_reader.offset;
+  } else {
+	  if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) == (off_t) -1)
+	  {
+	    if(errno != ESPIPE)
+	    {
+	      errorstream = true;
+	      SetError(strerror(errno));
+	    }
+	    SDL_mutexV(system_mutex);
+	    return(false);
+	  }
+  }
+  file_ptr = 0;
+  buffer = new Uint8[MPEG_BUFFER_SIZE];
+
+  /* If audio, compute total time according to bitrate of the first header and total size */
+  /* Note: this doesn't work on variable bitrate streams */
+  if(stream_list[0]->streamid == AUDIO_STREAMID)
+  {
+    do
+    {
+      if(data_reader.fromData == true) {
+	      data_reader.offset += file_ptr;
+	      size = data_reader.offset;
+      }
+      else {
+	      if((size = lseek(mpeg_fd, file_ptr, SEEK_SET)) == (off_t) -1)
+	      {
+		if(errno != ESPIPE)
+		{
+		  errorstream = true;
+		  SetError(strerror(errno));  
+		}
+		SDL_mutexV(system_mutex);
+		return(false);
+	      }
+      }
+    
+      if(data_reader.fromData == true) {
+	      char *dataptr = (char *) data_reader.data;
+	      int size = MPEG_BUFFER_SIZE;
+
+	      if(data_reader.offset + size > data_reader.size) {
+		      size = data_reader.size - data_reader.offset;
+	      }
+
+	      dataptr += size;
+
+	      memcpy(buffer, dataptr, size);
+
+	      data_reader.offset += size;
+      } else {
+        if(read(mpeg_fd, buffer, MPEG_BUFFER_SIZE) < 0) break;
+      }
+
+      /* Search for a valid audio header */
+      for(p = buffer; p < buffer + MPEG_BUFFER_SIZE; p++)
+	if(audio_aligned(p, buffer + MPEG_BUFFER_SIZE - p)) break;
+    
+      file_ptr += MPEG_BUFFER_SIZE;
+    }
+    while(p >= MPEG_BUFFER_SIZE + buffer);
+
+    /* Extract time info from the first header */
+    Uint32 framesize;
+    double frametime;
+    Uint32 totalsize;
+
+    audio_header(p, &framesize, &frametime);
+    totalsize = TotalSize();
+    if(framesize)
+      time = frametime * totalsize / framesize;
+    else
+      time = 0;
+  }
+  else
+  {
+    do
+    {
+    /* Otherwise search the stream backwards for a valid header */
+      file_ptr -= MPEG_BUFFER_SIZE;
+      
+      if(data_reader.fromData == true) {
+	      data_reader.offset = data_reader.size - file_ptr;
+	      size = data_reader.offset;
+      } else {
+	      if((size = lseek(mpeg_fd, file_ptr, SEEK_END)) == (off_t) -1)
+	      {
+		if(errno != ESPIPE)
+		{
+		  errorstream = true;
+		  SetError(strerror(errno));  
+		}
+		SDL_mutexV(system_mutex);
+		return(false);
+	      }
+      }
+      
+      if(data_reader.fromData == true) {
+        char *dataptr = (char *) data_reader.data;
+
+        dataptr += data_reader.offset;
+
+        memcpy(buffer, dataptr, MPEG_BUFFER_SIZE);
+
+        data_reader.offset += MPEG_BUFFER_SIZE;
+      } else {
+        if(read(mpeg_fd, buffer, MPEG_BUFFER_SIZE) < 0) break;
+      }
+      
+      if(stream_list[0]->streamid == SYSTEM_STREAMID)
+	for(p = buffer + MPEG_BUFFER_SIZE - 1; p >= buffer;)
+	{
+	  if(*p-- != 0xba) continue; // Packet header
+	  if(*p-- != 1) continue;
+	  if(*p-- != 0) continue;
+	  if(*p-- != 0) continue;
+	  break;
+	}
+      if(stream_list[0]->streamid == VIDEO_STREAMID)
+	for(p = buffer + MPEG_BUFFER_SIZE - 1; p >= buffer;)
+	{
+	  if(*p-- != 0xb8) continue; // GOP header
+	  if(*p-- != 1) continue;
+	  if(*p-- != 0) continue;
+	  if(*p-- != 0) continue;
+	  break;
+	}
+    }
+    while(p < buffer);
+
+    p++;
+
+    /* Extract time info from the last header */
+    if(stream_list[0]->streamid == SYSTEM_STREAMID)
+      packet_header(p, buffer + MPEG_BUFFER_SIZE - p, &time);
+    
+    if(stream_list[0]->streamid == VIDEO_STREAMID)
+      gop_header(p, buffer + MPEG_BUFFER_SIZE - p, &time);
+  }
+
+  delete buffer;
+
+  if(data_reader.fromData == true) {
+      data_reader.offset = pos;
+  } else {
+      /* Get back to saved position */
+      if((pos = lseek(mpeg_fd, pos, SEEK_SET)) == (off_t) -1)
+      {
+        if(errno != ESPIPE)
+        {
+          errorstream = true;
+          SetError(strerror(errno));  
+        }
+        SDL_mutexV(system_mutex);
+        return(0);
+      }
+  }
+
+  SDL_mutexV(system_mutex);
+
+  return(time);
 }
 
 void MPEGsystem::Rewind()
@@ -871,24 +1186,25 @@ void MPEGsystem::Rewind()
 
 bool MPEGsystem::Seek(int length)
 {
-  request = 0;
+  /* Stop the system thread */
+  Stop();
 
-  /* Force the system thread to die */
-  system_thread_running = false;
-  SDL_WaitThread(system_thread, NULL);
-
-  /* Reset the streams */
-  reset_all_streams();
-
-  /* Get into the stream */
-  if(lseek(mpeg_fd, length, SEEK_SET) == (off_t) -1)
-  {
-    if(errno != ESPIPE)
+  /* Lock to avoid concurrent access to the stream */
+  SDL_mutexP(system_mutex);
+  
+  if(data_reader.fromData == true) {
+    data_reader.offset = length;
+  } else {
+    /* Get into the stream */
+    if(lseek(mpeg_fd, length, SEEK_SET) == (off_t) -1)
     {
-      errorstream = true;
-      SetError(strerror(errno));
+      if(errno != ESPIPE)
+      {
+        errorstream = true;
+        SetError(strerror(errno));
+      }
+      return(false);
     }
-    return(false);
   }
 
   /* Reinitialize the read buffer */
@@ -902,27 +1218,10 @@ bool MPEGsystem::Seek(int length)
   timestamp = 0.0;
   skip_timestamp = -1;
 
-  /* Get the next header */
-  if(!seek_next_header())
-  {
-    if(!Eof())
-    {
-      errorstream = true;
-      SetError("Could not find the beginning of MPEG data\n");
-    }
-  }
-  request = PRE_BUFFERED_MAX;
+  SDL_mutexV(system_mutex);
 
-  /* Start the system thread */
-  system_thread = SDL_CreateThread(SystemThread, this);
-
-  /* Wait for the thread to start */
-  while(!system_thread_running && !Eof())
-    SDL_Delay(1);
-
-  /* Wait for prebuffering */
-  while(request > 0 && !Eof())
-    SDL_Delay(1);
+  /* Restart the system thread */
+  Start();
 
   return(true);
 }
@@ -935,8 +1234,48 @@ void MPEGsystem::Loop(bool toggle)
 
 void MPEGsystem::RequestBuffer()
 {
-  if(request < PRE_BUFFERED_MAX)
-    request += MPEG_BUFFER_SIZE;
+  SDL_SemPost(request_wait);
+}
+
+void MPEGsystem::Start()
+{
+  if(system_thread_running) return;
+
+  /* Get the next header */
+  if(!seek_next_header())
+  {
+    if(!Eof())
+    {
+      errorstream = true;
+      SetError("Could not find the beginning of MPEG data\n");
+    }
+  }
+  
+  /* Start the system thread */
+  system_thread = SDL_CreateThread(SystemThread, this);
+
+  /* Wait for the thread to start */
+  while(!system_thread_running && !Eof())
+    SDL_Delay(1);
+}
+
+void MPEGsystem::Stop()
+{
+  if(!system_thread_running) return;
+
+  /* Force the system thread to die */
+  system_thread_running = false;
+  SDL_SemPost(request_wait);
+  SDL_WaitThread(system_thread, NULL);
+
+  /* Reset the streams */
+  reset_all_streams();
+}
+
+void MPEGsystem::Wait()
+{
+  while(SDL_SemValue(request_wait) != 0)
+    SDL_Delay(1);
 }
 
 bool MPEGsystem::Eof() const
@@ -947,11 +1286,6 @@ bool MPEGsystem::Eof() const
 int MPEGsystem::SystemThread(void * udata)
 {
   MPEGsystem * system = (MPEGsystem *) udata;
-
-#ifdef unix
-  /* Set low priority */
-  nice(1);
-#endif
 
   system->system_thread_running = true;
 
@@ -965,15 +1299,20 @@ int MPEGsystem::SystemThread(void * udata)
       /* Set the eof mark on all streams */
       system->end_all_streams();
 
-      /* Get back to the beginning of the stream if possible */
-      if(lseek(system->mpeg_fd, 0, SEEK_SET) == (long) -1)
+      if(system->data_reader.fromData == true)
       {
-	if(errno != ESPIPE)
-	{
-	  system->errorstream = true;
-	  system->SetError(strerror(errno));
-	}
-	break;
+        system->data_reader.offset = 0;
+      } else {
+	      /* Get back to the beginning of the stream if possible */
+	      if(lseek(system->mpeg_fd, 0, SEEK_SET) == (long) -1)
+	      {
+		if(errno != ESPIPE)
+		{
+		  system->errorstream = true;
+		  system->SetError(strerror(errno));
+		}
+		break;
+	      }
       }
 
       /* Reinitialize the read buffer */
@@ -993,20 +1332,11 @@ int MPEGsystem::SystemThread(void * udata)
       }
     }
 
-    /* Is a buffer needed? */
-    if(system->request > 0)
-    {
-      /* Read the buffer */
-      while (system->FillBuffer()==1);
-      delay >>= 1;
-    }
-    else
-    {
-      /* Wait more and more time to avoid take too much cpu time when */
-      /* there are no packets requested */
-      if(delay >= 100) delay = 100;
-      SDL_Delay(delay++);
-    }
+    /* Wait for a buffer request */
+    SDL_SemWait(system->request_wait);
+
+    /* Read the buffer */
+    system->FillBuffer();
   }
   system->system_thread_running = false;
 

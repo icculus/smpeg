@@ -65,6 +65,8 @@ typedef struct _SMPEG_Info {
     int  audio_current_frame;
     Uint32 current_offset;
     Uint32 total_size;
+    double current_time;
+    double total_time;
 } SMPEG_Info;
 
 /* Possible MPEG status codes */
@@ -92,6 +94,13 @@ extern DECLSPEC SMPEG* SMPEG_new(const char *file, SMPEG_Info* info, int sdl_aud
 
 /* The same as above for a file descriptor */
 extern DECLSPEC SMPEG* SMPEG_new_descr(int file, SMPEG_Info* info, int sdl_audio);
+
+/*
+   The same as above but for a raw chunk of data.  SMPEG makes a copy of the
+   data, so the application is free to delete after a successful call to this
+   function.
+ */
+extern DECLSPEC SMPEG* SMPEG_new_data(void *data, int size, SMPEG_Info* info, int sdl_audio);
 
 /* Get current information about an SMPEG object */
 extern DECLSPEC void SMPEG_getinfo( SMPEG* mpeg, SMPEG_Info* info );

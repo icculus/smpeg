@@ -55,6 +55,13 @@ MPEG::MPEG(int Mpeg_FD, bool Sdlaudio) :
   Init(Mpeg_FD, Sdlaudio);
 }
 
+MPEG::MPEG(void *data, int size, bool Sdlaudio) :
+  MPEGerror()
+{
+  close_fd = false;
+  Init(data, size, Sdlaudio);
+}
+
 void MPEG::Init(int Mpeg_FD, bool Sdlaudio)
 {
     mpeg_fd = Mpeg_FD;
@@ -63,6 +70,51 @@ void MPEG::Init(int Mpeg_FD, bool Sdlaudio)
 
     /* Create the system that will parse the MPEG stream */
     system = new MPEGsystem(Mpeg_FD);
+
+    /* Initialize everything to invalid values for cleanup */
+    error = NULL;
+
+    audiostream = videostream = NULL;
+    audioaction = NULL;
+    videoaction = NULL;
+    audio = NULL;
+    video = NULL;
+    audioaction_enabled = videoaction_enabled = false;
+    loop = false;
+    pause = false;
+
+    parse_stream_list();
+
+    EnableAudio(audioaction_enabled);
+    EnableVideo(videoaction_enabled);
+
+    if ( ! audiostream && ! videostream ) {
+      SetError("No audio/video stream found in MPEG");
+    }
+
+    if ( system && system->WasError() ) {
+      SetError(system->TheError());
+    }
+
+    if ( audio && audio->WasError() ) {
+      SetError(audio->TheError());
+    }
+
+    if ( video && video->WasError() ) {
+      SetError(video->TheError());
+    }
+
+    if ( WasError() ) {
+      SetError(TheError());
+    }
+}
+
+void MPEG::Init(void *data, int size, bool Sdlaudio)
+{
+    sdlaudio = Sdlaudio;
+
+    /* Create the system that will parse the MPEG stream */
+    system = new MPEGsystem(data, size);
 
     /* Initialize everything to invalid values for cleanup */
     error = NULL;
@@ -322,7 +374,7 @@ void MPEG::Seek(int position)
   int was_playing = 0;
 
   /* Cannot seek past end of file */
-  if(position > TotalSize()) return;
+  if(position > system->TotalSize()) return;
   
   /* get info whrether we need to restart playing at the end */
   if( Status() == MPEG_PLAYING )
@@ -376,16 +428,6 @@ bool MPEG::seekIntoStream(int position)
   return(true);
 }
 
-Uint32 MPEG::Tell()
-{
-  return(system->Tell());
-}
-
-Uint32 MPEG::TotalSize()
-{
-  return(system->TotalSize());
-}
-
 void MPEG::Skip(float seconds)
 {
   if(system->get_stream(SYSTEM_STREAMID))
@@ -398,6 +440,21 @@ void MPEG::Skip(float seconds)
     if( VideoEnabled() ) videoaction->Skip(seconds);
     if( AudioEnabled() ) audioaction->Skip(seconds);
   }
+}
+
+void MPEG::GetSystemInfo(MPEG_SystemInfo * sinfo)
+{
+  sinfo->total_size = system->TotalSize();
+  sinfo->current_offset = system->Tell();
+  sinfo->total_time = system->TotalTime();
+
+  /* Get current time from audio or video decoder */
+  /* TODO: move timing reference in MPEGsystem    */
+  sinfo->current_time = 0;
+  if( videoaction ) 
+    sinfo->current_time = videoaction->Time();
+  if( audioaction )
+    sinfo->current_time = audioaction->Time();
 }
 
 void MPEG::parse_stream_list()
