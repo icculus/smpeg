@@ -27,6 +27,8 @@ public:
     void Rewind();
     void Loop(bool toggle);
     bool Eof() const;
+    void Seek(int length);
+    Uint32 TotalSize();
 
     /* Create all the streams present in the MPEG */
     MPEGstream ** GetStreamList();

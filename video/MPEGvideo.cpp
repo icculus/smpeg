@@ -296,27 +296,15 @@ MPEGvideo:: Rewind(void)
     }
     play_time = 0.0;
 }
+
 void
-MPEGvideo::Skip(float seconds)
+MPEGvideo:: ResetSynchro(void)
 {
-  int frame;
-
-  printf("Video: Skipping %f seconds... please wait\n", seconds);  
-  frame = (int) (_fps * seconds);
-
-  if( _stream )
-  {
-    _stream->_jumpFrame = frame;
-    while( (_stream->totNumFrames < frame) &&
-	   ! _stream->film_has_ended )
-    {
-      mpegVidRsrc( 0, _stream, 0 );
-    }
-    _stream->_jumpFrame = -1;
-    _stream->realTimeStart = 0.0;
-    play_time = 0.0;
-  }
+  _stream->_jumpFrame = -1;
+  _stream->realTimeStart = 0.0;
+  play_time = 0.0;
 }
+
 MPEGstatus
 MPEGvideo:: Status(void)
 {

@@ -142,8 +142,16 @@ extern DECLSPEC void SMPEG_stop( SMPEG* mpeg );
 /* Rewind the play position of an SMPEG object to the beginning of the MPEG */
 extern DECLSPEC void SMPEG_rewind( SMPEG* mpeg );
 
-/* Skip 'seconds' seconds of the MPEG stream */
-void DECLSPEC SMPEG_skip( SMPEG* mpeg, float seconds );
+/* Seek 'bytes' bytes in the MPEG stream */
+void SMPEG_seek( SMPEG* mpeg, int bytes);
+
+/* Tell the current position in the stream in bytes */
+/* Warning: this is 32 bit values so streams > 4Go will return bad values */
+Uint32 SMPEG_tell( SMPEG* mpeg );
+
+/* Return the total size of the stream in bytes (O if unapplicable) */
+/* Warning: this is 32 bit values so streams > 4Go will return bad values */
+Uint32 SMPEG_total_size( SMPEG* mpeg );
 
 /* Render a particular frame in the MPEG video
    API CHANGE: This function no longer takes a target surface and position.
