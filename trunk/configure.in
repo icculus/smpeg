@@ -152,6 +152,7 @@ if test x$enable_mmx = xyes; then
 
     if test x$use_mmx = xyes; then
         CFLAGS="$CFLAGS -DUSE_MMX"
+        ASFLAGS="$ASFLAGS -DUSE_MMX"
     fi
 fi
 
