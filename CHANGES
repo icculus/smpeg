@@ -1,4 +1,6 @@
 0.4.2:
+Sam Lantinga - Thu Dec  7 18:14:14 PST 2000
+ * Check for the GLU library when seeing if we can build the OpenGL example
 Mo DeJong - Mon Dec  4 12:26:18 PST 2000
  * Fixed crash when loading files of zero bytes
 Sam Lantinga - Sat Dec  2 13:51:21 PST 2000
