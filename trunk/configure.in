@@ -109,6 +109,9 @@ if test x$have_gl = xyes -a x$have_glu = xyes; then
 fi
 AM_CONDITIONAL(HAVE_MESA, test x$have_gl = xyes -a x$have_glu = xyes)
 
+dnl Add the source include directories
+CFLAGS="$CFLAGS -I\$(top_srcdir) -I\$(top_srcdir)/audio -I\$(top_srcdir)/video"
+
 dnl C++ flags are the same as the C flags
 CXXFLAGS="$CFLAGS"
 if test x$compiler_rtti_exceptions = xyes; then
