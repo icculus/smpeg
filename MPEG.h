@@ -348,16 +348,16 @@ public:
 		// Added by HanishKVC
                 mpeg_start = (Uint8 *)mpeg_area;
 		mpeg_offset = 0;
-		if ( memcmp(mpeg_start, PACKET_START_CODE, 4) != 0 ) {
+		if ( memcmp(mpeg_start, PACKET_START_CODE, 3) != 0 ) {
 		  //printf("DebugKVC: A Not so normal mpeg file\n");
 		  while((mpeg_start = 
 			(Uint8*)memchr((Uint8 *)mpeg_area+mpeg_offset,0xba,
-			LENGTH_TO_CHECK_FOR_SYSTEM-mpeg_offset)) != NULL)
+			mpeg_size-mpeg_offset)) != NULL)
 		  {
 		    mpeg_start = mpeg_start-3;
 		    mpeg_offset = mpeg_start-(Uint8 *)mpeg_area;
 		    //printf("DebugKVC: Possible Location %x\n",mpeg_offset);
-		    if ( memcmp(mpeg_start, PACKET_START_CODE, 4) == 0 ) {
+		    if ( memcmp(mpeg_start, PACKET_START_CODE, 3) == 0 ) {
 		      //printf("DebugKVC: System stream found\n");
 		      break;
 		    } else {
