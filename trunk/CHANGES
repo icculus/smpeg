@@ -1,4 +1,6 @@
 current:
+Ryan C. Gordon - Wed Dec  4 18:00:33 EST 2002
+ * Now builds again when --enable-mmx is specified at configure time.
 Ryan C. Gordon - Thu Sep 26 01:13:58 EDT 2002
  * Minor Makefile.am patch for GCC 3.2
 Ryan C. Gordon - Tue Jul  9 22:28:21 EDT 2002
