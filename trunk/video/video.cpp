@@ -1509,6 +1509,12 @@ static int ParsePicture( VidStream* vid_stream, TimeStamp time_stamp )
   /* Flush header start code. */
   flush_bits32;
 
+  /* This happens if there is a picture code before a sequence start */
+  if (vid_stream->ring[0] == NULL) {
+    printf("Warning: picture block before sequence header block\n");
+    return SKIP_PICTURE;
+  }
+
   /* Parse off temporal reference. */
   get_bits10(data);
   vid_stream->picture.temp_ref = data;

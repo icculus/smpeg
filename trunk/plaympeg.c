@@ -49,8 +49,6 @@ void update(SDL_Surface *screen, Sint32 x, Sint32 y, Uint32 w, Uint32 h)
 
 int main(int argc, char *argv[])
 {
-    const SDL_VideoInfo *video_info;
-    int video_bpp;
     int use_audio, use_video;
     int fullscreen;
     int video_inited = 0, audio_inited = 0;
@@ -138,18 +136,6 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
-    /* Get the "native" video mode */
-    video_info = SDL_GetVideoInfo();
-    switch (video_info->vfmt->BitsPerPixel) {
-        case 16:
-        case 32:
-            video_bpp = video_info->vfmt->BitsPerPixel;
-            break;
-        default:
-            video_bpp = 16;
-            break;
-    }
-        
     /* Play the mpeg files! */
     for ( ; argv[i]; ++i ) {
 	/* Initialize SDL */
@@ -208,11 +194,25 @@ int main(int argc, char *argv[])
 
         /* Set up video display if needed */
         if ( info.has_video && use_video ) {
+            const SDL_VideoInfo *video_info;
             SDL_Surface *screen;
             Uint32 video_flags;
+            int video_bpp;
             int width, height;
 
             SMPEG_scale(mpeg, scalesize);
+
+            /* Get the "native" video mode */
+            video_info = SDL_GetVideoInfo();
+            switch (video_info->vfmt->BitsPerPixel) {
+                case 16:
+                case 32:
+                    video_bpp = video_info->vfmt->BitsPerPixel;
+                    break;
+                default:
+                    video_bpp = 16;
+                    break;
+            }
             width = info.width * scalesize;
             height = info.height * scalesize;
             video_flags = SDL_SWSURFACE;
