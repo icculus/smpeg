@@ -53,6 +53,9 @@ AC_LIBTOOL_WIN32_DLL
 AM_PROG_LIBTOOL
 AC_PROG_INSTALL
 
+dnl Work around the lack of certain typedefs.
+AC_TYPE_SOCKLEN_T
+
 dnl The alpha architecture needs special flags for binary portability
 case "$target" in
     alpha*-*-linux*)
