@@ -225,6 +225,7 @@ if test x$enable_opengl_player = xyes; then
     have_opengl=no
     AC_TRY_COMPILE([
      #include <GL/gl.h>
+     #include <GL/glu.h>
     ],[
     ],[
     have_opengl=yes
@@ -232,6 +233,8 @@ if test x$enable_opengl_player = xyes; then
     AC_MSG_RESULT($have_opengl)
     if test x$have_opengl = xyes; then
         GL_LIBS="$SYS_GL_LIBS"
+    else
+        echo "*** The OpenGL movie player will not be built (missing GL or GLU)"
     fi
 fi
 AC_SUBST(GL_LIBS)
