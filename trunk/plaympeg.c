@@ -149,7 +149,10 @@ int udp_open(char * address, int port)
   else
   {
     /* Bind the socket to port */
-    if(bind(sock, (struct sockaddr *) & stAddr, sizeof(stAddr)) < 0) return(0);
+    stLclAddr.sin_family      = AF_INET;
+    stLclAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    stLclAddr.sin_port        = htons(0);
+    if(bind(sock, (struct sockaddr*) & stLclAddr, sizeof(stLclAddr)) < 0) return(0);
   }
   
   return(sock);
