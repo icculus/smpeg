@@ -5,9 +5,8 @@
                            September 28, 2000
 								
 
-Written by Karl Robillard and Sam Lantinga, Loki Entertainment Software.
+Written by Karl Robillard and Sam Lantinga, Loki Software, Inc.
 Streaming MPEG support contributed by Vivien Chappelier.
-
 
 SMPEG is a free MPEG1 video player library with sound support.  Video playback
 is based on the ubiquitous Berkeley MPEG player, mpeg_play v2.2.  Audio is
@@ -29,7 +28,7 @@ Currently it has only been tested on Linux.
 
 Requirements:
 
-	* Simple DirectMedia Layer v1.1.5 or newer
+	* Simple DirectMedia Layer v1.2.0 or newer
 		http://www.libsdl.org/
 
 To make:
@@ -71,5 +70,5 @@ Links:
 
 	Berkeley MPEG player   http://bmrc.berkeley.edu/frame/research/mpeg
 	Splay                  http://my.netian.com/~polarb
-	SDL                    http://www.devolution.com/~slouken/SDL
+	SDL                    http://www.libsdl.org/
 
