@@ -1,4 +1,16 @@
 0.4.1:
+Sam Lantinga - Tue Sep  5 14:09:14 PDT 2000
+ * Changed gtv to perform bilinear filtering instead of deblocking
+Sam Lantinga - Tue Sep  5 13:39:36 PDT 2000
+ * Changed the filters to C implementations instead of C++ implementations
+Vivien Chappelier - Tue Sep  5 12:09:10 PDT 2000
+ * Fixed crash with MPEG files containing audio frames in multiple layers
+ * Fixed crash when looping system streams
+ * Added video filter code
+ * Implemented a copy filter (default filter)
+ * Implemented a bilinear filter
+ * Implemented a subtle de-blocking filter
+ * Improved the motion detection code, crashes/hangs on fewer MPEG movies
 Ray Kelm - Fri, 04 Aug 2000 20:58:00 -0400
  * Added support for cross-compiling Windows DLL from Linux
 Joe Valenzuela - Wed Aug  9 12:05:13 PDT 2000

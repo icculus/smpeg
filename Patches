@@ -1,5 +1,2765 @@
 *************************************************************************
 *** Applied ***
+Date: Tue, 05 Sep 2000 20:19:37 +0200
+From: Vivien Chappelier <vivien.chappelier@enst-bretagne.fr>
+Subject: Re: SMPEG Status?
+
+Hi!
+
+        Here it is finally, prepare for a long mail :)
+
+First of all, the things I fixed that are not related to filtering:
+
+you wrote:
+> This is true of just about every big movie I know of (Metal Gear Solid,
+> Halo intro, etc.)  After a certain consistent amount of time, the video
+> stops and the sound keeps going.
+> 
+> Any ideas?
+
+this should be fixed. It was insert_packet that inserted a 0 byte long packet
+which was interpreted as EOF by the video decoder.
+ 
+Chris Jensen <chris@sourcelight.com> wrote:
+> I think I found a bug in smpeg... setting loop to true and then calling
+> SMPEG_status causes a Seg fault... here is the gdb output and backtrace,
+> and the code that caused it.  I'll see if I can track it down when I get
+> time...
+ 
+Olle Hällnäs <olle@xmms.org> wrote:
+> 2. SMPEG_enablevideo(mpeg, FALSE); then try to seek some will result in
+> nice baboom.. try: plaympeg --novideo --seek somdamnbytes /pr0n/xxx.mpeg :)
+> 
+
+fixed. just a missing 'if( _stream ) ...'.
+
+Also,
+* fixed incorrect size when not multiple of 16 (see SimWars: 
+http://www-eleves.enst-bretagne.fr/~chappeli/simwars_extract.mpg)
+Actually, this is a side effect of the filter code. More on this later.
+
+* fixed To end -> Stop -> To end crash (from current frame adjustement code)
+
+* fixed crash in crash2.mpg (see smpeg news message from 08/09/00 00:12)
+I integrated lossresist patch from Carsten Griwodz (posted on the news on
+07/17/00) which seems to correct this bug as long as making network streaming
+much more stable. (see the #ifdef NO_GRIFF_MODS everywhere, define if you
+wish to disable his code)
+
+Finally, I added libs for network support under Solaris in configure.in, and
+corrected VCD support to apply under linux only (not all unix).
+
+Now for the filter code:
+        Filters are applied just before displaying the picture, that is, you
+get the image from the video decoder, and the region you must copy to the
+screen (not always the full picture, in the case of MPEG not multiple of 16
+for example) and you call the filter, which must copy the source rectangle to
+the video overlay and do whatever computation it wants on the pixels while
+doing this.
+        As I needed to specify the source region, I also added a interface
+(setdisplayregion) to change it on the fly, thus allowing to copy whatever
+rectangle region of the movie you want.
+
++--------------------+                    +--------------------+
++--------------------+
+|  decoded frame     |                    |filtered|           |
+|      window        |
+|                    |                    |  image |-------------------> SDL
+strech code ----> |                    |
+|     +----------+   |                    |--------+           |
+|                    |
+|     | src rect |------->   filter ----> |                    |
+|       dest         |
+|     |          |   |                    |                    |
+|       rect         |
+|     +----------+   |                    |       video        |
+|                    |
+|                    |                    |      overlay       |
+|                    |
++--------------------+                    +--------------------+
++--------------------+
+
+There is always an active filter. The default filter (called 'null') just
+copies source rect to the video overlay.
+Currently there are 3 builtin filters in SMPEG:
+        * the null filter.
+        * the bilinear filter: just a basic low pass (smoothing) filter.
+        * the deblocking filter: inspired from the pseudo code from Carlo Daffara.
+I optimized it to remove divides which are quite time consuming, but it's still
+relatively slow.
+
+There is also a C interface for using external filters (see SMPEG_filter
+function) to allow user filters. To define a new filter, you need a callback
+function that will be called anytime the src rect needs to be filtered and
+copied to the overlay, and a destroy function for releasing the SMPEG_Filter
+structure and optional private data. There is a flags field in the
+SMPEG_Filter structure to ask the video decoder to provide extra information
+(which may require extra time to compute), for example, this is needed by
+the deblocking filter to ask for per-macroblock quantization error.
+        A call to the SMPEG_filter function will return a pointer to the
+previous filter used, to free it. Use the destroy function pointer for this.
+
+Anyway, the best for understanding all this stuff is to take a look to gtv.c (I
+added a toggle button to switch the deblocking filter on/off) and MPEGfilter.cpp
+(implementation of the 3 filters)
+
+There is a lot of things this patch will allow (such as correcting gamma,
+contrast, luminance,etc on the fly, zooming on regions...) 
+
+I know this is quite a huge patch, so if you have any questions about it, just
+ask.
+Also this makes me think one (maybe not me nor you, we're busy coding :)) should
+start a documentation for SMPEG, just as the one for SDL. Maybe we should ask on
+the news...
+
+Hope this is ok for you, send comments, I need feedback :)
+
+Now, let's take a look to that ATI stuff ;)
+
+see ya,
+Vivien.
+
+...
+
+Hi!
+
+        here is the new filter patch.
+
+Additionnaly to what I already told in my last mails about it, it fixes:
+        * crashes in MPEGs when audio frames are not always stereo or mono
+        * crashes in the video decoders due to invalid motion information
+        * crashed when using software overlays. This will require SDL 1.1.5 or
+more now.
+
+I'm finishing writting the SDL patch right now so that you can test
+(patch SDL1.1.4 while we haven't found what was wrong with SDL1.1.5
+overlays) :)
+
+see ya,
+Vivien.
+
+diff -Naur smpeg/MPEG.cpp smpeg.patched/MPEG.cpp
+--- smpeg/MPEG.cpp	Wed Aug  9 22:05:28 2000
++++ smpeg.patched/MPEG.cpp	Mon Sep  4 18:07:20 2000
+@@ -348,6 +348,11 @@
+     videoaction->ScaleDisplayXY(w, h);
+   }
+ }
++void MPEG::SetDisplayRegion(int x, int y, int w, int h) {
++  if ( VideoEnabled() ) {
++    videoaction->SetDisplayRegion(x, y, w, h);
++  }
++}
+ void MPEG::RenderFrame(int frame) {
+   /* Prevent acces to the audio stream to avoid filling it */
+   if( audiostream ) audiostream->enable(false);
+@@ -367,6 +372,13 @@
+   }
+ 
+   if( audiostream ) audiostream->enable(true);
++}
++
++MPEG_Filter * MPEG::Filter(MPEG_Filter * filter)
++{
++  if ( VideoEnabled() ) {
++    return(videoaction->Filter(filter));
++  }
+ }
+ 
+ void MPEG::Seek(int position)
+diff -Naur smpeg/MPEG.h smpeg.patched/MPEG.h
+--- smpeg/MPEG.h	Wed Aug  9 22:05:28 2000
++++ smpeg.patched/MPEG.h	Mon Sep  4 18:07:20 2000
+@@ -34,6 +34,7 @@
+ #include "MPEGaudio.h"
+ #include "MPEGvideo.h"
+ #include "MPEGsystem.h"
++#include "MPEGfilter.h"
+ 
+ #define LENGTH_TO_CHECK_FOR_SYSTEM 0x50000	// Added by HanishKVC
+ 
+@@ -88,8 +89,10 @@
+ 		                 MPEG_DisplayCallback callback);
+     void MoveDisplay(int x, int y);
+     void ScaleDisplayXY(int w, int h);
++    void SetDisplayRegion(int x, int y, int w, int h);
+     void RenderFrame(int frame);
+     void RenderFinal(SDL_Surface *dst, int x, int y);
++    MPEG_Filter * Filter(MPEG_Filter * filter);
+ 
+ public:
+     /* We need to have separate audio and video streams */
+diff -Naur smpeg/MPEGaction.h smpeg.patched/MPEGaction.h
+--- smpeg/MPEGaction.h	Wed Aug  9 22:05:28 2000
++++ smpeg.patched/MPEGaction.h	Mon Sep  4 18:07:27 2000
+@@ -94,6 +94,28 @@
+ typedef void(*MPEG_DisplayCallback)(SDL_Surface* dst, int x, int y,
+                                      unsigned int w, unsigned int h);
+ 
++/* Matches the declarations in smpeg.h */
++/* SMPEG filter info flags */
++#define SMPEG_FILTER_INFO_MB_ERROR    1
++#define SMPEG_FILTER_INFO_PIXEL_ERROR 2
++
++/* Filter info from SMPEG */
++typedef struct MPEG_FilterInfo {
++  Uint16* yuv_mb_square_error;
++  Uint16* yuv_pixel_square_error;
++} MPEG_FilterInfo;
++
++/* MPEG filter definition, matches SMPEG filter definition in smpeg.h */
++typedef void (* MPEG_FilterCallback)( SDL_Overlay * dest, SDL_Overlay * source, SDL_Rect * region, MPEG_FilterInfo * filter_info, void * data );
++typedef void (* MPEG_FilterDestroy)( struct MPEG_Filter * filter );
++
++typedef struct MPEG_Filter {
++  Uint32 flags;
++  void * data;
++  MPEG_FilterCallback callback;
++  MPEG_FilterDestroy destroy;
++} MPEG_Fitler;
++
+ /* For getting info about the video portion of the stream */
+ typedef struct MPEG_VideoInfo {
+     int width;
+@@ -115,8 +137,10 @@
+                                 MPEG_DisplayCallback callback) = 0;
+     virtual void MoveDisplay(int x, int y) = 0;
+     virtual void ScaleDisplayXY(int w, int h) = 0;
++    virtual void SetDisplayRegion(int x, int y, int w, int h) = 0;
+     virtual void RenderFrame(int frame) = 0;
+     virtual void RenderFinal(SDL_Surface *dst, int x, int y) = 0;
++    virtual MPEG_Filter * Filter(MPEG_Filter * filter) = 0;
+ protected:
+     MPEGaudioaction *time_source;
+ };
+diff -Naur smpeg/MPEGaudio.h smpeg.patched/MPEGaudio.h
+--- smpeg/MPEGaudio.h	Wed May 31 00:21:04 2000
++++ smpeg.patched/MPEGaudio.h	Mon Sep  4 18:07:27 2000
+@@ -183,6 +183,7 @@
+     bool sdl_audio;
+     MPEGstream *mpeg;
+     int valid_stream;
++    bool stereo;
+     double rate_in_s;
+     Uint32 frags_playing;
+     Uint32 frag_time;
+diff -Naur smpeg/MPEGfilter.cpp smpeg.patched/MPEGfilter.cpp
+--- smpeg/MPEGfilter.cpp	Thu Jan  1 01:00:00 1970
++++ smpeg.patched/MPEGfilter.cpp	Mon Sep  4 19:37:19 2000
+@@ -0,0 +1,360 @@
++/*
++    SMPEG - SDL MPEG Player Library
++    Copyright (C) 1999  Loki Entertainment Software
++
++    This library is free software; you can redistribute it and/or
++    modify it under the terms of the GNU Library General Public
++    License as published by the Free Software Foundation; either
++    version 2 of the License, or (at your option) any later version.
++
++    This library is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++    Library General Public License for more details.
++
++    You should have received a copy of the GNU Library General Public
++    License along with this library; if not, write to the Free
++    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++*/
++
++#include "MPEG.h"
++#include <stdlib.h>
++#include <string.h>
++
++/**************************************************/
++/* The null filter. Copies source rect to overlay */
++/**************************************************/
++
++MPEG_Filter_null::MPEG_Filter_null()
++{
++  /* the null filter requires no extra info */
++  flags = 0;
++  /* no private data */
++  data = 0;
++  /* set the function pointers to the callback and destroy functions */
++  callback = Callback;
++  destroy = Destroy;
++}
++
++void MPEG_Filter_null::Callback(SDL_Overlay * dest, SDL_Overlay * source, SDL_Rect * region, MPEG_FilterInfo * info, void * data)
++{
++  register Uint32 y;
++  register Uint8 * s, * d;
++
++  s = (Uint8 *) source->pixels;
++  d = (Uint8 *) dest->pixels;
++
++  /* Y component */
++  s += region->y * source->pitch + region->x; /* Go to the top left corner of the source rectangle */
++  for(y = 0; y < region->h; y++)
++  {
++    memcpy(d, s, region->w);   /* Copy lines */
++    s += source->pitch;
++    d += dest->pitch;
++  }
++  s += (source->h - region->h - region->y) * source->pitch - region->x;
++  d += (dest->h - region->h) * dest->pitch;              /* Go to end */
++
++  /* U component */
++  s += (region->y >> 1) * (source->pitch >> 1) + (region->x >> 1);
++  for(y = 0; y < region->h; y+=2)
++  {
++    memcpy(d, s, region->w >> 1);
++    s += source->pitch >> 1;
++    d += dest->pitch >> 1;
++  }
++  s += (((source->h - region->h - region->y) >> 1) * (source->pitch >> 1)) - (region->x >> 1);
++  d += ((dest->h - region->h) >> 1) * (dest->pitch >> 1);
++  
++  /* V component */
++  s += (region->y >> 1) * (source->pitch >> 1) + (region->x >> 1);
++  for(y = 0; y < region->h; y+=2)
++  {
++    memcpy(d, s, region->w >> 1);
++    s += source->pitch >> 1;
++    d += dest->pitch >> 1;
++  }
++}
++
++void MPEG_Filter_null::Destroy(MPEG_Filter * filter)
++{
++  delete (MPEG_Filter_null *) filter;
++}
++
++/************************************************************************************/
++/* The bilinear filter. A basic low-pass filter that will produce a smoother image. */
++/* It uses the following convolution matrix:         [0 1 0]                        */
++/*                                                   [1 4 1]                        */
++/*                                                   [0 1 0]                        */
++/************************************************************************************/
++
++MPEG_Filter_bilinear::MPEG_Filter_bilinear()
++{
++  flags = 0;
++  data = 0;
++  callback = Callback;
++  destroy = Destroy;
++}
++
++void MPEG_Filter_bilinear::Callback(SDL_Overlay * dest, SDL_Overlay * source, SDL_Rect * region, MPEG_FilterInfo * info, void * data)
++{
++  register Uint32 x, y;
++  register Uint8 * s, * d;
++
++  s = (Uint8 *) source->pixels;
++  d = (Uint8 *) dest->pixels;
++
++  s += region->y * source->pitch + region->x;
++
++  /* Skip first line */
++  memcpy(d, s, region->w);
++  d += dest->pitch;
++  s += source->pitch;
++
++  for(y = 1; y < region->h - 1; y++)
++  {
++    /* Skip first pixel */
++    *d++ = *s++;
++
++    for(x = 1; x < region->w - 1; x++)
++    {
++	*d++ = 
++	  (((*s) << 2)           +  // 4*(x,y)   +
++	   *(s - source->pitch)  +  //   (x,y-1) +
++	   *(s - 1)              +  //   (x-1,y) +
++	   *(s + 1)              +  //   (x+1,y) +
++	   *(s + source->pitch))    //   (x,y+1)
++	  >> 3;                     // / 8
++	s++;
++    }
++
++    /* Skip last pixel */
++    *d++ = *s++;
++
++    /* Go to next line */
++    d += dest->pitch - region->w;
++    s += source->pitch - region->w;
++  }
++
++  /* Skip last line */
++  memcpy(d, s, region->w);
++  d += dest->pitch;
++  s += source->pitch;
++
++  /* Go to end of Y plane */
++  s -= region->y * source->pitch + region->x;
++  s += (source->h - region->y - region->h) * source->pitch;
++  d += (dest->h - region->h) * dest->pitch;
++
++  /* U component (unfiltered) */
++  s += (region->y >> 1) * (source->pitch >> 1) + (region->x >> 1);
++  for(y = 0; y < region->h; y+=2)
++  {
++    memcpy(d, s, region->w >> 1);
++    s += source->pitch >> 1;
++    d += dest->pitch >> 1;
++  }
++  s += (((source->h - region->h - region->y) >> 1) * (source->pitch >> 1)) - (region->x >> 1);
++  d += ((dest->h - region->h) >> 1) * (dest->pitch >> 1);
++
++  /* V component (unfiltered) */
++  s += (region->y >> 1) * (source->pitch >> 1) + (region->x >> 1);
++  for(y = 0; y < region->h; y+=2)
++  {
++    memcpy(d, s, region->w >> 1);
++    s += source->pitch >> 1;
++    d += dest->pitch >> 1;
++  }
++}
++
++void MPEG_Filter_bilinear::Destroy(MPEG_Filter * filter)
++{
++  delete (MPEG_Filter_bilinear *) filter;
++}
++
++/***************************************************************************************************/
++/* The deblocking filter. It filters block borders and non-intra coded blocks to reduce blockiness */ 
++/***************************************************************************************************/
++
++MPEG_Filter_deblocking::MPEG_Filter_deblocking()
++{
++  Uint16 * coeffs, * c;
++  Uint32 pos, q, q1, q5, q9, d;
++
++  /* precalc table is 256Kb long */
++  c = new Uint16[8*32*512];
++  data = (void *) c;
++
++  /* precalc filter coefficients:                                     */
++  /*                           1                                      */
++  /* coeffs(Q,d,x,y) = _____________________                          */
++  /*                           d(x,y)*d(x,y)                          */
++  /*                   1  +    _____________                          */
++  /*                             Q*Q*k(x,y)                           */
++  /* where                                                            */
++  /* k(x,y) = [ 9 9 9 9 9 9 9 9 ]                                     */
++  /*          [ 9 5 5 5 5 5 5 9 ]                                     */
++  /*          [ 9 5 1 1 1 1 5 9 ]                                     */
++  /*          [ 9 5 1 1 1 1 5 9 ]                                     */
++  /*          [ 9 5 1 1 1 1 5 9 ]                                     */
++  /*          [ 9 5 1 1 1 1 5 9 ]                                     */
++  /*          [ 9 5 5 5 5 5 5 9 ]                                     */
++  /*          [ 9 9 9 9 9 9 9 9 ]                                     */
++  /* and Q is the quantization error for the block                    */
++  /* and d is the difference between current pixel and neighbor pixel */
++  /*                                                                  */
++  /* this is for the math :), now some additional tricks:             */
++  /*                                                                  */
++  /* all coeffs are multiplied by 65536 for precision (fixed point)   */
++  /* and d is translated from [-128,127] to [0,255] (array indexation)*/
++
++
++  for(d = 0; d < 512*8; d++)
++    *c++ = 0;
++
++  for(q = 1; q < 32; q++)
++  {
++    q1 = q*q;
++    q9 = (q1 << 3) + q1;
++    q5 = (q1 << 2) + q1;
++    
++    for(d = 0; d < 256; d++)
++    {
++      *c++ = (Uint16) ((q9 << 16) / ((256 - d)*(256 - d) + q9));
++      *c++ = (Uint16) ((q5 << 16) / ((256 - d)*(256 - d) + q5));
++      *c++ = (Uint16) ((q1 << 16) / ((256 - d)*(256 - d) + q1));
++      *c++ = (Uint16) ((q1 << 16) / ((256 - d)*(256 - d) + q1));
++      *c++ = (Uint16) ((q1 << 16) / ((256 - d)*(256 - d) + q1));
++      *c++ = (Uint16) ((q1 << 16) / ((256 - d)*(256 - d) + q1));
++      *c++ = (Uint16) ((q5 << 16) / ((256 - d)*(256 - d) + q5));
++      *c++ = (Uint16) ((q9 << 16) / ((256 - d)*(256 - d) + q9));
++    }
++    for(d = 0; d < 256; d++)
++    {
++      *c++ = (Uint16) ((q9 << 16) / (d*d + q9));
++      *c++ = (Uint16) ((q5 << 16) / (d*d + q5));
++      *c++ = (Uint16) ((q1 << 16) / (d*d + q1));
++      *c++ = (Uint16) ((q1 << 16) / (d*d + q1));
++      *c++ = (Uint16) ((q1 << 16) / (d*d + q1));
++      *c++ = (Uint16) ((q1 << 16) / (d*d + q1));
++      *c++ = (Uint16) ((q5 << 16) / (d*d + q5));
++      *c++ = (Uint16) ((q9 << 16) / (d*d + q9));
++    }
++  }
++
++  /* Ask the video decoder to provide per-block quantization error */
++  flags = SMPEG_FILTER_INFO_MB_ERROR;
++
++  callback = Callback;
++  destroy = Destroy;
++}
++
++MPEG_Filter_deblocking::~MPEG_Filter_deblocking()
++{
++  delete (Uint16 *) data;
++}
++
++void MPEG_Filter_deblocking::Callback(SDL_Overlay * dest, SDL_Overlay * source, SDL_Rect * region, MPEG_FilterInfo * info, void * data)
++{
++  Uint32 x, y;
++  Uint32 dL, dU, dR, dD;
++  Uint32 aL, aU, aR, aD;
++  Uint32 Q, Q9;
++  Uint16 * coeffs;
++  register Uint8 * s, * d;
++
++  /* retrieve the coeffs from private data */
++  coeffs = (Uint16 *) data;
++
++  /* Y component */
++  s = (Uint8 *) source->pixels;
++  d = (Uint8 *) dest->pixels;
++
++  s += region->y * source->pitch + region->x;
++
++  /* Skip first line */
++  memcpy(d, s, region->w);
++  d += dest->pitch;
++  s += source->pitch;
++
++  for(y = 1; y < region->h - 1; y++)
++  {
++    /* Skip first pixel */
++    *d++ = *s++;
++
++    for(x = 1; x < region->w - 1; x++)
++    {
++      /* get current block quantization error from the info structure provided by the video decoder */
++      Q = info->yuv_mb_square_error[((region->y + y) >> 4) * (source->w >> 4) + ((region->x + x) >> 4)];
++
++      if(!Q)
++	*d++ = *s++; /* block is intra coded, don't filter */
++      else
++      {
++	/* compute differences with up, left, right and down neighbors */
++	dL = *s - *(s - 1) + 256;
++	dR = *s - *(s + 1) + 256;
++	dU = *s - *(s - source->pitch) + 256;
++	dD = *s - *(s + source->pitch) + 256;
++
++	/* get the corresponding filter coefficients from the lookup table */
++	aU = coeffs[(y & 7) + (Q << 12) + (dU << 3)];
++	aD = coeffs[(y & 7) + (Q << 12) + (dD << 3)];
++	aL = coeffs[(x & 7) + (Q << 12) + (dL << 3)];
++	aR = coeffs[(x & 7) + (Q << 12) + (dR << 3)];
++
++	/* apply the filter on current pixel */
++	*d++ = 
++	  ((*s)*(4 * 65536 - aL - aR - aU - aD) + // (4-aL-aR-aU-aD)*(x,y) +
++	   (*(s - source->pitch))*aU +            // aU*(x,y-1) +
++	   (*(s - 1))*aL +                        // aL*(x-1,y) +
++	   (*(s + 1))*aR +                        // aR*(x+1,y) +
++	   (*(s + source->pitch))*aD)             // aU*(x,y+1)
++	     >> 18;                               // remove fixed point and / 4
++	s++;
++      }
++    }
++
++    /* Skip last pixel */
++    *d++ = *s++;
++
++    /* Go to next line */
++    d += dest->pitch - region->w;
++    s += source->pitch - region->w;
++  }
++
++  /* Skip last line */
++  memcpy(d, s, region->w);
++  d += dest->pitch;
++  s += source->pitch;
++
++  /* Go to end of Y plane */
++  s -= region->y * source->pitch + region->x;
++  s += (source->h - region->y - region->h) * source->pitch;
++  d += (dest->h - region->h) * dest->pitch;
++
++  /* U component (unfiltered) */
++  s += (region->y >> 1) * (source->pitch >> 1) + (region->x >> 1);
++  for(y = 0; y < region->h; y+=2)
++  {
++    memcpy(d, s, region->w >> 1);
++    s += source->pitch >> 1;
++    d += dest->pitch >> 1;
++  }
++  s += (((source->h - region->h - region->y) >> 1) * (source->pitch >> 1)) - (region->x >> 1);
++  d += ((dest->h - region->h) >> 1) * (dest->pitch >> 1);
++
++  /* V component (unfiltered) */
++  s += (region->y >> 1) * (source->pitch >> 1) + (region->x >> 1);
++  for(y = 0; y < region->h; y+=2)
++  {
++    memcpy(d, s, region->w >> 1);
++    s += source->pitch >> 1;
++    d += dest->pitch >> 1;
++  }
++}
++
++void MPEG_Filter_deblocking::Destroy(MPEG_Filter * filter)
++{
++  delete (MPEG_Filter_deblocking *) filter;
++}
+diff -Naur smpeg/MPEGfilter.h smpeg.patched/MPEGfilter.h
+--- smpeg/MPEGfilter.h	Thu Jan  1 01:00:00 1970
++++ smpeg.patched/MPEGfilter.h	Mon Sep  4 18:07:27 2000
+@@ -0,0 +1,52 @@
++/*
++    SMPEG - SDL MPEG Player Library
++    Copyright (C) 1999  Loki Entertainment Software
++
++    This library is free software; you can redistribute it and/or
++    modify it under the terms of the GNU Library General Public
++    License as published by the Free Software Foundation; either
++    version 2 of the License, or (at your option) any later version.
++
++    This library is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++    Library General Public License for more details.
++
++    You should have received a copy of the GNU Library General Public
++    License along with this library; if not, write to the Free
++    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++*/
++
++/* MPEG filters */
++
++#ifndef _MPEGFILTER_H_
++#define _MPEGFILTER_H_
++#include "MPEGaction.h"
++
++/* The null filter (default). It simply copies the source rectangle to the video overlay. */ 
++class MPEG_Filter_null : public MPEG_Filter {
++ public:
++  MPEG_Filter_null();
++  static void Callback( SDL_Overlay * dest, SDL_Overlay * source, SDL_Rect * region, MPEG_FilterInfo * filter_info, void * data );
++  static void Destroy(MPEG_Filter * filter);
++};
++
++/* The bilinear filter. A basic low-pass filter that will produce a smoother image. */ 
++class MPEG_Filter_bilinear : public MPEG_Filter {
++ public:
++  MPEG_Filter_bilinear();
++  static void Callback( SDL_Overlay * dest, SDL_Overlay * source, SDL_Rect * region, MPEG_FilterInfo * filter_info, void * data );
++  static void Destroy(MPEG_Filter * filter);
++};
++
++/* The deblocking filter. It filters block borders and non-intra coded blocks to reduce blockiness */ 
++class MPEG_Filter_deblocking : public MPEG_Filter {
++ public:
++  MPEG_Filter_deblocking();
++  ~MPEG_Filter_deblocking();
++  static void Callback( SDL_Overlay * dest, SDL_Overlay * source, SDL_Rect * region, MPEG_FilterInfo * filter_info, void * data );
++  static void Destroy(MPEG_Filter * filter);
++};
++
++#endif
++
+diff -Naur smpeg/MPEGring.cpp smpeg.patched/MPEGring.cpp
+--- smpeg/MPEGring.cpp	Wed May 31 00:21:04 2000
++++ smpeg.patched/MPEGring.cpp	Mon Sep  4 18:07:27 2000
+@@ -155,7 +155,12 @@
+ MPEG_ring:: WriteDone( Uint32 len, double timestamp)
+ {
+     if ( ring->active ) {
++#ifdef NO_GRIFF_MODS
+         assert(len <= ring->bufSize);
++#else
++	if ( len > ring->bufSize )
++            len = ring->bufSize;
++#endif
+         *((Uint32*) ring->write) = len;
+ 
+         ring->write += ring->bufSize + sizeof(Uint32);
+@@ -205,7 +210,9 @@
+ double
+ MPEG_ring:: ReadTimeStamp(void)
+ {
++  if(ring->active)
+     return *ring->timestamp_read;
++  return(0);
+ }
+ 
+ void
+@@ -219,7 +226,7 @@
+         data = ring->read + sizeof(Uint32);
+         oldlen = *((Uint32*) ring->read);
+         newlen = oldlen - used;
+-        memcpy(data, data+used, newlen);
++        memmove(data, data+used, newlen);
+         *((Uint32*) ring->read) = newlen;
+ //printf("Reusing read buffer (%d+1 available)\n", SDL_SemValue(ring->readwait));
+         SDL_SemPost(ring->readwait);
+diff -Naur smpeg/MPEGring.cpp.orig smpeg.patched/MPEGring.cpp.orig
+--- smpeg/MPEGring.cpp.orig	Thu Jan  1 01:00:00 1970
++++ smpeg.patched/MPEGring.cpp.orig	Mon Sep  4 18:07:20 2000
+@@ -0,0 +1,257 @@
++/*
++    SMPEG - SDL MPEG Player Library
++    Copyright (C) 1999  Loki Entertainment Software
++
++    This library is free software; you can redistribute it and/or
++    modify it under the terms of the GNU Library General Public
++    License as published by the Free Software Foundation; either
++    version 2 of the License, or (at your option) any later version.
++
++    This library is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++    Library General Public License for more details.
++
++    You should have received a copy of the GNU Library General Public
++    License along with this library; if not, write to the Free
++    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++*/
++
++
++#include <stdlib.h>
++#include <stdio.h>
++#include <assert.h>
++#include <string.h>
++
++#include "SDL_timer.h"
++
++#include "MPEGring.h"
++
++
++MPEG_ring:: MPEG_ring( Uint32 size, Uint32 count )
++{
++    Uint32 tSize;
++
++    /* Set up the 'ring' pointer for all the old C code */
++    ring = this;
++
++    tSize = (size + sizeof(Uint32)) * count;
++    if( tSize )
++    {
++        ring->begin = (Uint8 *) malloc( tSize );
++        ring->timestamps = (double *) malloc( sizeof(double)*count );
++    }
++    else
++        ring->begin = 0;
++
++    if( ring->begin && count )
++    {
++        ring->end   = ring->begin + tSize;
++        ring->read  = ring->begin;
++        ring->write = ring->begin;
++        ring->timestamp_read  = timestamps;
++        ring->timestamp_write = timestamps;
++        ring->bufSize  = size;
++        
++        ring->readwait = SDL_CreateSemaphore(0);
++        ring->writewait = SDL_CreateSemaphore(count);
++    }
++    else
++    {
++        ring->end   = 0;
++        ring->read  = 0;
++        ring->write = 0;
++        ring->bufSize  = 0;
++
++        ring->readwait = 0;
++    }
++
++    if ( ring->begin && ring->readwait && ring->writewait ) {
++        ring->active = 1;
++    }
++}
++
++/* Release any waiting threads on the ring so they can be cleaned up.
++   The ring isn't valid after this call, so when threads are done you
++   should call MPRing_sdelete() on the ring.
++ */
++void
++MPEG_ring:: ReleaseThreads( void )
++{
++    /* Let the threads know that the ring is now inactive */
++    ring->active = 0;
++
++    if ( ring->readwait ) {
++        while ( SDL_SemValue(ring->readwait) == 0 ) {
++            SDL_SemPost(ring->readwait);
++        }
++    }
++    if ( ring->writewait ) {
++        while ( SDL_SemValue(ring->writewait) == 0 ) {
++            SDL_SemPost(ring->writewait);
++        }
++    }
++}
++
++
++MPEG_ring:: ~MPEG_ring( void )
++{
++    if( ring )
++    {
++        /* Free up the semaphores */
++        ReleaseThreads();
++
++	/* Destroy the semaphores */
++	if( ring->readwait )
++	{
++	    SDL_DestroySemaphore( ring->readwait );
++	    ring->readwait = 0;
++	}
++	if( ring->writewait )
++	{
++	    SDL_DestroySemaphore( ring->writewait );
++	    ring->writewait = 0;
++	}
++
++        /* Free data buffer */
++        if ( ring->begin ) {
++            free( ring->begin );
++            free( ring->timestamps );
++            ring->begin = 0;
++            ring->timestamps = 0;
++        }
++    }
++}
++
++/*
++  Returns free buffer of ring->bufSize to be filled with data.
++  Zero is returned if there is no free buffer.
++*/
++
++Uint8 *
++MPEG_ring:: NextWriteBuffer( void )
++{
++    Uint8 *buffer;
++
++    buffer = 0;
++    if ( ring->active ) {
++	//printf("Waiting for write buffer (%d available)\n", SDL_SemValue(ring->writewait));
++        SDL_SemWait(ring->writewait);
++	//printf("Finished waiting for write buffer\n");
++	if ( ring->active ) {
++            buffer = ring->write + sizeof(Uint32);
++        }
++    }
++    return buffer;
++}
++
++
++/*
++  Call this when the buffer returned from MPRing_nextWriteBuffer() has
++  been filled.  The passed length must not be larger than ring->bufSize.
++*/
++
++void
++MPEG_ring:: WriteDone( Uint32 len, double timestamp)
++{
++    if ( ring->active ) {
++#ifdef NO_GRIFF_MODS
++        assert(len <= ring->bufSize);
++#else
++	if ( len > ring->bufSize )
++            len = ring->bufSize;
++#endif
++        *((Uint32*) ring->write) = len;
++
++        ring->write += ring->bufSize + sizeof(Uint32);
++        *(ring->timestamp_write++) = timestamp;
++        if( ring->write >= ring->end )
++        {
++            ring->write = ring->begin;
++            ring->timestamp_write = ring->timestamps;
++        }
++//printf("Finished write buffer, making available for reads (%d+1 available for reads)\n", SDL_SemValue(ring->readwait));
++        SDL_SemPost(ring->readwait);
++    }
++}
++
++
++/*
++  Returns the number of bytes in the next ring buffer and sets the buffer
++  pointer to this buffer.  If there is no buffer ready then the buffer
++  pointer is not changed and zero is returned.
++*/
++
++Uint32
++MPEG_ring:: NextReadBuffer( Uint8** buffer )
++{
++    Uint32 size;
++
++    size = 0;
++    if ( ring->active ) {
++        /* Wait for a buffer to become available */
++//printf("Waiting for read buffer (%d available)\n", SDL_SemValue(ring->readwait));
++        SDL_SemWait(ring->readwait);
++//printf("Finished waiting for read buffer\n");
++	if ( ring->active ) {
++            size = *((Uint32*) ring->read);
++            *buffer = ring->read + sizeof(Uint32);
++        }
++    }
++    return size;
++}
++
++/*
++  Call this when you have used some of the buffer previously returned by
++  MPRing_nextReadBuffer(), and want to update it so the rest of the data
++  is returned with the next call to MPRing_nextReadBuffer().
++*/
++
++double
++MPEG_ring:: ReadTimeStamp(void)
++{
++    return *ring->timestamp_read;
++}
++
++void
++MPEG_ring:: ReadSome( Uint32 used )
++{
++    Uint8 *data;
++    Uint32 oldlen;
++    Uint32 newlen;
++
++    if ( ring->active ) {
++        data = ring->read + sizeof(Uint32);
++        oldlen = *((Uint32*) ring->read);
++        newlen = oldlen - used;
++        memcpy(data, data+used, newlen);
++        *((Uint32*) ring->read) = newlen;
++//printf("Reusing read buffer (%d+1 available)\n", SDL_SemValue(ring->readwait));
++        SDL_SemPost(ring->readwait);
++    }
++}
++
++/*
++  Call this when the buffer returned from MPRing_nextReadBuffer() is no
++  longer needed.  This assumes there is only one read thread and one write
++  thread for a particular ring buffer.
++*/
++
++void
++MPEG_ring:: ReadDone( void )
++{
++    if ( ring->active ) {
++        ring->read += ring->bufSize + sizeof(Uint32);
++        ring->timestamp_read++;
++        if( ring->read >= ring->end )
++        {
++            ring->read = ring->begin;
++            ring->timestamp_read = ring->timestamps;
++        }
++//printf("Finished read buffer, making available for writes (%d+1 available for writes)\n", SDL_SemValue(ring->writewait));
++        SDL_SemPost(ring->writewait);
++    }
++}
++
++
++/* EOF */
+diff -Naur smpeg/MPEGstream.cpp smpeg.patched/MPEGstream.cpp
+--- smpeg/MPEGstream.cpp	Wed Aug  9 22:05:28 2000
++++ smpeg.patched/MPEGstream.cpp	Mon Sep  4 18:07:23 2000
+@@ -119,7 +119,7 @@
+   preread_size -= br->Size();
+ 
+   /* Check for the end of stream mark */
+-  if(eof())
++  while(eof())
+   {
+     if(looping)
+     {
+diff -Naur smpeg/MPEGsystem.cpp smpeg.patched/MPEGsystem.cpp
+--- smpeg/MPEGsystem.cpp	Wed Aug  9 22:05:29 2000
++++ smpeg.patched/MPEGsystem.cpp	Mon Sep  4 18:07:20 2000
+@@ -597,19 +597,49 @@
+          read_size = size;
+        }
+     } else {
+-       read_size = read(mpeg_fd,
++#ifdef NO_GRIFF_MODS
++        read_size = read(mpeg_fd,
+                         read_buffer + remaining, 
+                         READ_ALIGN(MPEG_BUFFER_SIZE - remaining));
+-    }
++	if(read_size < 0)
++	{
++	  perror("Read");
++	  errorstream = true;
++	  SDL_mutexV(system_mutex);
++	  return;
++	}
++#else
++	/* Read new data */
++	int bytes_read    = 0;
++	int buffer_offset = remaining;
++	int bytes_to_read = READ_ALIGN(MPEG_BUFFER_SIZE - remaining);
++	int read_at_once = 0;
+ 
+-    if(read_size < 0)
+-    {
+-      perror("Read");
+-      errorstream = true;
+-      SDL_mutexV(system_mutex);
+-      return;
++	read_size = 0;
++	do
++	{
++	  read_at_once = 
++	    read(mpeg_fd, read_buffer + buffer_offset, bytes_to_read );
++
++	  if(read_at_once < 0)
++	  {
++	    perror("Read");
++	    errorstream = true;
++	    SDL_mutexV(system_mutex);
++	    return;
++	  }
++	  else
++	  {
++	    bytes_read    += read_at_once;
++	    buffer_offset += read_at_once;
++	    read_size     += read_at_once;
++	    bytes_to_read -= read_at_once;
++	  }
++	}
++	while( read_at_once>0 && bytes_to_read>0 );
++#endif
+     }
+-    
++
+     read_total += read_size;
+ 
+     packet_total ++;
+@@ -909,7 +939,7 @@
+       /* Insert the new data at the end of the stream */
+       if(pointer + packet_size <= read_buffer + read_size)
+       {
+-	stream->insert_packet(pointer, packet_size, stream_timestamp);
++	if(packet_size) stream->insert_packet(pointer, packet_size, stream_timestamp);
+ 	pointer += packet_size;
+       }
+       else
+diff -Naur smpeg/MPEGvideo.h smpeg.patched/MPEGvideo.h
+--- smpeg/MPEGvideo.h	Fri May 26 19:54:37 2000
++++ smpeg.patched/MPEGvideo.h	Mon Sep  4 18:07:20 2000
+@@ -44,9 +44,6 @@
+ 
+     /* Various mpeg_play functions that need our data */
+     friend VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first );
+-    friend void DoDitherImage( VidStream* vid_stream );
+-    friend void DisplayCurrentFrame( VidStream* vid_stream );
+-    friend int timeSync( VidStream* vid_stream );
+     friend int get_more_data( VidStream* vid_stream );
+ 
+ public:
+@@ -67,8 +64,15 @@
+                                             MPEG_DisplayCallback callback);
+     void MoveDisplay(int x, int y);
+     void ScaleDisplayXY(int w, int h);
++    void SetDisplayRegion(int x, int y, int w, int h);
+     void RenderFrame(int frame);
+     void RenderFinal(SDL_Surface *dst, int x, int y);
++    MPEG_Filter * Filter(MPEG_Filter * filter);
++
++    /* Display and sync functions */
++    void DisplayFrame( VidStream* vid_stream );
++    void ExecuteDisplay( VidStream* vid_stream );
++    int timeSync( VidStream* vid_stream );
+ 
+     /* Yes, it's a hack.. */
+     MPEGaudioaction *TimeSource(void ) {
+@@ -85,10 +89,16 @@
+ 
+     MPEG_DisplayCallback _callback;
+ 
+-    int _w;             // width of movie
+-    int _h;             // height of movie
+-    SDL_Rect _rect;	// display area
++    int _ow;            // original width of the movie
++    int _oh;            // original height of the movie
++    int _w;             // mb aligned width of the movie
++    int _h;             // mb aligned height of the movie
++    SDL_Rect _srcrect;	// source area
++    SDL_Rect _dstrect;	// display area
++    SDL_Overlay *_image;// source image
+     float _fps;         // frames per second
++    MPEG_Filter * _filter; // pointer to the current filter used
++    SDL_mutex* _filter_mutex; // make sure the filter is not changed while being used
+ 
+     void RewindStream(void);
+ };
+diff -Naur smpeg/Makefile.am smpeg.patched/Makefile.am
+--- smpeg/Makefile.am	Mon Aug  7 21:14:06 2000
++++ smpeg.patched/Makefile.am	Mon Sep  4 18:07:20 2000
+@@ -15,6 +15,7 @@
+ 	MPEGlist.cpp		\
+ 	MPEGstream.cpp		\
+ 	MPEGsystem.cpp		\
++	MPEGfilter.cpp		\
+ 	smpeg.cpp
+ 
+ libsmpegincludedir = $(includedir)/smpeg
+diff -Naur smpeg/audio/MPEGaudio.cpp smpeg.patched/audio/MPEGaudio.cpp
+--- smpeg/audio/MPEGaudio.cpp	Sun Jun  4 20:06:18 2000
++++ smpeg.patched/audio/MPEGaudio.cpp	Mon Sep  4 18:07:27 2000
+@@ -138,6 +138,7 @@
+         fprintf(stderr, "Warning: incorrect audio format\n");
+     }
+     rate_in_s=((double)((actual->format&0xFF)/8)*actual->channels*actual->freq);
++    stereo=(actual->channels-1);
+ }
+ 
+ #ifdef THREADED_AUDIO
+diff -Naur smpeg/audio/mpegtoraw.cpp smpeg.patched/audio/mpegtoraw.cpp
+--- smpeg/audio/mpegtoraw.cpp	Mon Aug  7 21:14:07 2000
++++ smpeg.patched/audio/mpegtoraw.cpp	Mon Sep  4 18:07:27 2000
+@@ -184,6 +184,10 @@
+     // Making information
+ 
+     inputstereo = (mode == single) ? 0 : 1;
++
++    forcetomonoflag = (!stereo && inputstereo);
++    forcetostereoflag = (stereo && !inputstereo);
++
+     if(forcetomonoflag)
+         outputstereo=0;
+     else
+@@ -248,11 +252,7 @@
+   }
+ 
+ #ifdef DEBUG_AUDIO
+-  static int printed = 0;
+-  if ( ! printed ) {
+-    printf("MPEG audio stream layer %d (%d kbps), at %d Hz %s\n", layer,  bitrate[version][layer-1][bitrateindex], frequencies[version][frequency], (mode == single) ? "mono" : "stereo");
+-    printed = 1;
+-  }
++  fprintf(stderr, "MPEG %d audio layer %d (%d kbps), at %d Hz %s [%d]\n", version+1, layer,  bitrate[version][layer-1][bitrateindex], frequencies[version][frequency], (mode == single) ? "mono" : "stereo", framesize);
+ #endif
+ 
+   /* Fill the buffer with new data */
+@@ -330,7 +330,9 @@
+         if ( audio->rawdata ) {
+             audio->rawdatawriteoffset = 0;
+             audio->run(1, &timestamp);
+-            audio->ring->WriteDone(audio->rawdatawriteoffset*2, timestamp);
++
++	    if(audio->rawdatawriteoffset*2 <= audio->ring->BufferSize())
++	      audio->ring->WriteDone(audio->rawdatawriteoffset*2, timestamp);
+         }
+     }
+ 
+diff -Naur smpeg/configure.in smpeg.patched/configure.in
+--- smpeg/configure.in	Fri Aug 11 14:49:44 2000
++++ smpeg.patched/configure.in	Tue Sep  5 20:09:08 2000
+@@ -60,6 +60,11 @@
+             CFLAGS="$CFLAGS -mcpu=ev4 -Wa,-mall"
+         fi
+         ;;
++    sparc*-*-solaris*)
++	if test x$ac_cv_prog_gcc = xyes; then
++            LIBS="$LIBS -lsocket -lnsl"	
++        fi
++        ;;
+     *-*-cygwin* | *-*-mingw32*)
+         if test "$build" != "$target"; then # cross-compiling
+             ac_default_prefix=/usr/local/cross-tools/i386-mingw32msvc
+diff -Naur smpeg/gtv.c smpeg.patched/gtv.c
+--- smpeg/gtv.c	Sun Jun 11 20:51:58 2000
++++ smpeg.patched/gtv.c	Tue Sep  5 20:07:59 2000
+@@ -27,6 +27,7 @@
+ static void gtv_double( GtkWidget*, gpointer );
+ static void gtv_loop( GtkWidget*, gpointer );
+ static void gtv_audio( GtkWidget*, gpointer );
++static void gtv_filter( GtkWidget*, gpointer );
+ 
+ static void gtv_open( GtkWidget*, gpointer );
+ static void gtv_open_file( gchar*, gpointer );
+@@ -64,19 +65,23 @@
+ 	GtkWidget* twotimes = NULL;
+ 	GtkWidget* loop = NULL;
+ 	GtkWidget* audio = NULL;
++	GtkWidget* filter = NULL;
+ 
+ 	twotimes = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "twotimes" ) );
+ 	loop = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "loop" ) );
+ 	audio = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "audio" ) );
++	filter = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "filter" ) );
+ 
+ #if 1 /* Sam 5/31/2000 - Default to doubled video and audio on */
+ 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( twotimes ), FALSE );
+ 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( loop ), FALSE );
+ 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( audio ), TRUE );
++	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( filter ), FALSE );
+ #else
+ 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( twotimes ), FALSE );
+ 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( loop ), FALSE );
+ 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( audio ), FALSE );
++	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( filter ), FALSE );
+ #endif
+     }
+ 
+@@ -111,6 +116,7 @@
+     info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
+     gtv_set_sensitive( raw, "twotimes", sensitive && info->has_video );
+     gtv_set_sensitive( raw, "audio", sensitive && info->has_audio );
++    gtv_set_sensitive( raw, "filter", sensitive && info->has_video );
+ 
+     gtv_fix_toggle_state( raw );
+ }
+@@ -265,6 +271,7 @@
+ 
+     gtv_loop( NULL, raw );
+     gtv_audio( NULL, raw );
++    gtv_filter( NULL, raw );
+     gtv_set_buttons_sensitive( raw, TRUE );
+ }
+ 
+@@ -600,6 +607,43 @@
+ 
+ }
+ 
++static void gtv_filter( GtkWidget* item, gpointer raw )
++{
++    SMPEG* mpeg = NULL;
++
++    assert( raw );
++
++    mpeg = (SMPEG*) gtk_object_get_data( GTK_OBJECT( raw ), "mpeg" );
++
++    if( mpeg ) {
++	GtkWidget* filter = NULL;
++	gboolean active = FALSE;
++
++	filter = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "filter" ) );
++	active = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( filter ) );
++
++	if(active)
++	{
++	  SMPEG_Filter * filter;
++
++	  /* Activate the deblocking filter */
++       	  filter = SMPEGfilter_deblocking();
++	  filter = SMPEG_filter( mpeg, filter );
++	  filter->destroy(filter);
++	}
++	else
++	{
++	  SMPEG_Filter * filter;
++
++	  /* Reset to default (null) filter */
++	  filter = SMPEGfilter_null();
++	  filter = SMPEG_filter( mpeg, filter );
++	  filter->destroy(filter);
++	}
++    }
++
++}
++
+ static void gtv_play( GtkWidget* item, gpointer raw )
+ {
+     SMPEG* mpeg = NULL;
+@@ -935,6 +979,8 @@
+     gtv_connect( window, "twotimes", "toggled", GTK_SIGNAL_FUNC( gtv_double ) );
+     gtv_connect( window, "loop", "toggled", GTK_SIGNAL_FUNC( gtv_loop ) );
+     gtv_connect( window, "audio", "toggled", GTK_SIGNAL_FUNC( gtv_audio ) );
++    gtv_connect( window, "filter", "toggled", GTK_SIGNAL_FUNC( gtv_filter ) );
++
+     gtv_connect( window, "seek", "value_changed", GTK_SIGNAL_FUNC( gtv_seek ) );
+ 
+     gtv_connect( window, "scale", "button_press_event", GTK_SIGNAL_FUNC( gtv_trackbar_drag_on ) );
+@@ -985,6 +1031,7 @@
+   GtkWidget *twotimes;
+   GtkWidget *loop;
+   GtkWidget *audio;
++  GtkWidget *filter;
+   GtkWidget *label3;
+   GtkWidget *fps;
+   GtkWidget *label2;
+@@ -1200,6 +1247,15 @@
+                             (GtkDestroyNotify) gtk_widget_unref);
+   gtk_widget_show (audio);
+   gtk_table_attach (GTK_TABLE (table1), audio, 2, 3, 2, 3,
++                    (GtkAttachOptions) (0),
++                    (GtkAttachOptions) (0), 0, 0);
++
++  filter = gtk_check_button_new_with_label ("Filter");
++  gtk_widget_ref (filter);
++  gtk_object_set_data_full (GTK_OBJECT (gtv_window), "filter", filter,
++                            (GtkDestroyNotify) gtk_widget_unref);
++  gtk_widget_show (filter);
++  gtk_table_attach (GTK_TABLE (table1), filter, 3, 4, 2, 3,
+                     (GtkAttachOptions) (0),
+                     (GtkAttachOptions) (0), 0, 0);
+ 
+diff -Naur smpeg/plaympeg.c smpeg.patched/plaympeg.c
+--- smpeg/plaympeg.c	Wed Aug  9 22:05:34 2000
++++ smpeg.patched/plaympeg.c	Mon Sep  4 18:07:20 2000
+@@ -23,6 +23,7 @@
+ 
+ #ifdef unix
+ #include <unistd.h>
++
+ #include <errno.h>
+ #include <sys/types.h>
+ #include <sys/stat.h>
+@@ -33,7 +34,9 @@
+ #define RAW_SUPPORT  /* Raw data transport support */
+ #define HTTP_SUPPORT /* HTTP support */
+ #define FTP_SUPPORT  /* FTP support */
++#ifdef linux
+ #define VCD_SUPPORT  /* Video CD support */
++#endif
+ #endif
+ 
+ #ifdef NET_SUPPORT
+diff -Naur smpeg/smpeg.cpp smpeg.patched/smpeg.cpp
+--- smpeg/smpeg.cpp	Wed Aug  9 22:05:34 2000
++++ smpeg.patched/smpeg.cpp	Mon Sep  4 18:07:20 2000
+@@ -217,6 +217,12 @@
+     mpeg->obj->MoveDisplay(x, y);
+ }
+ 
++/* Set the region of the video to be shown */
++void SMPEG_setdisplayregion(SMPEG* mpeg, int x, int y, int w, int h)
++{
++    mpeg->obj->SetDisplayRegion(x, y, w, h);
++}
++
+ /* Play an SMPEG object */
+ void SMPEG_play( SMPEG* mpeg )
+ {
+@@ -265,6 +271,12 @@
+     mpeg->obj->RenderFinal(dst, x, y);
+ }
+ 
++/* Set video filter */
++SMPEG_Filter * SMPEG_filter( SMPEG* mpeg, SMPEG_Filter * filter )
++{
++    return((SMPEG_Filter *) mpeg->obj->Filter((MPEG_Filter *) filter));
++}
++
+ /* Exported function for SDL audio playback */
+ void SMPEG_playAudio(void *udata, Uint8 *stream, int len)
+ {
+@@ -298,6 +310,25 @@
+     return(error);
+ }
+ 
++/* SMPEG built-in filters */
++
++/* The null filter (default). It simply copies the source rectangle to the video overlay. */ 
++extern DECLSPEC SMPEG_Filter * SMPEGfilter_null()
++{
++  return (SMPEG_Filter *) new MPEG_Filter_null;
++}
++
++/* The bilinear filter. A basic low-pass filter that will produce a smoother image. */
++extern DECLSPEC SMPEG_Filter * SMPEGfilter_bilinear()
++{
++  return (SMPEG_Filter *) new MPEG_Filter_bilinear;
++}
++
++/* The deblocking filter. It filters block borders and non-intra coded blocks to reduce blockiness */
++extern DECLSPEC SMPEG_Filter * SMPEGfilter_deblocking()
++{
++  return (SMPEG_Filter *) new MPEG_Filter_deblocking;
++}
+ 
+ /* Extern "C" */
+ };
+diff -Naur smpeg/smpeg.h smpeg.patched/smpeg.h
+--- smpeg/smpeg.h	Wed Aug  9 22:05:34 2000
++++ smpeg.patched/smpeg.h	Mon Sep  4 18:07:27 2000
+@@ -76,11 +76,28 @@
+     SMPEG_PLAYING
+ } SMPEGstatus;
+ 
++/* SMPEG filter flags */
++#define SMPEG_FILTER_INFO_MB_ERROR    1
++#define SMPEG_FILTER_INFO_PIXEL_ERROR 2
++
++/* Filter info from SMPEG */
++typedef struct __SMPEG_FilterInfo{
++  Uint16* yuv_mb_square_error;
++  Uint16* yuv_pixel_square_error;
++} SMPEG_FilterInfo;
++
++/* Filter declaration */
++typedef struct _SMPEG_Filter {
++  Uint32 flags;
++  void * data;
++  void (* callback)( SDL_Overlay * dest, SDL_Overlay * source, SDL_Rect * region, SMPEG_FilterInfo * filter_info, void * data );
++  void (* destroy)( struct _SMPEG_Filter * data );
++} SMPEG_Filter;
++
+ /* Matches the declaration of SDL_UpdateRect() */
+ typedef void(*SMPEG_DisplayCallback)(SDL_Surface* dst, int x, int y,
+                                      unsigned int w, unsigned int h);
+ 
+-
+ /* Create a new SMPEG object from an MPEG file.
+    On return, if 'info' is not NULL, it will be filled with information 
+    about the MPEG object.
+@@ -141,6 +158,9 @@
+ /* Move the video display area within the destination surface */
+ extern DECLSPEC void SMPEG_move( SMPEG* mpeg, int x, int y );
+ 
++/* Set the region of the video to be shown */
++extern DECLSPEC void SMPEG_setdisplayregion(SMPEG* mpeg, int x, int y, int w, int h);
++
+ /* Play an SMPEG object */
+ extern DECLSPEC void SMPEG_play( SMPEG* mpeg );
+ 
+@@ -168,6 +188,9 @@
+ /* Render the last frame of an MPEG video */
+ extern DECLSPEC void SMPEG_renderFinal( SMPEG* mpeg, SDL_Surface* dst, int x, int y );
+ 
++/* Set video filter */
++extern DECLSPEC SMPEG_Filter * SMPEG_filter( SMPEG* mpeg, SMPEG_Filter * filter );
++
+ /* Return NULL if there is no error in the MPEG stream, or an error message
+    if there was a fatal error in the MPEG stream for the SMPEG object.
+ */
+@@ -183,6 +206,17 @@
+ 
+ /* Inform SMPEG of the actual SDL audio spec used for sound playback */
+ extern DECLSPEC void SMPEG_actualSpec( SMPEG *mpeg, SDL_AudioSpec *spec );
++
++/* SMPEG built-in filters. */
++
++/* The null filter (default). It simply copies the source rectangle to the video overlay. */ 
++extern DECLSPEC SMPEG_Filter * SMPEGfilter_null();
++
++/* The bilinear filter. A basic low-pass filter that will produce a smoother image. */ 
++extern DECLSPEC SMPEG_Filter * SMPEGfilter_bilinear();
++
++/* The deblocking filter. It filters block borders and non-intra coded blocks to reduce blockiness */ 
++extern DECLSPEC SMPEG_Filter * SMPEGfilter_deblocking();
+ 
+ #ifdef __cplusplus
+ };
+diff -Naur smpeg/video/MPEGvideo.cpp smpeg.patched/video/MPEGvideo.cpp
+--- smpeg/video/MPEGvideo.cpp	Wed Aug  9 22:05:34 2000
++++ smpeg.patched/video/MPEGvideo.cpp	Mon Sep  4 18:07:27 2000
+@@ -78,7 +78,6 @@
+ */
+ 
+ 
+-
+ #include <limits.h>
+ #include <string.h>
+ 
+@@ -88,7 +87,7 @@
+ #include "util.h"
+ 
+ #include "MPEGvideo.h"
+-
++#include "MPEGfilter.h"
+ 
+ /*--------------------------------------------------------------*/
+ 
+@@ -155,8 +154,8 @@
+ 
+         /* Get the width and height of the video */
+         mpeg->copy_data(buf, 4);
+-        _w = (((buf[0]<<4)|(buf[1]>>4)) + 15) & ~15;    /* 12 bits of width */
+-        _h = ((((buf[1]&0xF)<<8)|buf[2]) + 15) & ~15;   /* 12 bits of height */
++        _w = (buf[0]<<4)|(buf[1]>>4);    /* 12 bits of width */
++        _h = ((buf[1]&0xF)<<8)|buf[2];   /* 12 bits of height */
+ 	switch(buf[3]&0xF)                /*  4 bits of fps */
+ 	{
+ 	  case 1: _fps = 23.97; break;
+@@ -180,11 +179,31 @@
+     mpeg->seek_marker(marker);
+     mpeg->delete_marker(marker);
+ 
++    /* Keep original width and height in _ow and _oh */
++    _ow = _w;
++    _oh = _h;
++
++    /* Now round up width and height to a multiple   */
++    /* of a macroblock size (16 pixels) to keep the  */
++    /* video decoder happy */
++    _w = (_w + 15) & ~15;
++    _h = (_h + 15) & ~15;
++
+     /* Set the default playback area */
+-    _rect.x = 0;
+-    _rect.y = 0;
+-    _rect.w = _w;
+-    _rect.h = _h;
++    _dstrect.x = 0;
++    _dstrect.y = 0;
++    _dstrect.w = 0;
++    _dstrect.h = 0;
++
++    /* Set the source area */
++    _srcrect.x = 0;
++    _srcrect.y = 0;
++    _srcrect.w = _ow;
++    _srcrect.h = _oh;
++
++    _image = 0;
++    _filter = new MPEG_Filter_null;
++    _filter_mutex = SDL_CreateMutex();
+ }
+ 
+ MPEGvideo:: ~MPEGvideo()
+@@ -195,6 +214,13 @@
+     /* Free actual video stream */
+     if( _stream )
+         DestroyVidStream( _stream );
++
++    /* Free overlay */
++    if(_image) SDL_FreeYUVOverlay(_image);
++
++    /* Release filter */
++    SDL_DestroyMutex(_filter_mutex);
++    _filter->destroy(_filter);
+ }
+ 
+ /* Simple thread play function */
+@@ -300,10 +326,12 @@
+ void
+ MPEGvideo:: ResetSynchro(double time)
+ {
+-  _stream->_jumpFrame = -1;
+-  _stream->realTimeStart = -time;
+-  play_time = time;
+-  if (time > 0) {
++  if( _stream )
++  {
++    _stream->_jumpFrame = -1;
++    _stream->realTimeStart = -time;
++    play_time = time;
++    if (time > 0) {
+ 	double oneframetime;
+ 	if (_stream->_oneFrameTime == 0)
+ 		oneframetime = 1.0 / _stream->_smpeg->_fps;	
+@@ -316,6 +344,7 @@
+ 	/* Set Current Frame To 0 & Frame Adjust Frag Set */
+ 	_stream->current_frame = 0;
+ 	_stream->need_frameadjust=true;
++    }
+   }
+ }
+ 
+@@ -359,8 +388,8 @@
+ MPEGvideo:: GetVideoInfo(MPEG_VideoInfo *info)
+ {
+     if ( info ) {
+-        info->width = _w;
+-        info->height = _h;
++        info->width = _ow;
++        info->height = _oh;
+         if ( _stream ) {
+             info->current_frame = _stream->current_frame;
+ #ifdef CALCULATE_FPS
+@@ -410,6 +439,9 @@
+     _mutex = lock;
+     _dst = dst;
+     _callback = callback;
++    _image = SDL_CreateYUVOverlay(_srcrect.w, _srcrect.h, SDL_YV12_OVERLAY, dst);
++    _dstrect.w = dst->w;
++    _dstrect.h = dst->h;
+ 
+     if ( !_stream ) {
+         decodeInitTables();
+@@ -442,8 +474,8 @@
+ MPEGvideo:: MoveDisplay( int x, int y )
+ {
+     SDL_mutexP( _mutex );
+-    _rect.x = x;
+-    _rect.y = y;
++    _dstrect.x = x;
++    _dstrect.y = y;
+     SDL_mutexV( _mutex );
+ }
+ 
+@@ -451,11 +483,44 @@
+ MPEGvideo:: ScaleDisplayXY( int w, int h )
+ {
+     SDL_mutexP( _mutex );
+-    _rect.w = w;
+-    _rect.h = h;
++    if(_image)
++    {
++      /* Adjust to hide offscreen part */
++      SDL_LockYUVOverlay( _image );
++      _dstrect.w = _image->pitch * w / _ow;
++      _dstrect.h = _image->h * h / _oh;
++      SDL_UnlockYUVOverlay( _image );
++    }
+     SDL_mutexV( _mutex );
+ }
+ 
++void
++MPEGvideo:: SetDisplayRegion(int x, int y, int w, int h)
++{
++    SDL_mutexP( _mutex );
++    _srcrect.x = x;
++    _srcrect.y = y;
++    _srcrect.w = w;
++    _srcrect.h = h;
++
++    if(_image)
++    {
++      SDL_LockYUVOverlay( _image );
++      w = _dstrect.w * _ow / _image->pitch;
++      h = _dstrect.h * _oh / _image->h;
++      SDL_UnlockYUVOverlay( _image );
++
++      SDL_FreeYUVOverlay(_image);
++      _image = SDL_CreateYUVOverlay(_srcrect.w, _srcrect.h, SDL_YV12_OVERLAY, _dst);
++
++      SDL_LockYUVOverlay( _image );
++      _dstrect.w = _image->pitch * w / _ow;
++      _dstrect.h = _image->h * h / _oh;
++      SDL_UnlockYUVOverlay( _image );
++    }
++
++    SDL_mutexV( _mutex );
++}
+ 
+ /* API CHANGE: This function no longer takes a destination surface and x/y
+    You must use SetDisplay() and MoveDisplay() to set those attributes.
+@@ -463,18 +528,7 @@
+ void
+ MPEGvideo:: RenderFrame( int frame )
+ {
+-
+-   if (_stream->need_frameadjust) {
+-      _stream->_jumpFrame=0;
+-      while(_stream->need_frameadjust) {
+-        mpegVidRsrc(0, _stream, 0);
+-#ifdef DEBUG
+-        printf("Adjusting Frame %d Timecode %f\n",_stream->totNumFrames,_stream->timestamp);
+-#endif
+-      }
+-      _stream->_jumpFrame=-1;
+-      return;
+-   }
++    _stream->need_frameadjust = true;
+ 
+     if( _stream->totNumFrames > frame ) {
+         mpeg->rewind_stream();
+@@ -542,23 +596,8 @@
+ 	mpeg->garbage_collect();
+     }
+ 
+-    /* Create a temporary YUV surface and display the frame */
+-    yuv = SDL_CreateYUVOverlay(_w, _h, SDL_YV12_OVERLAY, dst);
+-    if ( yuv ) {
+-        if ( SDL_LockYUVOverlay(yuv) == 0 ) {
+-	  SDL_Rect dstrect;
+-
+-            memcpy(yuv->pixels, _stream->current->image->pixels, (_w*_h)+2*(_w*_h)/4);
+-            SDL_UnlockYUVOverlay(yuv);
+-            dstrect.x = _rect.x;
+-            dstrect.y = _rect.y;
+-            dstrect.w = _rect.w;
+-            dstrect.h = _rect.h;
+-            SDL_DisplayYUVOverlay(yuv, &dstrect);
+-        }
+-        SDL_FreeYUVOverlay(yuv);
+-    }
++    /* Display the frame */
++    DisplayFrame(_stream);
+ }
+-
+ 
+ /* EOF */
+diff -Naur smpeg/video/decoders.cpp smpeg.patched/video/decoders.cpp
+--- smpeg/video/decoders.cpp	Wed May 31 00:21:05 2000
++++ smpeg.patched/video/decoders.cpp	Mon Sep  4 18:07:20 2000
+@@ -836,6 +836,12 @@
+ 	 if (next32bits >> (31-flushed)) *level = -*level;
+ 	 flushed++;
+ 	 /* next32bits &= bitMask[flushed];  last op before update */
++#ifdef NO_GRIFF_MODS
++#else
++	 /* CG: moved into if case 12jul2000 */
++         /* Update bitstream... */
++         flush_bits(flushed);
++#endif
+        }
+        else {    /* *run == ESCAPE */
+          /* get_bits14(temp); */
+@@ -849,21 +855,53 @@
+ 	    *level = next32bits >> (24-flushed);
+ 	    flushed += 8;
+ 	    /* next32bits &= bitMask[flushed];  last op before update */
++#ifdef NO_GRIFF_MODS
+  	    assert(*level >= 128);
++#else
++	    /* CG: Try to overcome the assertion and incorrect decoding in
++	     * case of lost packets. 12jul2000 */
++ 	    if (*level >= 128) {
++              flush_bits(flushed);
++	    }
++	    else {
++              *run = END_OF_BLOCK;
++              *level = END_OF_BLOCK;
++	    }
++#endif
+ 	 } else if (temp != 128) {
+ 	    /* Grab sign bit */
+ 	    *level = ((int) (temp << 24)) >> 24;
++#ifdef NO_GRIFF_MODS
++#else
++	    /* CG: moved into else case 12jul2000 */
++            /* Update bitstream... */
++            flush_bits(flushed);
++#endif
+ 	 } else {
+             /* get_bits8(*level); */
+ 	    *level = next32bits >> (24-flushed);
+ 	    flushed += 8;
+ 	    /* next32bits &= bitMask[flushed];  last op before update */
+ 	    *level = *level - 256;
++#ifdef NO_GRIFF_MODS
+ 	    assert(*level <= -128 && *level >= -255);
++#else
++	    /* CG: Try to overcome the assertion and incorrect decoding in
++	     * case of lost packets. 12jul2000 */
++	    if (*level <= -128 && *level >= -255) {
++              flush_bits(flushed);
++	    }
++	    else {
++              *run = END_OF_BLOCK;
++              *level = END_OF_BLOCK;
++	    }
++#endif
+ 	 }
+        }
++#ifdef NO_GRIFF_MODS
+        /* Update bitstream... */
+        flush_bits(flushed);
++#endif
+     }
+   }
+   else {
+diff -Naur smpeg/video/decoders.h smpeg.patched/video/decoders.h
+--- smpeg/video/decoders.h	Wed May 31 00:21:05 2000
++++ smpeg.patched/video/decoders.h	Mon Sep  4 18:07:20 2000
+@@ -170,6 +170,7 @@
+   }	\
+ }
+ 
++#ifdef NO_GRIFF_MODS
+ #define DecodeDCTCoeff(dct_coeff_tbl, run, level)			\
+ {									\
+   unsigned int temp, index;						\
+@@ -290,6 +291,148 @@
+     assert (flushed <= 32);						\
+   }									\
+ }
++#else /* NO_GRIFF_MODS */
++#define DecodeDCTCoeff(dct_coeff_tbl, run, level)			\
++{									\
++  unsigned int temp, index;						\
++  unsigned int value, next32bits, flushed;				\
++									\
++  /*									\
++   * Grab the next 32 bits and use it to improve performance of		\
++   * getting the bits to parse. Thus, calls are translated as:		\
++   *									\
++   *	show_bitsX  <-->   next32bits >> (32-X)				\
++   *	get_bitsX   <-->   val = next32bits >> (32-flushed-X);		\
++   *			   flushed += X;				\
++   *			   next32bits &= bitMask[flushed];		\
++   *	flush_bitsX <-->   flushed += X;				\
++   *			   next32bits &= bitMask[flushed];		\
++   *									\
++   * I've streamlined the code a lot, so that we don't have to mask	\
++   * out the low order bits and a few of the extra adds are removed.	\
++   */									\
++  show_bits32(next32bits);						\
++									\
++  /* show_bits8(index); */						\
++  index = next32bits >> 24;						\
++									\
++  if (index > 3) {							\
++    value = dct_coeff_tbl[index];					\
++    run = value >> RUN_SHIFT;						\
++    if (run != END_OF_BLOCK) {						\
++      /* num_bits = (value & NUM_MASK) + 1; */				\
++      /* flush_bits(num_bits); */					\
++      if (run != ESCAPE) {						\
++	 /* get_bits1(value); */					\
++	 /* if (value) level = -level; */				\
++	 flushed = (value & NUM_MASK) + 2;				\
++         level = (value & LEVEL_MASK) >> LEVEL_SHIFT;			\
++	 value = next32bits >> (32-flushed);				\
++	 value &= 0x1;							\
++	 if (value) level = -level;					\
++	 /* next32bits &= ((~0) >> flushed);  last op before update */	\
++									\
++         /* Update bitstream... */					\
++         flush_bits(flushed);						\
++         assert (flushed <= 32);					\
++       }								\
++       else {    /* run == ESCAPE */					\
++	 /* Get the next six into run, and next 8 into temp */		\
++         /* get_bits14(temp); */					\
++	 flushed = (value & NUM_MASK) + 1;				\
++	 temp = next32bits >> (18-flushed);				\
++	 /* Normally, we'd ad 14 to flushed, but I've saved a few	\
++	  * instr by moving the add below */				\
++	 temp &= 0x3fff;						\
++	 run = temp >> 8;						\
++	 temp &= 0xff;							\
++	 if (temp == 0) {						\
++            /* get_bits8(level); */					\
++	    level = next32bits >> (10-flushed);				\
++	    level &= 0xff;						\
++	    flushed += 22;						\
++ 	    /* CG: 12jul2000 - assert(level >= 128); */                 \
++ 	    if (level >= 128) {                                         \
++               /* Update bitstream... */				\
++               flush_bits(flushed);					\
++               assert (flushed <= 32);					\
++	    } else {                                                    \
++	      run = END_OF_BLOCK;                                       \
++	      level = END_OF_BLOCK;                                     \
++	    }                                                           \
++	 } else if (temp != 128) {					\
++	    /* Grab sign bit */						\
++	    flushed += 14;						\
++	    level = ((int) (temp << 24)) >> 24;				\
++            /* Update bitstream... */					\
++            flush_bits(flushed);					\
++            assert (flushed <= 32);					\
++	 } else {							\
++            /* get_bits8(level); */					\
++	    level = next32bits >> (10-flushed);				\
++	    level &= 0xff;						\
++	    flushed += 22;						\
++	    level = level - 256;					\
++	    /* CG: 12jul2000 - assert(level <= -128 && level >= -255); */ \
++	    if ( level <= -128 && level >= -255) {                      \
++              /* Update bitstream... */					\
++              flush_bits(flushed);					\
++              assert (flushed <= 32);					\
++	    } else {                                                    \
++	      run = END_OF_BLOCK;                                       \
++	      level = END_OF_BLOCK;                                     \
++	    }                                                           \
++	 }								\
++       }								\
++    }									\
++  }									\
++  else {								\
++    switch (index) {                                                    \
++    case 2: {   							\
++      /* show_bits10(index); */						\
++      index = next32bits >> 22;						\
++      value = dct_coeff_tbl_2[index & 3];				\
++      break;                                                            \
++    }									\
++    case 3: { 						                \
++      /* show_bits10(index); */						\
++      index = next32bits >> 22;						\
++      value = dct_coeff_tbl_3[index & 3];				\
++      break;                                                            \
++    }									\
++    case 1: {                                             		\
++      /* show_bits12(index); */						\
++      index = next32bits >> 20;						\
++      value = dct_coeff_tbl_1[index & 15];				\
++      break;                                                            \
++    }									\
++    default: { /* index == 0 */						\
++      /* show_bits16(index); */						\
++      index = next32bits >> 16;						\
++      value = dct_coeff_tbl_0[index & 255];				\
++    }}									\
++    run = value >> RUN_SHIFT;						\
++    level = (value & LEVEL_MASK) >> LEVEL_SHIFT;			\
++									\
++    /*									\
++     * Fold these operations together to make it fast...		\
++     */									\
++    /* num_bits = (value & NUM_MASK) + 1; */				\
++    /* flush_bits(num_bits); */						\
++    /* get_bits1(value); */						\
++    /* if (value) level = -level; */					\
++									\
++    flushed = (value & NUM_MASK) + 2;					\
++    value = next32bits >> (32-flushed);					\
++    value &= 0x1;							\
++    if (value) level = -level;						\
++									\
++    /* Update bitstream ... */						\
++    flush_bits(flushed);						\
++    assert (flushed <= 32);						\
++  }									\
++}
++#endif /* NO_GRIFF_MODS */
+ 
+ #define DecodeDCTCoeffFirst(runval, levelval)         \
+ {                                                     \
+diff -Naur smpeg/video/gdith.cpp smpeg.patched/video/gdith.cpp
+--- smpeg/video/gdith.cpp	Thu Jun  8 21:05:08 2000
++++ smpeg.patched/video/gdith.cpp	Mon Sep  4 18:07:27 2000
+@@ -140,9 +140,8 @@
+     return now;
+ }
+ 
+-int timeSync( VidStream* vid_stream )
++int MPEGvideo::timeSync( VidStream* vid_stream )
+ {
+-    MPEGvideo* mpeg = (MPEGvideo*) vid_stream->_smpeg;
+     static double correction = -1;
+ 
+     /* Update the number of frames displayed */
+@@ -170,25 +169,25 @@
+     }
+ 
+     /* Update the current play time */
+-    mpeg->play_time += vid_stream->_oneFrameTime;
++    play_time += vid_stream->_oneFrameTime;
+ 
+     /* Synchronize using system timestamps */
+     if(vid_stream->current && vid_stream->current->show_time > 0){
+ #ifdef DEBUG_TIMESTAMP_SYNC
+       fprintf(stderr, "video: time:%.3f  shift:%.3f\r",
+-	      mpeg->play_time,
+-	      mpeg->play_time - vid_stream->current->show_time);
++	      play_time,
++	      play_time - vid_stream->current->show_time);
+ #endif
+       if(correction == -1)
+ #ifdef STRANGE_SYNC_TEST
+        /* this forces us to maintain the offset we have at the begining
+           all the time, and is only usefull for testing */
+-        correction = mpeg->play_time - vid_stream->current->show_time;
++        correction = play_time - vid_stream->current->show_time;
+ #else
+        correction = 0;
+ #endif
+ #ifdef USE_TIMESTAMP_SYNC
+-      mpeg->play_time = vid_stream->current->show_time + correction ;
++      play_time = vid_stream->current->show_time + correction ;
+ #endif
+       vid_stream->current->show_time = -1;
+     }
+@@ -216,10 +215,10 @@
+         double time_behind;
+ 
+         /* Calculate the frame time relative to real time */
+-        time_behind = CurrentTime(vid_stream) - mpeg->Time();
++        time_behind = CurrentTime(vid_stream) - Time();
+ 
+ #ifdef DEBUG_MPEG_SCHEDULING
+-printf("Frame %d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, mpeg->Time(), CurrentTime(vid_stream), time_behind);
++printf("Frame %d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, Time(), CurrentTime(vid_stream), time_behind);
+ #endif
+ 
+         /* Allow up to MAX_FUDGE_TIME of delay in output */
+@@ -255,7 +254,7 @@
+ printf("Way too far behind, losing time sync...\n");
+ #endif
+ #if 0 // This results in smoother video, but sync's terribly on slow machines
+-                mpeg->play_time = CurrentTime(vid_stream) - (MAX_FUDGE_TIME*2);
++                play_time = CurrentTime(vid_stream) - (MAX_FUDGE_TIME*2);
+ #endif
+             }
+ #ifdef SLOW_START_SCHEDULING
+@@ -278,26 +277,75 @@
+ /* Do the hard work of copying from the video stream working buffer to the
+    screen display and then calling the update callback.
+ */
+-void DisplayCurrentFrame( VidStream* vid_stream )
++void MPEGvideo::DisplayFrame( VidStream * vid_stream )
+ {
+-    SDL_Rect dstrect;
+-    MPEGvideo* mpeg = (MPEGvideo*) vid_stream->_smpeg;
++  Uint8 * image;
++  MPEG_FilterInfo info;
+ 
+-    SDL_UnlockYUVOverlay(vid_stream->current->image);
++  if ( _filter_mutex )
++    SDL_mutexP( _filter_mutex );
+ 
+-    if ( mpeg->_mutex )
+-        SDL_mutexP( mpeg->_mutex );
++  /* Get a pointer to _image pixels */
++  SDL_LockYUVOverlay( _image );
+ 
+-    dstrect = mpeg->_rect;
+-    SDL_DisplayYUVOverlay(vid_stream->current->image, &dstrect);
+-
+-    if ( mpeg->_callback )
+-        mpeg->_callback(mpeg->_dst, dstrect.x, dstrect.y, dstrect.w, dstrect.h);
+-
+-    if ( mpeg->_mutex )
+-        SDL_mutexV( mpeg->_mutex );
+-
+-    SDL_LockYUVOverlay(vid_stream->current->image);
++  /* Compute additionnal info for the filter */
++  if((_filter->flags & SMPEG_FILTER_INFO_PIXEL_ERROR) && vid_stream->current->mb_qscale)
++  {
++    register Uint32 x, y;
++    register Uint32 w, h;
++    register Uint16 * ptr;
++
++    /* Compute quantization error for each pixel */
++    info.yuv_pixel_square_error = (Uint16 *) malloc(_w*_h*12/8*sizeof(Uint16));
++
++    ptr =  info.yuv_pixel_square_error;
++    for(y = 0; y < _h; y++)
++      for(x = 0; x < _w; x++)
++	*ptr++ = (Uint16) (((Uint32) vid_stream->noise_base_matrix[x & 7][y & 7] * 
++			    vid_stream->current->mb_qscale[((y>>4) * (_w>>4)) + (x >> 4)]) >> 8);
++  }
++  
++  if((_filter->flags & SMPEG_FILTER_INFO_MB_ERROR) && vid_stream->current->mb_qscale)
++  {
++    /* Retreive macroblock quantization error info */
++    info.yuv_mb_square_error = vid_stream->current->mb_qscale;
++  }
++    
++  if( _filter )
++  {
++    SDL_Overlay src;
++
++    src.format = SDL_YV12_OVERLAY;
++    src.w = _w;
++    src.h = _h;
++    src.pitch = _w;
++    src.pixels = vid_stream->current->image;
++
++    _filter->callback(_image, &src, &_srcrect, &info, _filter->data );
++  }
++  
++  /* Now display the image */
++  if ( _mutex )
++    SDL_mutexP( _mutex );
++
++  SDL_DisplayYUVOverlay(_image, &_dstrect);
++
++  if ( _callback )
++    _callback(_dst, _dstrect.x, _dstrect.y, _dstrect.w, _dstrect.h);
++
++  SDL_UnlockYUVOverlay( _image );
++
++  if( _filter )
++  {
++    if( _filter->flags & SMPEG_FILTER_INFO_PIXEL_ERROR )
++      free(info.yuv_pixel_square_error);
++  }
++
++  if ( _filter_mutex )
++    SDL_mutexV( _filter_mutex );
++  
++  if ( _mutex )
++    SDL_mutexV( _mutex );
+ }
+ 
+ /*
+@@ -317,17 +365,33 @@
+  */
+ 
+ 
+-void ExecuteDisplay( VidStream* vid_stream )
++void MPEGvideo::ExecuteDisplay( VidStream* vid_stream )
+ {
+     if( ! vid_stream->_skipFrame )
+     {
+-        DisplayCurrentFrame(vid_stream);
++      DisplayFrame(vid_stream);
++
+ #ifdef CALCULATE_FPS
+-        TimestampFPS(vid_stream);
++      TimestampFPS(vid_stream);
+ #endif
+     }
+     timeSync( vid_stream );
+ }
+ 
++
++MPEG_Filter *
++MPEGvideo:: Filter(MPEG_Filter * filter)
++{
++  MPEG_Filter * old_filter;
++
++  old_filter = _filter;
++  if ( _filter_mutex )
++    SDL_mutexP( _filter_mutex );
++  _filter = filter;
++  if ( _filter_mutex )
++    SDL_mutexV( _filter_mutex );
++
++  return(old_filter);
++}
+ 
+ /* EOF */
+diff -Naur smpeg/video/proto.h smpeg.patched/video/proto.h
+--- smpeg/video/proto.h	Tue Apr 11 16:22:53 2000
++++ smpeg.patched/video/proto.h	Mon Sep  4 18:07:20 2000
+@@ -91,9 +91,6 @@
+ 
+ /* gdith.c */
+ void InitColor P((void ));
+-int timeSync P((VidStream* vid_stream ));
+-void ExecuteDisplay P((VidStream *vid_stream ));
+-void DisplayCurrentFrame P((VidStream *vid_stream ));
+ 
+ /* fs2.c */
+ void InitFS2Dither P((void ));
+diff -Naur smpeg/video/util.cpp smpeg.patched/video/util.cpp
+--- smpeg/video/util.cpp	Thu Aug 26 06:37:52 1999
++++ smpeg.patched/video/util.cpp	Mon Sep  4 18:07:20 2000
+@@ -392,8 +392,26 @@
+ #endif
+       }
+ 
++#ifdef NO_GRIFF_MODS
+       /* Return success. */
+       return OK;
++#else /* NO_GRIFF_MODS */
++      show_bits32(data);
++      if ( data==SEQ_START_CODE ||
++	   data==GOP_START_CODE ||
++	   data==PICTURE_START_CODE ||
++	   (data>=SLICE_MIN_START_CODE && data<=SLICE_MAX_START_CODE) ||
++	   data==EXT_START_CODE ||
++	   data==USER_START_CODE )
++      {
++        /* Return success. */
++        return OK;
++      }
++      else
++      {
++	flush_bits32;
++      }
++#endif /* NO_GRIFF_MODS */
+     }
+   }
+ 
+diff -Naur smpeg/video/video.cpp smpeg.patched/video/video.cpp
+--- smpeg/video/video.cpp	Wed Aug  9 22:05:34 2000
++++ smpeg.patched/video/video.cpp	Mon Sep  4 18:07:27 2000
+@@ -49,6 +49,7 @@
+ 
+ /* We use FULL_COLOR_DITHER code for SMPEG */
+ #define DISABLE_DITHER
++#define LOOSE_MPEG
+ 
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -711,6 +712,17 @@
+             vs->non_intra_quant_matrix[i][j] = 16;
+         }
+     }
++    
++    /* Initialize noise base matrix */
++    for( i = 0; i < 8; i++ )
++        for( j = 0; j < 8; j++ )
++            vs->noise_base_matrix[i][j] = (short) vs->non_intra_quant_matrix[i][j];
++
++    j_rev_dct((short *) vs->noise_base_matrix);
++
++    for( i = 0; i < 8; i++ )
++        for( j = 0; j < 8; j++ )
++	  vs->noise_base_matrix[i][j] *= vs->noise_base_matrix[i][j];
+ 
+     /* Initialize pointers to image spaces. */
+ 
+@@ -896,18 +908,14 @@
+     pi = (PictImage *) malloc(sizeof(PictImage));
+ 
+     /* Create a YV12 image (Y + V + U) */
+-    pi->image = SDL_CreateYUVOverlay(w, h, SDL_YV12_OVERLAY, dst);
+-    if ( ! pi->image || (SDL_LockYUVOverlay(pi->image) < 0) ) {
+-        if ( pi->image ) {
+-            SDL_FreeYUVOverlay(pi->image);
+-        }
+-        free(pi);
+-        return(NULL);
+-    }
+-    pi->luminance = (unsigned char *)pi->image->pixels;
++    pi->image = (unsigned char *) malloc(w*h*12/8);
++    pi->luminance = (unsigned char *)pi->image;
+     pi->Cr = pi->luminance + (w*h);
+     pi->Cb = pi->luminance + (w*h) + (w*h)/4;
+   
++    /* Alloc space for filter info */
++    pi->mb_qscale = (unsigned short int *) malloc(vid_stream->mb_width * vid_stream->mb_height * sizeof(unsigned int));
++
+     /* Reset locked flag. */
+   
+     pi->locked = 0;
+@@ -950,10 +958,9 @@
+  */
+ void DestroyPictImage( PictImage* apictimage )
+ {
+-  if (apictimage->image != NULL) {
+-    SDL_UnlockYUVOverlay(apictimage->image);
+-    SDL_FreeYUVOverlay(apictimage->image);
+-  }
++  if (apictimage->image != NULL) free(apictimage->image);
++
++  free(apictimage->mb_qscale);
+   free(apictimage);
+ }
+ 
+@@ -1037,7 +1044,7 @@
+ 	  if( vid_stream->future != NULL )
+ 	  {
+             vid_stream->current = vid_stream->future;
+-            ExecuteDisplay( vid_stream );
++            vid_stream->_smpeg->ExecuteDisplay( vid_stream );
+ 	  }
+ 
+ #ifdef ANALYSIS
+@@ -1157,7 +1164,7 @@
+                 next_start_code( vid_stream );
+             }
+ 
+-            timeSync( vid_stream );
++            vid_stream->_smpeg->timeSync( vid_stream );
+             goto done;
+         }
+         else if( status != PARSE_OK )
+@@ -1305,7 +1312,7 @@
+ static int ParseSeqHead( VidStream* vid_stream )
+ {
+   unsigned int data;
+-  int i;
++  int i, j;
+ #ifndef DISABLE_DITHER
+   int ditherType=vid_stream->ditherType;
+ #endif
+@@ -1412,6 +1419,18 @@
+         (unsigned char) data;
+     }
+   }
++
++  /* Adjust noise base matrix according to non_intra matrix */
++  for( i = 0; i < 8; i++ )
++    for( j = 0; j < 8; j++ )
++      vid_stream->noise_base_matrix[i][j] = (short) vid_stream->non_intra_quant_matrix[i][j];
++  
++  j_rev_dct((short *) vid_stream->noise_base_matrix);
++  
++  for( i = 0; i < 8; i++ )
++    for( j = 0; j < 8; j++ )
++      vid_stream->noise_base_matrix[i][j] *= vid_stream->noise_base_matrix[i][j];
++
+   /* Go to next start code. */
+ 
+   next_start_code(vid_stream);
+@@ -2140,6 +2159,12 @@
+     vid_stream->mblock.past_intra_addr =
+       vid_stream->mblock.mb_address;
+ 
++  /* Store macroblock error for filter info */
++  if (vid_stream->mblock.mb_intra)
++    vid_stream->current->mb_qscale[vid_stream->mblock.mb_address] = 0;
++  else
++    vid_stream->current->mb_qscale[vid_stream->mblock.mb_address] = vid_stream->slice.quant_scale;
++
+ #ifdef ANALYSIS
+   *mbSizePtr += bitCountRead() - mbSizeCount;
+ #endif
+@@ -2371,10 +2396,10 @@
+     maxx = vid_stream->mb_width*16-1;
+     maxy = vid_stream->mb_height*16-1;
+ 
+-    if (row + vid_stream->down_for + 7 > maxy) illegalBlock |= 0x4;
++    if (row + vid_stream->down_for + vid_stream->down_half_for + 7 > maxy) illegalBlock |= 0x4;
+     else if (row + vid_stream->down_for < 0)  illegalBlock |= 0x1;
+     
+-    if (col + vid_stream->right_for + 7 > maxx) illegalBlock |= 0x2;
++    if (col + vid_stream->right_for + vid_stream->right_half_for + 7 > maxx) illegalBlock |= 0x2;
+     else if (col + vid_stream->right_for < 0) illegalBlock |= 0x8;
+ 
+ #endif
+@@ -2404,13 +2429,13 @@
+ #ifdef LOOSE_MPEG
+     /* Check for block illegality. */
+ 
+-    maxx = vid_stream->mb_width*16-1;
+-    maxy = vid_stream->mb_height*16-1;
++    maxx = vid_stream->mb_width*8-1;
++    maxy = vid_stream->mb_height*8-1;
+ 
+-    if (row + vid_stream->down_for  + 7 > maxy) illegalBlock |= 0x4;
++    if (row + vid_stream->down_for  + vid_stream->down_half_for  + 7 > maxy) illegalBlock |= 0x4;
+     else if (row + vid_stream->down_for < 0) illegalBlock |= 0x1;
+ 
+-    if (col + vid_stream->right_for  + 7 > maxx) illegalBlock  |= 0x2;
++    if (col + vid_stream->right_for + vid_stream->right_half_for + 7 > maxx) illegalBlock  |= 0x2;
+     else if (col + vid_stream->right_for < 0) illegalBlock |= 0x8;
+ 
+ #endif
+@@ -2855,10 +2880,10 @@
+     maxx = vid_stream->mb_width*16-1;
+     maxy = vid_stream->mb_height*16-1;
+ 
+-    if (row + down_back + 7 > maxy) illegalBlock |= 0x4;
++    if (row + down_back + down_half_back + 7 > maxy) illegalBlock |= 0x4;
+     else if (row + down_back < 0)  illegalBlock |= 0x1;
+     
+-    if (col + right_back + 7 > maxx) illegalBlock |= 0x2;
++    if (col + right_back + right_half_back + 7 > maxx) illegalBlock |= 0x2;
+     else if (col + right_back < 0) illegalBlock |= 0x8;
+ 
+ #endif
+@@ -2893,10 +2918,10 @@
+     maxx = vid_stream->mb_width*8-1;
+     maxy = vid_stream->mb_height*8-1;
+ 
+-    if (row + down_back + 7 > maxy) illegalBlock |= 0x4;
++    if (row + down_back + down_half_back + 7 > maxy) illegalBlock |= 0x4;
+     else if (row + down_back < 0) illegalBlock |= 0x1;
+ 
+-    if (col + right_back + 7 > maxx) illegalBlock  |= 0x2;
++    if (col + right_back + right_half_back + 7 > maxx) illegalBlock  |= 0x2;
+     else if (col + right_back < 0) illegalBlock |= 0x8;
+ 
+ #endif
+@@ -3342,31 +3367,92 @@
+     if (bnum & 0x01)
+       col += 8;
+ 
+-    forw_col_start = col + right_for;
+-    forw_row_start = row + down_for;
+-
+-    back_col_start = col + right_back;
+-    back_row_start = row + down_back;
+-
+ #ifdef LOOSE_MPEG
+ 
+     /* Check for illegal pred. blocks. */
+ 
+ 
+-    if (forw_col_start+7 > lmaxx) illegal_forw = 1;
+-    else if (forw_col_start < 0) illegal_forw = 1;
++    /* Illegal forward Y block, right component */
++    if (col + right_for + right_half_for + 7 > lmaxx)
++    {
++      if(col > lmaxx)                                  // fix mb column 
++	col = lmaxx & ~15; 
++      if(col + right_for + 7 > lmaxx)                  // fix full component
++	right_for = lmaxx - col - 7;
++      if(col + right_for + right_half_for + 7 > lmaxx) // fix half component
++	right_half_for = 0;
++    }
++    else if (col + right_for < 0)
++    {
++      if(col < 0)                                      // fix mb column
++	col = 0;
++      if(col + right_for < 0)                          // fix full component
++	right_for = 0;
++    }
++
++    /* Illegal forward Y block, down component */
++    if (row + down_for + down_half_for + 7 > lmaxy)
++    {
++      if(row > lmaxy)                                  // fix mb row
++	row = lmaxy & ~15; 
++      if(row + down_for + 7 > lmaxy)                   // fix full component
++	down_for = lmaxy - row - 7;
++      if(row + down_for + down_half_for + 7 > lmaxy)   // fix half component
++	down_half_for = 0;
++    }
++    else if (row + down_for < 0)
++    {
++      if(row < 0)                                      // fix mb row
++	row = 0;
++      if(row + down_for < 0)                           // fix full component
++	down_for = 0;
++    }
+ 
+-    if (forw_row_start+7 > lmaxy) illegal_forw = 1;
+-    else if (forw_row_start < 0) illegal_forw = 1;
+ 
+-    if (back_col_start+7 > lmaxx) illegal_back = 1;
+-    else if (back_col_start < 0) illegal_back = 1;
++    /* Illegal backward Y block, right component */
++    if (col + right_back + right_half_back + 7 > lmaxx)
++    {
++      if(col > lmaxx)                                    // fix mb column 
++	col = lmaxx & ~15; 
++      if(col + right_back + 7 > lmaxx)                   // fix full component
++	right_back = lmaxx - col - 7;
++      if(col + right_back + right_half_back + 7 > lmaxx) // fix half component
++	right_half_back = 0;
++    }
++    else if (col + right_back < 0)
++    {
++      if(col < 0)                                        // fix mb column
++	col = 0;
++      if(col + right_back < 0)                           // fix full component
++	right_back = 0;
++    }
+ 
+-    if (back_row_start+7 > lmaxy) illegal_back = 1;
+-    else if (back_row_start < 0) illegal_back = 1;
++    /* Illegal backward Y block, down component */
++    if (row + down_back + down_half_back + 7 > lmaxy)
++    {
++      if(row > lmaxy)                                    // fix mb row
++	row = lmaxy & ~15; 
++      if(row + down_back + 7 > lmaxy)                    // fix full component
++	down_back = lmaxy - row - 7;
++      if(row + down_back + down_half_back + 7 > lmaxy)   // fix half component
++	down_half_back = 0;
++    }
++    else if (row + down_back < 0)
++    {
++      if(row < 0)                                        // fix mb row
++	row = 0;
++      if(row + down_back < 0)                            // fix full component
++	down_back = 0;
++    }
+ 
+ #endif
+ 
++    forw_col_start = col + right_for;
++    forw_row_start = row + down_for;
++
++    back_col_start = col + right_back;
++    back_row_start = row + down_back;
++
+   }
+   /* Otherwise, block is NOT luminance block, ... */
+ 
+@@ -3397,29 +3483,91 @@
+     row = (mb_row << 3);
+     col = (mb_col << 3);
+ 
+-    forw_col_start = col + right_for;
+-    forw_row_start = row + down_for;
+-
+-    back_col_start = col + right_back;
+-    back_row_start = row + down_back;
+-
+ #ifdef LOOSE_MPEG
+ 
+     /* Check for illegal pred. blocks. */
+ 
+-    if (forw_col_start+7 > cmaxx) illegal_forw = 1;
+-    else if (forw_col_start < 0) illegal_forw = 1;
+ 
+-    if (forw_row_start+7 > cmaxy) illegal_forw = 1;
+-    else if (forw_row_start < 0) illegal_forw = 1;
++    /* Illegal forward C block, right component */
++    if (col + right_for + right_half_for + 7 > cmaxx)
++    {
++      if(col > cmaxx)                                  // fix mb column 
++	col = cmaxx & ~15; 
++      if(col + right_for + 7 > cmaxx)                  // fix full component
++	right_for = cmaxx - col - 7;
++      if(col + right_for + right_half_for + 7 > cmaxx) // fix half component
++	right_half_for = 0;
++    }
++    else if (col + right_for < 0)
++    {
++      if(col < 0)                                      // fix mb column
++	col = 0;
++      if(col + right_for < 0)                          // fix full component
++	right_for = 0;
++    }
++
++    /* Illegal forward C block, down component */
++    if (row + down_for + down_half_for + 7 > cmaxy)
++    {
++      if(row > cmaxy)                                  // fix mb row
++	row = cmaxy & ~15; 
++      if(row + down_for + 7 > cmaxy)                   // fix full component
++	down_for = cmaxy - row - 7;
++      if(row + down_for + down_half_for + 7 > cmaxy)   // fix half component
++	down_half_for = 0;
++    }
++    else if (row + down_for < 0)
++    {
++      if(row < 0)                                      // fix mb row
++	row = 0;
++      if(row + down_for < 0)                           // fix full component
++	down_for = 0;
++    }
+ 
+-    if (back_col_start+7 > cmaxx) illegal_back = 1;
+-    else if (back_col_start < 0) illegal_back = 1;
+-    
+-    if (back_row_start+7 > cmaxy) illegal_back = 1;
+-    else if (back_row_start < 0) illegal_back = 1;
++
++    /* Illegal backward C block, right component */
++    if (col + right_back + right_half_back + 7 > cmaxx)
++    {
++      if(col > cmaxx)                                    // fix mb column 
++	col = cmaxx & ~15; 
++      if(col + right_back + 7 > cmaxx)                   // fix full component
++	right_back = cmaxx - col - 7;
++      if(col + right_back + right_half_back + 7 > cmaxx) // fix half component
++	right_half_back = 0;
++    }
++    else if (col + right_back < 0)
++    {
++      if(col < 0)                                        // fix mb column
++	col = 0;
++      if(col + right_back < 0)                           // fix full component
++	right_back = 0;
++    }
++
++    /* Illegal backward C block, down component */
++    if (row + down_back + down_half_back + 7 > cmaxy)
++    {
++      if(row > cmaxy)                                    // fix mb row
++	row = cmaxy & ~15; 
++      if(row + down_back + 7 > cmaxy)                    // fix full component
++	down_back = cmaxy - row - 7;
++      if(row + down_back + down_half_back + 7 > cmaxy)   // fix half component
++	down_half_back = 0;
++    }
++    else if (row + down_back < 0)
++    {
++      if(row < 0)                                        // fix mb row
++	row = 0;
++      if(row + down_back < 0)                            // fix full component
++	down_back = 0;
++    }
+ 
+ #endif
++
++    forw_col_start = col + right_for;
++    forw_row_start = row + down_for;
++
++    back_col_start = col + right_back;
++    back_row_start = row + down_back;
+     
+     /* If block is Cr block... */
+         /* Switched earlier, so we test Cr first - eyhung */
+@@ -3715,6 +3863,18 @@
+ #ifndef DISABLE_DITHER
+   int ditherType=vid_stream->ditherType;
+ #endif
++#ifdef LOOSE_MPEG
++  int lmaxx = vid_stream->mb_width*16-1;
++  int lmaxy = vid_stream->mb_height*16-1;
++  int cmaxx = vid_stream->mb_width*8-1;
++  int cmaxy = vid_stream->mb_height*8-1;
++#endif
++#ifdef LOOSE_MPEG
++  int illegal_forw = 0;
++  int illegal_back = 0;
++  int c_illegal_forw = 0;
++  int c_illegal_back = 0;
++#endif
+ 
+   /* Calculate row sizes for luminance and Cr/Cb macroblock areas. */
+ 
+@@ -3823,6 +3983,158 @@
+     col = mb_col << 4;
+     crow = row / 2;
+     ccol = col / 2;
++
++#ifdef LOOSE_MPEG
++
++    /* Check for illegal blocks. */
++
++    /* Illegal forward Y block, right component */
++    if (col + right_for + right_half_for + 7 > lmaxx)
++    {
++      if(col > lmaxx)                                  // fix mb column 
++	col = lmaxx & ~15; 
++      if(col + right_for + 7 > lmaxx)                  // fix full component
++	right_for = lmaxx - col - 7;
++      if(col + right_for + right_half_for + 7 > lmaxx) // fix half component
++	right_half_for = 0;
++    }
++    else if (col + right_for < 0)
++    {
++      if(col < 0)                                      // fix mb column
++	col = 0;
++      if(col + right_for < 0)                          // fix full component
++	right_for = 0;
++    }
++
++    /* Illegal forward Y block, down component */
++    if (row + down_for + down_half_for + 7 > lmaxy)
++    {
++      if(row > lmaxy)                                  // fix mb row
++	row = lmaxy & ~15; 
++      if(row + down_for + 7 > lmaxy)                   // fix full component
++	down_for = lmaxy - row - 7;
++      if(row + down_for + down_half_for + 7 > lmaxy)   // fix half component
++	down_half_for = 0;
++    }
++    else if (row + down_for < 0)
++    {
++      if(row < 0)                                      // fix mb row
++	row = 0;
++      if(row + down_for < 0)                           // fix full component
++	down_for = 0;
++    }
++
++
++    /* Illegal backward Y block, right component */
++    if (col + right_back + right_half_back + 7 > lmaxx)
++    {
++      if(col > lmaxx)                                    // fix mb column 
++	col = lmaxx & ~15; 
++      if(col + right_back + 7 > lmaxx)                   // fix full component
++	right_back = lmaxx - col - 7;
++      if(col + right_back + right_half_back + 7 > lmaxx) // fix half component
++	right_half_back = 0;
++    }
++    else if (col + right_back < 0)
++    {
++      if(col < 0)                                        // fix mb column
++	col = 0;
++      if(col + right_back < 0)                           // fix full component
++	right_back = 0;
++    }
++
++    /* Illegal backward Y block, down component */
++    if (row + down_back + down_half_back + 7 > lmaxy)
++    {
++      if(row > lmaxy)                                    // fix mb row
++	row = lmaxy & ~15; 
++      if(row + down_back + 7 > lmaxy)                    // fix full component
++	down_back = lmaxy - row - 7;
++      if(row + down_back + down_half_back + 7 > lmaxy)   // fix half component
++	down_half_back = 0;
++    }
++    else if (row + down_back < 0)
++    {
++      if(row < 0)                                        // fix mb row
++	row = 0;
++      if(row + down_back < 0)                            // fix full component
++	down_back = 0;
++    }
++
++
++    /* Illegal forward C block, right component */
++    if (ccol + c_right_for + c_right_half_for + 7 > cmaxx)
++    {
++      if(ccol > cmaxx)                                      // fix mb column 
++	ccol = cmaxx & ~15; 
++      if(ccol + c_right_for + 7 > cmaxx)                    // fix full component
++	c_right_for = cmaxx - ccol - 7;
++      if(ccol + c_right_for + c_right_half_for + 7 > cmaxx) // fix half component
++	c_right_half_for = 0;
++    }
++    else if (ccol + c_right_for < 0)
++    {
++      if(ccol < 0)                                          // fix mb column
++	ccol = 0;
++      if(ccol + c_right_for < 0)                            // fix full component
++	c_right_for = 0;
++    }
++
++    /* Illegal forward C block, down component */
++    if (crow + c_down_for + c_down_half_for + 7 > cmaxy)
++    {
++      if(crow > cmaxy)                                      // fix mb row
++	crow = cmaxy & ~15; 
++      if(crow + c_down_for + 7 > cmaxy)                     // fix full component
++	c_down_for = cmaxy - crow - 7;
++      if(crow + c_down_for + c_down_half_for + 7 > cmaxy)   // fix half component
++	c_down_half_for = 0;
++    }
++    else if (crow + c_down_for < 0)
++    {
++      if(crow < 0)                                           // fix mb row
++	crow = 0;
++      if(crow + c_down_for < 0)                              // fix full component
++	c_down_for = 0;
++    }
++
++    /* Illegal backward C block, right component */
++    if (ccol + c_right_back + c_right_half_back + 7 > cmaxx)
++    {
++      if(ccol > cmaxx)                                        // fix mb column 
++	ccol = cmaxx & ~15; 
++      if(ccol + c_right_back + 7 > cmaxx)                     // fix full component
++	c_right_back = cmaxx - ccol - 7;
++      if(ccol + c_right_back + c_right_half_back + 7 > cmaxx) // fix half component
++	c_right_half_back = 0;
++    }
++    else if (ccol + c_right_back < 0)
++    {
++      if(ccol < 0)                                            // fix mb column
++	ccol = 0;
++      if(ccol + c_right_back < 0)                             // fix full component
++	c_right_back = 0;
++    }
++
++    /* Illegal backward C block, down component */
++    if (crow + c_down_back + c_down_half_back + 7 > cmaxy)
++    {
++      if(crow > cmaxy)                                        // fix mb row
++	crow = cmaxy & ~15; 
++      if(crow + c_down_back + 7 > cmaxy)                      // fix full component
++	c_down_back = cmaxy - crow - 7;
++      if(crow + c_down_back + c_down_half_back + 7 > cmaxy)   // fix half component
++	c_down_half_back = 0;
++    }
++    else if (crow + c_down_back < 0)
++    {
++      if(crow < 0)                                            // fix mb row
++	crow = 0;
++      if(crow + c_down_back < 0)                              // fix full component
++	c_down_back = 0;
++    }
++
++#endif
+     
+     /* If forward predicted, calculate prediction values. */
+     
+@@ -4227,12 +4539,12 @@
+             vid_stream->future->locked |= FUTURE_LOCK;
+             vid_stream->current = vid_stream->past;
+ 
+-            ExecuteDisplay( vid_stream );
++            vid_stream->_smpeg->ExecuteDisplay( vid_stream );
+         }
+     }
+     else
+     {
+-        ExecuteDisplay( vid_stream );
++        vid_stream->_smpeg->ExecuteDisplay( vid_stream );
+     }
+ }
+ 
+diff -Naur smpeg/video/video.h smpeg.patched/video/video.h
+--- smpeg/video/video.h	Tue Jun 13 23:35:10 2000
++++ smpeg.patched/video/video.h	Mon Sep  4 18:07:20 2000
+@@ -152,10 +152,11 @@
+ /* Structure with reconstructed pixel values. */
+ 
+ typedef struct pict_image {
+-  SDL_Overlay *image;                    /* YV12 format image  */
++  unsigned char *image;                  /* YV12 format image  */
+   unsigned char *luminance;              /* Luminance plane.   */
+   unsigned char *Cr;                     /* Cr plane.          */
+   unsigned char *Cb;                     /* Cb plane.          */
++  unsigned short int *mb_qscale;         /* macroblock info    */
+   int locked;                            /* Lock flag.         */
+   TimeStamp show_time;                   /* Presentation time. */
+ } PictImage;
+@@ -264,6 +265,10 @@
+ 						  buffer.                    */
+   int buf_length;                              /* Length of remaining buffer.*/
+   unsigned int *buf_start;                     /* Pointer to buffer start.   */
++
++/* VC - beginning of added variables for noise computation */
++  short noise_base_matrix[8][8];               /* Square quantization error  */
++/* VC - end of added variables */
+ 
+ /* Brown - beginning of added variables that used to be static or global */
+   int max_buf_length;                          /* Max length of buffer.      */
+*************************************************************************
+*** Applied ***
 From: J. Valenzuela <tsaotsao@lokigames.com>
 
 Added small patch to allow construction of SMPEG objects from raw data.

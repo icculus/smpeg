@@ -44,9 +44,6 @@ class MPEGvideo : public MPEGerror, public MPEGvideoaction {
 
     /* Various mpeg_play functions that need our data */
     friend VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first );
-    friend void DoDitherImage( VidStream* vid_stream );
-    friend void DisplayCurrentFrame( VidStream* vid_stream );
-    friend int timeSync( VidStream* vid_stream );
     friend int get_more_data( VidStream* vid_stream );
 
 public:
@@ -67,8 +64,15 @@ public:
                                             MPEG_DisplayCallback callback);
     void MoveDisplay(int x, int y);
     void ScaleDisplayXY(int w, int h);
+    void SetDisplayRegion(int x, int y, int w, int h);
     void RenderFrame(int frame);
     void RenderFinal(SDL_Surface *dst, int x, int y);
+    SMPEG_Filter * Filter(SMPEG_Filter * filter);
+
+    /* Display and sync functions */
+    void DisplayFrame( VidStream* vid_stream );
+    void ExecuteDisplay( VidStream* vid_stream );
+    int timeSync( VidStream* vid_stream );
 
     /* Yes, it's a hack.. */
     MPEGaudioaction *TimeSource(void ) {
@@ -85,10 +89,16 @@ protected:
 
     MPEG_DisplayCallback _callback;
 
-    int _w;             // width of movie
-    int _h;             // height of movie
-    SDL_Rect _rect;	// display area
+    int _ow;            // original width of the movie
+    int _oh;            // original height of the movie
+    int _w;             // mb aligned width of the movie
+    int _h;             // mb aligned height of the movie
+    SDL_Rect _srcrect;	// source area
+    SDL_Rect _dstrect;	// display area
+    SDL_Overlay *_image;// source image
     float _fps;         // frames per second
+    SMPEG_Filter * _filter; // pointer to the current filter used
+    SDL_mutex* _filter_mutex; // make sure the filter is not changed while being used
 
     void RewindStream(void);
 };

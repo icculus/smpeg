@@ -170,6 +170,7 @@ extern const unsigned short int dct_coeff_first[256];
   }	\
 }
 
+#ifdef NO_GRIFF_MODS
 #define DecodeDCTCoeff(dct_coeff_tbl, run, level)			\
 {									\
   unsigned int temp, index;						\
@@ -290,6 +291,148 @@ extern const unsigned short int dct_coeff_first[256];
     assert (flushed <= 32);						\
   }									\
 }
+#else /* NO_GRIFF_MODS */
+#define DecodeDCTCoeff(dct_coeff_tbl, run, level)			\
+{									\
+  unsigned int temp, index;						\
+  unsigned int value, next32bits, flushed;				\
+									\
+  /*									\
+   * Grab the next 32 bits and use it to improve performance of		\
+   * getting the bits to parse. Thus, calls are translated as:		\
+   *									\
+   *	show_bitsX  <-->   next32bits >> (32-X)				\
+   *	get_bitsX   <-->   val = next32bits >> (32-flushed-X);		\
+   *			   flushed += X;				\
+   *			   next32bits &= bitMask[flushed];		\
+   *	flush_bitsX <-->   flushed += X;				\
+   *			   next32bits &= bitMask[flushed];		\
+   *									\
+   * I've streamlined the code a lot, so that we don't have to mask	\
+   * out the low order bits and a few of the extra adds are removed.	\
+   */									\
+  show_bits32(next32bits);						\
+									\
+  /* show_bits8(index); */						\
+  index = next32bits >> 24;						\
+									\
+  if (index > 3) {							\
+    value = dct_coeff_tbl[index];					\
+    run = value >> RUN_SHIFT;						\
+    if (run != END_OF_BLOCK) {						\
+      /* num_bits = (value & NUM_MASK) + 1; */				\
+      /* flush_bits(num_bits); */					\
+      if (run != ESCAPE) {						\
+	 /* get_bits1(value); */					\
+	 /* if (value) level = -level; */				\
+	 flushed = (value & NUM_MASK) + 2;				\
+         level = (value & LEVEL_MASK) >> LEVEL_SHIFT;			\
+	 value = next32bits >> (32-flushed);				\
+	 value &= 0x1;							\
+	 if (value) level = -level;					\
+	 /* next32bits &= ((~0) >> flushed);  last op before update */	\
+									\
+         /* Update bitstream... */					\
+         flush_bits(flushed);						\
+         assert (flushed <= 32);					\
+       }								\
+       else {    /* run == ESCAPE */					\
+	 /* Get the next six into run, and next 8 into temp */		\
+         /* get_bits14(temp); */					\
+	 flushed = (value & NUM_MASK) + 1;				\
+	 temp = next32bits >> (18-flushed);				\
+	 /* Normally, we'd ad 14 to flushed, but I've saved a few	\
+	  * instr by moving the add below */				\
+	 temp &= 0x3fff;						\
+	 run = temp >> 8;						\
+	 temp &= 0xff;							\
+	 if (temp == 0) {						\
+            /* get_bits8(level); */					\
+	    level = next32bits >> (10-flushed);				\
+	    level &= 0xff;						\
+	    flushed += 22;						\
+ 	    /* CG: 12jul2000 - assert(level >= 128); */                 \
+ 	    if (level >= 128) {                                         \
+               /* Update bitstream... */				\
+               flush_bits(flushed);					\
+               assert (flushed <= 32);					\
+	    } else {                                                    \
+	      run = END_OF_BLOCK;                                       \
+	      level = END_OF_BLOCK;                                     \
+	    }                                                           \
+	 } else if (temp != 128) {					\
+	    /* Grab sign bit */						\
+	    flushed += 14;						\
+	    level = ((int) (temp << 24)) >> 24;				\
+            /* Update bitstream... */					\
+            flush_bits(flushed);					\
+            assert (flushed <= 32);					\
+	 } else {							\
+            /* get_bits8(level); */					\
+	    level = next32bits >> (10-flushed);				\
+	    level &= 0xff;						\
+	    flushed += 22;						\
+	    level = level - 256;					\
+	    /* CG: 12jul2000 - assert(level <= -128 && level >= -255); */ \
+	    if ( level <= -128 && level >= -255) {                      \
+              /* Update bitstream... */					\
+              flush_bits(flushed);					\
+              assert (flushed <= 32);					\
+	    } else {                                                    \
+	      run = END_OF_BLOCK;                                       \
+	      level = END_OF_BLOCK;                                     \
+	    }                                                           \
+	 }								\
+       }								\
+    }									\
+  }									\
+  else {								\
+    switch (index) {                                                    \
+    case 2: {   							\
+      /* show_bits10(index); */						\
+      index = next32bits >> 22;						\
+      value = dct_coeff_tbl_2[index & 3];				\
+      break;                                                            \
+    }									\
+    case 3: { 						                \
+      /* show_bits10(index); */						\
+      index = next32bits >> 22;						\
+      value = dct_coeff_tbl_3[index & 3];				\
+      break;                                                            \
+    }									\
+    case 1: {                                             		\
+      /* show_bits12(index); */						\
+      index = next32bits >> 20;						\
+      value = dct_coeff_tbl_1[index & 15];				\
+      break;                                                            \
+    }									\
+    default: { /* index == 0 */						\
+      /* show_bits16(index); */						\
+      index = next32bits >> 16;						\
+      value = dct_coeff_tbl_0[index & 255];				\
+    }}									\
+    run = value >> RUN_SHIFT;						\
+    level = (value & LEVEL_MASK) >> LEVEL_SHIFT;			\
+									\
+    /*									\
+     * Fold these operations together to make it fast...		\
+     */									\
+    /* num_bits = (value & NUM_MASK) + 1; */				\
+    /* flush_bits(num_bits); */						\
+    /* get_bits1(value); */						\
+    /* if (value) level = -level; */					\
+									\
+    flushed = (value & NUM_MASK) + 2;					\
+    value = next32bits >> (32-flushed);					\
+    value &= 0x1;							\
+    if (value) level = -level;						\
+									\
+    /* Update bitstream ... */						\
+    flush_bits(flushed);						\
+    assert (flushed <= 32);						\
+  }									\
+}
+#endif /* NO_GRIFF_MODS */
 
 #define DecodeDCTCoeffFirst(runval, levelval)         \
 {                                                     \

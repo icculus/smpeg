@@ -23,6 +23,7 @@
 
 #ifdef unix
 #include <unistd.h>
+
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -33,7 +34,9 @@
 #define RAW_SUPPORT  /* Raw data transport support */
 #define HTTP_SUPPORT /* HTTP support */
 #define FTP_SUPPORT  /* FTP support */
+#ifdef linux
 #define VCD_SUPPORT  /* Video CD support */
+#endif
 #endif
 
 #ifdef NET_SUPPORT

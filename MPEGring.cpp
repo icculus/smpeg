@@ -155,7 +155,12 @@ void
 MPEG_ring:: WriteDone( Uint32 len, double timestamp)
 {
     if ( ring->active ) {
+#ifdef NO_GRIFF_MODS
         assert(len <= ring->bufSize);
+#else
+	if ( len > ring->bufSize )
+            len = ring->bufSize;
+#endif
         *((Uint32*) ring->write) = len;
 
         ring->write += ring->bufSize + sizeof(Uint32);
@@ -205,7 +210,9 @@ MPEG_ring:: NextReadBuffer( Uint8** buffer )
 double
 MPEG_ring:: ReadTimeStamp(void)
 {
+  if(ring->active)
     return *ring->timestamp_read;
+  return(0);
 }
 
 void
@@ -219,7 +226,7 @@ MPEG_ring:: ReadSome( Uint32 used )
         data = ring->read + sizeof(Uint32);
         oldlen = *((Uint32*) ring->read);
         newlen = oldlen - used;
-        memcpy(data, data+used, newlen);
+        memmove(data, data+used, newlen);
         *((Uint32*) ring->read) = newlen;
 //printf("Reusing read buffer (%d+1 available)\n", SDL_SemValue(ring->readwait));
         SDL_SemPost(ring->readwait);

@@ -348,6 +348,11 @@ void MPEG::ScaleDisplayXY(int w, int h) {
     videoaction->ScaleDisplayXY(w, h);
   }
 }
+void MPEG::SetDisplayRegion(int x, int y, int w, int h) {
+  if ( VideoEnabled() ) {
+    videoaction->SetDisplayRegion(x, y, w, h);
+  }
+}
 void MPEG::RenderFrame(int frame) {
   /* Prevent acces to the audio stream to avoid filling it */
   if( audiostream ) audiostream->enable(false);
@@ -367,6 +372,13 @@ void MPEG::RenderFinal(SDL_Surface *dst, int x, int y) {
   }
 
   if( audiostream ) audiostream->enable(true);
+}
+
+SMPEG_Filter * MPEG::Filter(SMPEG_Filter * filter)
+{
+  if ( VideoEnabled() ) {
+    return(videoaction->Filter(filter));
+  }
 }
 
 void MPEG::Seek(int position)

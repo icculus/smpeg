@@ -836,6 +836,12 @@ int *level;
 	 if (next32bits >> (31-flushed)) *level = -*level;
 	 flushed++;
 	 /* next32bits &= bitMask[flushed];  last op before update */
+#ifdef NO_GRIFF_MODS
+#else
+	 /* CG: moved into if case 12jul2000 */
+         /* Update bitstream... */
+         flush_bits(flushed);
+#endif
        }
        else {    /* *run == ESCAPE */
          /* get_bits14(temp); */
@@ -849,21 +855,53 @@ int *level;
 	    *level = next32bits >> (24-flushed);
 	    flushed += 8;
 	    /* next32bits &= bitMask[flushed];  last op before update */
+#ifdef NO_GRIFF_MODS
  	    assert(*level >= 128);
+#else
+	    /* CG: Try to overcome the assertion and incorrect decoding in
+	     * case of lost packets. 12jul2000 */
+ 	    if (*level >= 128) {
+              flush_bits(flushed);
+	    }
+	    else {
+              *run = END_OF_BLOCK;
+              *level = END_OF_BLOCK;
+	    }
+#endif
 	 } else if (temp != 128) {
 	    /* Grab sign bit */
 	    *level = ((int) (temp << 24)) >> 24;
+#ifdef NO_GRIFF_MODS
+#else
+	    /* CG: moved into else case 12jul2000 */
+            /* Update bitstream... */
+            flush_bits(flushed);
+#endif
 	 } else {
             /* get_bits8(*level); */
 	    *level = next32bits >> (24-flushed);
 	    flushed += 8;
 	    /* next32bits &= bitMask[flushed];  last op before update */
 	    *level = *level - 256;
+#ifdef NO_GRIFF_MODS
 	    assert(*level <= -128 && *level >= -255);
+#else
+	    /* CG: Try to overcome the assertion and incorrect decoding in
+	     * case of lost packets. 12jul2000 */
+	    if (*level <= -128 && *level >= -255) {
+              flush_bits(flushed);
+	    }
+	    else {
+              *run = END_OF_BLOCK;
+              *level = END_OF_BLOCK;
+	    }
+#endif
 	 }
        }
+#ifdef NO_GRIFF_MODS
        /* Update bitstream... */
        flush_bits(flushed);
+#endif
     }
   }
   else {

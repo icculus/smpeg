@@ -78,7 +78,6 @@
 */
 
 
-
 #include <limits.h>
 #include <string.h>
 
@@ -88,7 +87,7 @@
 #include "util.h"
 
 #include "MPEGvideo.h"
-
+#include "MPEGfilter.h"
 
 /*--------------------------------------------------------------*/
 
@@ -155,8 +154,8 @@ MPEGvideo::MPEGvideo(MPEGstream *stream)
 
         /* Get the width and height of the video */
         mpeg->copy_data(buf, 4);
-        _w = (((buf[0]<<4)|(buf[1]>>4)) + 15) & ~15;    /* 12 bits of width */
-        _h = ((((buf[1]&0xF)<<8)|buf[2]) + 15) & ~15;   /* 12 bits of height */
+        _w = (buf[0]<<4)|(buf[1]>>4);    /* 12 bits of width */
+        _h = ((buf[1]&0xF)<<8)|buf[2];   /* 12 bits of height */
 	switch(buf[3]&0xF)                /*  4 bits of fps */
 	{
 	  case 1: _fps = 23.97; break;
@@ -180,11 +179,31 @@ MPEGvideo::MPEGvideo(MPEGstream *stream)
     mpeg->seek_marker(marker);
     mpeg->delete_marker(marker);
 
+    /* Keep original width and height in _ow and _oh */
+    _ow = _w;
+    _oh = _h;
+
+    /* Now round up width and height to a multiple   */
+    /* of a macroblock size (16 pixels) to keep the  */
+    /* video decoder happy */
+    _w = (_w + 15) & ~15;
+    _h = (_h + 15) & ~15;
+
     /* Set the default playback area */
-    _rect.x = 0;
-    _rect.y = 0;
-    _rect.w = _w;
-    _rect.h = _h;
+    _dstrect.x = 0;
+    _dstrect.y = 0;
+    _dstrect.w = 0;
+    _dstrect.h = 0;
+
+    /* Set the source area */
+    _srcrect.x = 0;
+    _srcrect.y = 0;
+    _srcrect.w = _ow;
+    _srcrect.h = _oh;
+
+    _image = 0;
+    _filter = SMPEGfilter_null();
+    _filter_mutex = SDL_CreateMutex();
 }
 
 MPEGvideo:: ~MPEGvideo()
@@ -195,6 +214,13 @@ MPEGvideo:: ~MPEGvideo()
     /* Free actual video stream */
     if( _stream )
         DestroyVidStream( _stream );
+
+    /* Free overlay */
+    if(_image) SDL_FreeYUVOverlay(_image);
+
+    /* Release filter */
+    SDL_DestroyMutex(_filter_mutex);
+    _filter->destroy(_filter);
 }
 
 /* Simple thread play function */
@@ -300,10 +326,12 @@ MPEGvideo:: Rewind(void)
 void
 MPEGvideo:: ResetSynchro(double time)
 {
-  _stream->_jumpFrame = -1;
-  _stream->realTimeStart = -time;
-  play_time = time;
-  if (time > 0) {
+  if( _stream )
+  {
+    _stream->_jumpFrame = -1;
+    _stream->realTimeStart = -time;
+    play_time = time;
+    if (time > 0) {
 	double oneframetime;
 	if (_stream->_oneFrameTime == 0)
 		oneframetime = 1.0 / _stream->_smpeg->_fps;	
@@ -316,6 +344,7 @@ MPEGvideo:: ResetSynchro(double time)
 	/* Set Current Frame To 0 & Frame Adjust Frag Set */
 	_stream->current_frame = 0;
 	_stream->need_frameadjust=true;
+    }
   }
 }
 
@@ -359,8 +388,8 @@ bool
 MPEGvideo:: GetVideoInfo(MPEG_VideoInfo *info)
 {
     if ( info ) {
-        info->width = _w;
-        info->height = _h;
+        info->width = _ow;
+        info->height = _oh;
         if ( _stream ) {
             info->current_frame = _stream->current_frame;
 #ifdef CALCULATE_FPS
@@ -410,6 +439,9 @@ MPEGvideo:: SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
     _mutex = lock;
     _dst = dst;
     _callback = callback;
+    _image = SDL_CreateYUVOverlay(_srcrect.w, _srcrect.h, SDL_YV12_OVERLAY, dst);
+    _dstrect.w = dst->w;
+    _dstrect.h = dst->h;
 
     if ( !_stream ) {
         decodeInitTables();
@@ -442,8 +474,8 @@ void
 MPEGvideo:: MoveDisplay( int x, int y )
 {
     SDL_mutexP( _mutex );
-    _rect.x = x;
-    _rect.y = y;
+    _dstrect.x = x;
+    _dstrect.y = y;
     SDL_mutexV( _mutex );
 }
 
@@ -451,11 +483,44 @@ void
 MPEGvideo:: ScaleDisplayXY( int w, int h )
 {
     SDL_mutexP( _mutex );
-    _rect.w = w;
-    _rect.h = h;
+    if(_image)
+    {
+      /* Adjust to hide offscreen part */
+      SDL_LockYUVOverlay( _image );
+      _dstrect.w = _image->pitch * w / _ow;
+      _dstrect.h = _image->h * h / _oh;
+      SDL_UnlockYUVOverlay( _image );
+    }
     SDL_mutexV( _mutex );
 }
 
+void
+MPEGvideo:: SetDisplayRegion(int x, int y, int w, int h)
+{
+    SDL_mutexP( _mutex );
+    _srcrect.x = x;
+    _srcrect.y = y;
+    _srcrect.w = w;
+    _srcrect.h = h;
+
+    if(_image)
+    {
+      SDL_LockYUVOverlay( _image );
+      w = _dstrect.w * _ow / _image->pitch;
+      h = _dstrect.h * _oh / _image->h;
+      SDL_UnlockYUVOverlay( _image );
+
+      SDL_FreeYUVOverlay(_image);
+      _image = SDL_CreateYUVOverlay(_srcrect.w, _srcrect.h, SDL_YV12_OVERLAY, _dst);
+
+      SDL_LockYUVOverlay( _image );
+      _dstrect.w = _image->pitch * w / _ow;
+      _dstrect.h = _image->h * h / _oh;
+      SDL_UnlockYUVOverlay( _image );
+    }
+
+    SDL_mutexV( _mutex );
+}
 
 /* API CHANGE: This function no longer takes a destination surface and x/y
    You must use SetDisplay() and MoveDisplay() to set those attributes.
@@ -463,18 +528,7 @@ MPEGvideo:: ScaleDisplayXY( int w, int h )
 void
 MPEGvideo:: RenderFrame( int frame )
 {
-
-   if (_stream->need_frameadjust) {
-      _stream->_jumpFrame=0;
-      while(_stream->need_frameadjust) {
-        mpegVidRsrc(0, _stream, 0);
-#ifdef DEBUG
-        printf("Adjusting Frame %d Timecode %f\n",_stream->totNumFrames,_stream->timestamp);
-#endif
-      }
-      _stream->_jumpFrame=-1;
-      return;
-   }
+    _stream->need_frameadjust = true;
 
     if( _stream->totNumFrames > frame ) {
         mpeg->rewind_stream();
@@ -542,23 +596,8 @@ MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
 	mpeg->garbage_collect();
     }
 
-    /* Create a temporary YUV surface and display the frame */
-    yuv = SDL_CreateYUVOverlay(_w, _h, SDL_YV12_OVERLAY, dst);
-    if ( yuv ) {
-        if ( SDL_LockYUVOverlay(yuv) == 0 ) {
-	  SDL_Rect dstrect;
-
-            memcpy(yuv->pixels, _stream->current->image->pixels, (_w*_h)+2*(_w*_h)/4);
-            SDL_UnlockYUVOverlay(yuv);
-            dstrect.x = _rect.x;
-            dstrect.y = _rect.y;
-            dstrect.w = _rect.w;
-            dstrect.h = _rect.h;
-            SDL_DisplayYUVOverlay(yuv, &dstrect);
-        }
-        SDL_FreeYUVOverlay(yuv);
-    }
+    /* Display the frame */
+    DisplayFrame(_stream);
 }
-
 
 /* EOF */

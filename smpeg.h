@@ -26,6 +26,8 @@
 #include "SDL_mutex.h"
 #include "SDL_audio.h"
 
+#include "MPEGfilter.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -76,10 +78,10 @@ typedef enum {
     SMPEG_PLAYING
 } SMPEGstatus;
 
+
 /* Matches the declaration of SDL_UpdateRect() */
 typedef void(*SMPEG_DisplayCallback)(SDL_Surface* dst, int x, int y,
                                      unsigned int w, unsigned int h);
-
 
 /* Create a new SMPEG object from an MPEG file.
    On return, if 'info' is not NULL, it will be filled with information 
@@ -141,6 +143,9 @@ extern DECLSPEC void SMPEG_scale( SMPEG* mpeg, int scale );
 /* Move the video display area within the destination surface */
 extern DECLSPEC void SMPEG_move( SMPEG* mpeg, int x, int y );
 
+/* Set the region of the video to be shown */
+extern DECLSPEC void SMPEG_setdisplayregion(SMPEG* mpeg, int x, int y, int w, int h);
+
 /* Play an SMPEG object */
 extern DECLSPEC void SMPEG_play( SMPEG* mpeg );
 
@@ -167,6 +172,9 @@ extern DECLSPEC void SMPEG_renderFrame( SMPEG* mpeg, int framenum );
 
 /* Render the last frame of an MPEG video */
 extern DECLSPEC void SMPEG_renderFinal( SMPEG* mpeg, SDL_Surface* dst, int x, int y );
+
+/* Set video filter */
+extern DECLSPEC SMPEG_Filter * SMPEG_filter( SMPEG* mpeg, SMPEG_Filter * filter );
 
 /* Return NULL if there is no error in the MPEG stream, or an error message
    if there was a fatal error in the MPEG stream for the SMPEG object.

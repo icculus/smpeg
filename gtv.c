@@ -27,6 +27,7 @@ static void gtv_fix_toggle_state( gpointer );
 static void gtv_double( GtkWidget*, gpointer );
 static void gtv_loop( GtkWidget*, gpointer );
 static void gtv_audio( GtkWidget*, gpointer );
+static void gtv_filter( GtkWidget*, gpointer );
 
 static void gtv_open( GtkWidget*, gpointer );
 static void gtv_open_file( gchar*, gpointer );
@@ -64,19 +65,23 @@ static void gtv_fix_toggle_state( gpointer raw )
 	GtkWidget* twotimes = NULL;
 	GtkWidget* loop = NULL;
 	GtkWidget* audio = NULL;
+	GtkWidget* filter = NULL;
 
 	twotimes = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "twotimes" ) );
 	loop = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "loop" ) );
 	audio = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "audio" ) );
+	filter = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "filter" ) );
 
 #if 1 /* Sam 5/31/2000 - Default to doubled video and audio on */
 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( twotimes ), FALSE );
 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( loop ), FALSE );
 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( audio ), TRUE );
+	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( filter ), FALSE );
 #else
 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( twotimes ), FALSE );
 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( loop ), FALSE );
 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( audio ), FALSE );
+	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( filter ), FALSE );
 #endif
     }
 
@@ -111,6 +116,7 @@ static void gtv_set_buttons_sensitive( gpointer raw, gboolean sensitive )
     info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
     gtv_set_sensitive( raw, "twotimes", sensitive && info->has_video );
     gtv_set_sensitive( raw, "audio", sensitive && info->has_audio );
+    gtv_set_sensitive( raw, "filter", sensitive && info->has_video );
 
     gtv_fix_toggle_state( raw );
 }
@@ -265,6 +271,7 @@ static void gtv_open_file( gchar* name, gpointer raw )
 
     gtv_loop( NULL, raw );
     gtv_audio( NULL, raw );
+    gtv_filter( NULL, raw );
     gtv_set_buttons_sensitive( raw, TRUE );
 }
 
@@ -596,6 +603,43 @@ static void gtv_audio( GtkWidget* item, gpointer raw )
 	info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
 	active = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( audio ) );
 	SMPEG_enableaudio( mpeg, active && info->has_audio );
+    }
+
+}
+
+static void gtv_filter( GtkWidget* item, gpointer raw )
+{
+    SMPEG* mpeg = NULL;
+
+    assert( raw );
+
+    mpeg = (SMPEG*) gtk_object_get_data( GTK_OBJECT( raw ), "mpeg" );
+
+    if( mpeg ) {
+	GtkWidget* filter = NULL;
+	gboolean active = FALSE;
+
+	filter = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "filter" ) );
+	active = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( filter ) );
+
+	if(active)
+	{
+	  SMPEG_Filter * filter;
+
+	  /* Activate the bilinear filter */
+       	  filter = SMPEGfilter_bilinear();
+	  filter = SMPEG_filter( mpeg, filter );
+	  filter->destroy(filter);
+	}
+	else
+	{
+	  SMPEG_Filter * filter;
+
+	  /* Reset to default (null) filter */
+	  filter = SMPEGfilter_null();
+	  filter = SMPEG_filter( mpeg, filter );
+	  filter->destroy(filter);
+	}
     }
 
 }
@@ -935,6 +979,8 @@ int main( int argc, char* argv[] )
     gtv_connect( window, "twotimes", "toggled", GTK_SIGNAL_FUNC( gtv_double ) );
     gtv_connect( window, "loop", "toggled", GTK_SIGNAL_FUNC( gtv_loop ) );
     gtv_connect( window, "audio", "toggled", GTK_SIGNAL_FUNC( gtv_audio ) );
+    gtv_connect( window, "filter", "toggled", GTK_SIGNAL_FUNC( gtv_filter ) );
+
     gtv_connect( window, "seek", "value_changed", GTK_SIGNAL_FUNC( gtv_seek ) );
 
     gtv_connect( window, "scale", "button_press_event", GTK_SIGNAL_FUNC( gtv_trackbar_drag_on ) );
@@ -985,6 +1031,7 @@ static GtkWidget* create_gtv_window( void )
   GtkWidget *twotimes;
   GtkWidget *loop;
   GtkWidget *audio;
+  GtkWidget *filter;
   GtkWidget *label3;
   GtkWidget *fps;
   GtkWidget *label2;
@@ -1200,6 +1247,15 @@ static GtkWidget* create_gtv_window( void )
                             (GtkDestroyNotify) gtk_widget_unref);
   gtk_widget_show (audio);
   gtk_table_attach (GTK_TABLE (table1), audio, 2, 3, 2, 3,
+                    (GtkAttachOptions) (0),
+                    (GtkAttachOptions) (0), 0, 0);
+
+  filter = gtk_check_button_new_with_label ("Filter");
+  gtk_widget_ref (filter);
+  gtk_object_set_data_full (GTK_OBJECT (gtv_window), "filter", filter,
+                            (GtkDestroyNotify) gtk_widget_unref);
+  gtk_widget_show (filter);
+  gtk_table_attach (GTK_TABLE (table1), filter, 3, 4, 2, 3,
                     (GtkAttachOptions) (0),
                     (GtkAttachOptions) (0), 0, 0);
 

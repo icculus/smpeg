@@ -597,19 +597,49 @@ void MPEGsystem::Read()
          read_size = size;
        }
     } else {
-       read_size = read(mpeg_fd,
+#ifdef NO_GRIFF_MODS
+        read_size = read(mpeg_fd,
                         read_buffer + remaining, 
                         READ_ALIGN(MPEG_BUFFER_SIZE - remaining));
+	if(read_size < 0)
+	{
+	  perror("Read");
+	  errorstream = true;
+	  SDL_mutexV(system_mutex);
+	  return;
+	}
+#else
+	/* Read new data */
+	int bytes_read    = 0;
+	int buffer_offset = remaining;
+	int bytes_to_read = READ_ALIGN(MPEG_BUFFER_SIZE - remaining);
+	int read_at_once = 0;
+
+	read_size = 0;
+	do
+	{
+	  read_at_once = 
+	    read(mpeg_fd, read_buffer + buffer_offset, bytes_to_read );
+
+	  if(read_at_once < 0)
+	  {
+	    perror("Read");
+	    errorstream = true;
+	    SDL_mutexV(system_mutex);
+	    return;
+	  }
+	  else
+	  {
+	    bytes_read    += read_at_once;
+	    buffer_offset += read_at_once;
+	    read_size     += read_at_once;
+	    bytes_to_read -= read_at_once;
+	  }
+	}
+	while( read_at_once>0 && bytes_to_read>0 );
+#endif
     }
 
-    if(read_size < 0)
-    {
-      perror("Read");
-      errorstream = true;
-      SDL_mutexV(system_mutex);
-      return;
-    }
-    
     read_total += read_size;
 
     packet_total ++;
@@ -909,7 +939,7 @@ header_size, packet_size, stream_id, stream_timestamp);
       /* Insert the new data at the end of the stream */
       if(pointer + packet_size <= read_buffer + read_size)
       {
-	stream->insert_packet(pointer, packet_size, stream_timestamp);
+	if(packet_size) stream->insert_packet(pointer, packet_size, stream_timestamp);
 	pointer += packet_size;
       }
       else
