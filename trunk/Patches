@@ -1,5 +1,863 @@
 *************************************************************************
 *** Applied ***
+Date: Fri, 23 Feb 2001 13:52:45 +0100
+From: Andreas Kloeckner <ak@ixion.net>
+Subject: [patch] making smpeg use SDL_RWops file read abstraction
+
+Hi,
+
+I've whipped up a patch against current smpeg (0.4.2) to enable it to
+use the SDL_RWops file read-write abstraction structure. The patch is 
+built in such a way that the SDL_RWops access has now actually become
+the way in which file access is handled by smpeg internally. All the
+other interfaces like file descriptors and play-from-memory can be
+reduced to the SDL_RWops access method, and thusly, have been reworked
+to use it.
+
+The binary interface in smpeg.h is unchanged except for the addition
+of the function SMPEG_new_rwops(). The C++ interface has changed
+slightly, in the following ways:
+
+* only one Init() method in class MPEG remaining
+* one constructor (the RWops one) has been added
+* the mpeg_fd and autoclose members in MPEG are history
+* MPEGsystem's only remaining constructor only takes one RWops.
+
+Binary compatibility is maintained with pre-existing C applications, I
+tested this by means of smpeg-xmms.  My patch worked with all the
+streams that I tested it with.
+
+Hope you like it,
+
+Andy
+
+Only in smpeg-0.4.2-hacked/: .libs
+diff -ur smpeg-0.4.2/MPEG.cpp smpeg-0.4.2-hacked/MPEG.cpp
+--- smpeg-0.4.2/MPEG.cpp	Sat Dec  2 00:58:20 2000
++++ smpeg-0.4.2-hacked/MPEG.cpp	Thu Feb 22 17:23:00 2001
+@@ -18,58 +18,56 @@
+ MPEG::MPEG(const char * name, bool Sdlaudio) :
+   MPEGerror()
+ {
+-  int new_fd;
+-
+-  new_fd = open(name, O_RDONLY|O_BINARY);
+-  close_fd = true;
+-
+-  if(new_fd == -1)
+-  {
+-    audio = NULL;
+-    video = NULL;
+-    system = NULL;
+-    close_fd = false;
+-    error = NULL;
+-
+-    audiostream = videostream = NULL;
+-    audioaction = NULL;
+-    videoaction = NULL;
+-    audio = NULL;
+-    video = NULL;
+-    audioaction_enabled = videoaction_enabled = false;
+-    loop = false;
+-    pause = false;
+-
+-    SetError(strerror(errno));
+-
++  SDL_RWops *source = SDL_RWFromFile(name,"r");
++  if (!source) {
++    InitErrorState();
++    SetError(SDL_GetError());
+     return;
+   }
+-
+-  Init(new_fd, Sdlaudio);
++  Init(source, Sdlaudio);
+ }
+ 
+ MPEG::MPEG(int Mpeg_FD, bool Sdlaudio) :
+   MPEGerror()
+ {
+-  close_fd = false;
+-  Init(Mpeg_FD, Sdlaudio);
++  // *** FIXME we're leaking a bit of memory for the FILE *
++  // best solution would be to have SDL_RWFromFD
++  FILE *file = fdopen(Mpeg_FD,"r");
++  if (!file) {
++    InitErrorState();
++    SetError(strerror(errno));
++    return;
++  }
++
++  SDL_RWops *source = SDL_RWFromFP(file,false);
++  if (!source) {
++    InitErrorState();
++    SetError(SDL_GetError());
++    return;
++  }
++  Init(source, Sdlaudio);
+ }
+ 
+ MPEG::MPEG(void *data, int size, bool Sdlaudio) :
+   MPEGerror()
+ {
+-  close_fd = false;
+-  Init(data, size, Sdlaudio);
++  SDL_RWops *temp_source = SDL_RWFromMem(data,size);
++  Init(temp_source, Sdlaudio);
+ }
+ 
+-void MPEG::Init(int Mpeg_FD, bool Sdlaudio)
++MPEG::MPEG(SDL_RWops *mpeg_source,bool sdlaudio = true) :
++  MPEGerror()
+ {
+-    mpeg_fd = Mpeg_FD;
++  Init(mpeg_source, sdlaudio);
++}
+ 
++void MPEG::Init(SDL_RWops *mpeg_source,bool Sdlaudio)
++{
++    source = mpeg_source;
+     sdlaudio = Sdlaudio;
+ 
+     /* Create the system that will parse the MPEG stream */
+-    system = new MPEGsystem(Mpeg_FD);
++    system = new MPEGsystem(source);
+ 
+     /* Initialize everything to invalid values for cleanup */
+     error = NULL;
+@@ -109,14 +107,10 @@
+     }
+ }
+ 
+-void MPEG::Init(void *data, int size, bool Sdlaudio)
+-{
+-    sdlaudio = Sdlaudio;
+-
+-    /* Create the system that will parse the MPEG stream */
+-    system = new MPEGsystem(data, size);
+-
+-    /* Initialize everything to invalid values for cleanup */
++void MPEG::InitErrorState() {
++    audio = NULL;
++    video = NULL;
++    system = NULL;
+     error = NULL;
+ 
+     audiostream = videostream = NULL;
+@@ -127,31 +121,6 @@
+     audioaction_enabled = videoaction_enabled = false;
+     loop = false;
+     pause = false;
+-
+-    parse_stream_list();
+-
+-    EnableAudio(audioaction_enabled);
+-    EnableVideo(videoaction_enabled);
+-
+-    if ( ! audiostream && ! videostream ) {
+-      SetError("No audio/video stream found in MPEG");
+-    }
+-
+-    if ( system && system->WasError() ) {
+-      SetError(system->TheError());
+-    }
+-
+-    if ( audio && audio->WasError() ) {
+-      SetError(audio->TheError());
+-    }
+-
+-    if ( video && video->WasError() ) {
+-      SetError(video->TheError());
+-    }
+-
+-    if ( WasError() ) {
+-      SetError(TheError());
+-    }
+ }
+ 
+ MPEG::~MPEG()
+@@ -160,10 +129,8 @@
+   if(video) delete video;
+   if(audio) delete audio;
+   if(system) delete system;
+-
+-  if ( close_fd && mpeg_fd ) {
+-    close(mpeg_fd);
+-  }
++  
++  SDL_RWclose(source);
+ }
+ 
+ bool MPEG::AudioEnabled(void) {
+Only in smpeg-0.4.2-hacked/: MPEG.cpp~
+diff -ur smpeg-0.4.2/MPEG.h smpeg-0.4.2-hacked/MPEG.h
+--- smpeg-0.4.2/MPEG.h	Wed Oct  4 19:29:25 2000
++++ smpeg-0.4.2-hacked/MPEG.h	Thu Feb 22 17:08:47 2001
+@@ -53,11 +53,12 @@
+     MPEG(const char * name, bool sdlaudio = true);
+     MPEG(int Mpeg_FD, bool sdlaudio = true);
+     MPEG(void *data, int size, bool sdlaudio = true);
++    MPEG(SDL_RWops *mpeg_source,bool sdlaudio = true);
+     virtual ~MPEG();
+ 
+     /* Initialize the MPEG */
+-    void Init(int Mpeg_FD, bool Sdlaudio);
+-    void Init(void *data, int size, bool Sdlaudio);
++    void Init(SDL_RWops *mpeg_source, bool Sdlaudio);
++    void InitErrorState();
+ 
+     /* Enable/Disable audio and video */
+     bool AudioEnabled(void);
+@@ -102,9 +103,7 @@
+     MPEGsystem * system;
+ 
+ protected:
+-    int mpeg_fd;
+-    bool close_fd;
+-
++    SDL_RWops *source;
+     MPEGaudioaction *audioaction;
+     MPEGvideoaction *videoaction;
+ 
+Only in smpeg-0.4.2-hacked/: MPEG.h~
+Only in smpeg-0.4.2-hacked/: MPEG.lo
+Only in smpeg-0.4.2-hacked/: MPEG.o
+Only in smpeg-0.4.2-hacked/: MPEGfilter.lo
+Only in smpeg-0.4.2-hacked/: MPEGfilter.o
+Only in smpeg-0.4.2-hacked/: MPEGlist.lo
+Only in smpeg-0.4.2-hacked/: MPEGlist.o
+Only in smpeg-0.4.2-hacked/: MPEGring.lo
+Only in smpeg-0.4.2-hacked/: MPEGring.o
+Only in smpeg-0.4.2-hacked/: MPEGstream.lo
+Only in smpeg-0.4.2-hacked/: MPEGstream.o
+diff -ur smpeg-0.4.2/MPEGsystem.cpp smpeg-0.4.2-hacked/MPEGsystem.cpp
+--- smpeg-0.4.2/MPEGsystem.cpp	Mon Dec  4 21:25:36 2000
++++ smpeg-0.4.2-hacked/MPEGsystem.cpp	Thu Feb 22 17:52:41 2001
+@@ -387,9 +387,9 @@
+   return(header_size);
+ }
+ 
+-MPEGsystem::MPEGsystem(int Mpeg_FD)
++MPEGsystem::MPEGsystem(SDL_RWops *mpeg_source)
+ {
+-  mpeg_fd = Mpeg_FD;
++  source = mpeg_source;
+ 
+   /* Create a new buffer for reading */
+   read_buffer = new Uint8[MPEG_BUFFER_SIZE];
+@@ -398,13 +398,6 @@
+   system_mutex = SDL_CreateMutex();
+   request_wait = SDL_CreateSemaphore(0);
+ 
+-  /*
+-     We are not being passed data, so we don't need to simulate
+-     file access.  Might something like MikMod's abstraction of
+-     read/seek/tell be appropriate?
+-   */
+-  data_reader.fromData = false;
+-
+   /* Invalidate the read buffer */
+   pointer = read_buffer;
+   read_size = 0;
+@@ -460,82 +453,6 @@
+ 	!Eof());
+ }
+ 
+-MPEGsystem::MPEGsystem(void *data, int size)
+-{
+-  /* Create a new buffer for reading */
+-  read_buffer = new Uint8[MPEG_BUFFER_SIZE];
+-
+-  /* Create a mutex to avoid concurrent access to the stream */
+-  system_mutex = SDL_CreateMutex();
+-  request_wait = SDL_CreateSemaphore(0);
+-
+-  /* 
+-     Our argument list indicates that we are being passed data, 
+-     so we copy it and setup the data_reader data structure.
+-    */
+-  data_reader.fromData = true;
+-  data_reader.data = malloc(size);
+-  data_reader.size = size;
+-  data_reader.offset = 0;
+-
+-  memcpy(data_reader.data, data, size);
+-
+-  /* Invalidate the read buffer */
+-  pointer = read_buffer;
+-  read_size = 0;
+-  read_total = 0;
+-  packet_total = 0;
+-  endofstream = errorstream = false;
+-  looping = false;
+-  frametime = 0.0;
+-  stream_timestamp = 0.0;
+-
+-  /* Create an empty stream list */
+-  stream_list = 
+-    (MPEGstream **) malloc(sizeof(MPEGstream *));
+-  stream_list[0] = 0;
+-
+-  /* Create the system stream and add it to the list */
+-  if(!get_stream(SYSTEM_STREAMID))
+-    add_stream(new MPEGstream(this, SYSTEM_STREAMID));
+-
+-  timestamp = 0.0;
+-  timedrift = 0.0;
+-  skip_timestamp = -1;
+-  system_thread_running = false;
+-  system_thread = 0;
+-
+-  /* Search the MPEG for the first header */
+-  if(!seek_first_header())
+-  {
+-    errorstream = true;
+-    SetError("Could not find the beginning of MPEG data\n");
+-    return;
+-  }
+-
+-#ifdef USE_SYSTEM_THREAD
+-  /* Start the system thread */
+-  system_thread = SDL_CreateThread(SystemThread, this);
+-
+-  /* Wait for the thread to start */
+-  while(!system_thread_running && !Eof())
+-    SDL_Delay(1);
+-#else
+-  system_thread_running = true;
+-#endif
+-
+-  /* Look for streams */
+-  do
+-  {
+-    RequestBuffer();
+-    Wait();
+-  }
+-  while(!exist_stream(VIDEO_STREAMID, 0xF0) &&
+-	!exist_stream(AUDIO_STREAMID, 0xF0) &&
+-	!Eof());
+-}
+-
+-
+ MPEGsystem::~MPEGsystem()
+ {
+   MPEGstream ** list;
+@@ -586,77 +503,47 @@
+     /* Replace unread data at the beginning of the stream */
+     memmove(read_buffer, pointer, remaining);
+ 
+-    if(data_reader.fromData == true)
+-    {
+-      /*
+-         We were initialized from a chunk of data, so we simulate
+-	 the read call
+-       */
+-
+-       int size = READ_ALIGN(MPEG_BUFFER_SIZE - remaining);
+-       char *frombuf = (char *) data_reader.data;
+-
+-       if(data_reader.offset > data_reader.size)
+-       {
+-         read_size = 0;
+-       }
+-       else 
+-       {
+-         if(data_reader.offset + size > data_reader.size)
+-         {
+-           size = data_reader.size - data_reader.offset;
+-         }
+-
+-         frombuf += data_reader.offset;
+-
+-         memcpy(read_buffer + remaining, frombuf, size);
+-
+-         data_reader.offset += size;
+-         read_size = size;
+-       }
+-    } else {
+ #ifdef NO_GRIFF_MODS
+-        read_size = read(mpeg_fd,
+-                        read_buffer + remaining, 
+-                        READ_ALIGN(MPEG_BUFFER_SIZE - remaining));
+-	if(read_size < 0)
+-	{
+-	  perror("Read");
+-	  errorstream = true;
+-	  SDL_mutexV(system_mutex);
+-	  return;
+-	}
++    read_size = SDL_RWread(source,
++                    read_buffer + remaining, 
++                    READ_ALIGN(MPEG_BUFFER_SIZE - remaining));
++    if(read_size < 0)
++    {
++      perror("Read");
++      errorstream = true;
++      SDL_mutexV(system_mutex);
++      return;
++    }
+ #else
+-	/* Read new data */
+-	int bytes_read    = 0;
+-	int buffer_offset = remaining;
+-	int bytes_to_read = READ_ALIGN(MPEG_BUFFER_SIZE - remaining);
+-	int read_at_once = 0;
++    /* Read new data */
++    int bytes_read    = 0;
++    int buffer_offset = remaining;
++    int bytes_to_read = READ_ALIGN(MPEG_BUFFER_SIZE - remaining);
++    int read_at_once = 0;
+ 
+-	read_size = 0;
+-	do
+-	{
+-	  read_at_once = 
+-	    read(mpeg_fd, read_buffer + buffer_offset, bytes_to_read );
++    read_size = 0;
++    do
++    {
++      read_at_once = 
++        SDL_RWread(source, read_buffer + buffer_offset, 1, bytes_to_read );
+ 
+-	  if(read_at_once < 0)
+-	  {
+-	    perror("Read");
+-	    errorstream = true;
+-	    SDL_mutexV(system_mutex);
+-	    return;
+-	  }
+-	  else
+-	  {
+-	    bytes_read    += read_at_once;
+-	    buffer_offset += read_at_once;
+-	    read_size     += read_at_once;
+-	    bytes_to_read -= read_at_once;
+-	  }
+-	}
+-	while( read_at_once>0 && bytes_to_read>0 );
+-#endif
++      if(read_at_once < 0)
++      {
++        perror("Read");
++        errorstream = true;
++        SDL_mutexV(system_mutex);
++        return;
++      }
++      else
++      {
++        bytes_read    += read_at_once;
++        buffer_offset += read_at_once;
++        read_size     += read_at_once;
++        bytes_to_read -= read_at_once;
++      }
+     }
++    while( read_at_once>0 && bytes_to_read>0 );
++#endif
+ 
+     read_total += read_size;
+ 
+@@ -1001,21 +888,12 @@
+   off_t size;
+   off_t pos;
+ 
+-  if(data_reader.fromData == true)
+-  {
+-    /*
+-       we are using simulated data access routines, so we know in advance
+-       what the size is.
+-     */
+-    return data_reader.size;
+-  }
+-
+   /* Lock to avoid concurrent access to the stream */
+   SDL_mutexP(system_mutex);
+ 
+   /* I made it this way (instead of fstat) to avoid #ifdef WIN32 everywhere */
+   /* in case 'in some weird perversion of nature' someone wants to port this to Win32 :-) */
+-  if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) < 0)
++  if((pos = SDL_RWtell(source)) < 0)
+   {
+     if(errno != ESPIPE)
+     {
+@@ -1026,7 +904,7 @@
+     return(0);
+   }
+ 
+-  if((size = lseek(mpeg_fd, 0, SEEK_END)) < 0)
++  if((size = SDL_RWseek(source, 0, SEEK_END)) < 0)
+   {
+     if(errno != ESPIPE)
+     {
+@@ -1037,7 +915,7 @@
+     return(0);
+   }
+   
+-  if((pos = lseek(mpeg_fd, pos, SEEK_SET)) < 0)
++  if((pos = SDL_RWseek(source, pos, SEEK_SET)) < 0)
+   {
+     if(errno != ESPIPE)
+     {
+@@ -1063,21 +941,17 @@
+   SDL_mutexP(system_mutex);
+ 
+   /* Save current position */
+-  if(data_reader.fromData == true) {
+-	  /* from data, no lseek needed */
+-	  pos = data_reader.offset;
+-  } else {
+-	  if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) < 0)
+-	  {
+-	    if(errno != ESPIPE)
+-	    {
+-	      errorstream = true;
+-	      SetError(strerror(errno));
+-	    }
+-	    SDL_mutexV(system_mutex);
+-	    return(false);
+-	  }
++  if((pos = SDL_RWtell(source)) < 0)
++  {
++    if(errno != ESPIPE)
++    {
++      errorstream = true;
++      SetError(strerror(errno));
++    }
++    SDL_mutexV(system_mutex);
++    return(false);
+   }
++
+   file_ptr = 0;
+   buffer = new Uint8[MPEG_BUFFER_SIZE];
+ 
+@@ -1087,43 +961,18 @@
+   {
+     do
+     {
+-      if(data_reader.fromData == true) {
+-	      data_reader.offset += file_ptr;
+-	      size = data_reader.offset;
+-      }
+-      else {
+-	      if((size = lseek(mpeg_fd, file_ptr, SEEK_SET)) < 0)
+-	      {
+-		if(errno != ESPIPE)
+-		{
+-		  errorstream = true;
+-		  SetError(strerror(errno));  
+-		}
+-		SDL_mutexV(system_mutex);
+-		return(false);
+-	      }
++      if((size = SDL_RWseek(source, file_ptr, SEEK_SET)) < 0)
++      {
++        if(errno != ESPIPE)
++        {
++          errorstream = true;
++          SetError(strerror(errno));  
++        }
++        SDL_mutexV(system_mutex);
++        return(false);
+       }
+     
+-      if(data_reader.fromData == true) {
+-	      char *dataptr = (char *) data_reader.data;
+-	      int size = MPEG_BUFFER_SIZE;
+-
+-	      if(data_reader.offset + size > data_reader.size) {
+-                  size = data_reader.size - data_reader.offset;
+-	      }
+-
+-              if(size >= 0) {
+-                  dataptr += size;
+-      
+-                  memcpy(buffer, dataptr, size);
+-      
+-                  data_reader.offset += size;
+-             } else {
+-		     break;
+-	     }
+-      } else {
+-        if(read(mpeg_fd, buffer, MPEG_BUFFER_SIZE) < 0) break;
+-      }
++      if(SDL_RWread(source, buffer, 1, MPEG_BUFFER_SIZE) < 0) break;
+ 
+       /* Search for a valid audio header */
+       for(p = buffer; p < buffer + MPEG_BUFFER_SIZE; p++)
+@@ -1152,33 +1001,18 @@
+     /* Otherwise search the stream backwards for a valid header */
+       file_ptr -= MPEG_BUFFER_SIZE;
+       
+-      if(data_reader.fromData == true) {
+-	      data_reader.offset = data_reader.size - file_ptr;
+-	      size = data_reader.offset;
+-      } else {
+-	      if((size = lseek(mpeg_fd, file_ptr, SEEK_END)) < 0)
+-	      {
+-		if(errno != ESPIPE)
+-		{
+-		  errorstream = true;
+-		  SetError(strerror(errno));  
+-		}
+-		SDL_mutexV(system_mutex);
+-		return(false);
+-	      }
++      if((size = SDL_RWseek(source, file_ptr, SEEK_END)) < 0)
++      {
++        if(errno != ESPIPE)
++        {
++          errorstream = true;
++          SetError(strerror(errno));  
++        }
++        SDL_mutexV(system_mutex);
++        return(false);
+       }
+       
+-      if(data_reader.fromData == true) {
+-        char *dataptr = (char *) data_reader.data;
+-
+-        dataptr += data_reader.offset;
+-
+-        memcpy(buffer, dataptr, MPEG_BUFFER_SIZE);
+-
+-        data_reader.offset += MPEG_BUFFER_SIZE;
+-      } else {
+-        if(read(mpeg_fd, buffer, MPEG_BUFFER_SIZE) < 0) break;
+-      }
++      if(SDL_RWread(source, buffer, 1, MPEG_BUFFER_SIZE) < 0) break;
+       
+       if(stream_list[0]->streamid == SYSTEM_STREAMID)
+ 	for(p = buffer + MPEG_BUFFER_SIZE - 1; p >= buffer;)
+@@ -1213,20 +1047,16 @@
+ 
+   delete buffer;
+ 
+-  if(data_reader.fromData == true) {
+-      data_reader.offset = pos;
+-  } else {
+-      /* Get back to saved position */
+-      if((pos = lseek(mpeg_fd, pos, SEEK_SET)) < 0)
+-      {
+-        if(errno != ESPIPE)
+-        {
+-          errorstream = true;
+-          SetError(strerror(errno));  
+-        }
+-        SDL_mutexV(system_mutex);
+-        return(0);
+-      }
++  /* Get back to saved position */
++  if((pos = SDL_RWseek(source, pos, SEEK_SET)) < 0)
++  {
++    if(errno != ESPIPE)
++    {
++      errorstream = true;
++      SetError(strerror(errno));  
++    }
++    SDL_mutexV(system_mutex);
++    return(0);
+   }
+ 
+   SDL_mutexV(system_mutex);
+@@ -1247,19 +1077,15 @@
+   /* Lock to avoid concurrent access to the stream */
+   SDL_mutexP(system_mutex);
+   
+-  if(data_reader.fromData == true) {
+-    data_reader.offset = length;
+-  } else {
+-    /* Get into the stream */
+-    if(lseek(mpeg_fd, length, SEEK_SET) < 0)
++  /* Get into the stream */
++  if(SDL_RWseek(source, length, SEEK_SET) < 0)
++  {
++    if(errno != ESPIPE)
+     {
+-      if(errno != ESPIPE)
+-      {
+-        errorstream = true;
+-        SetError(strerror(errno));
+-      }
+-      return(false);
++      errorstream = true;
++      SetError(strerror(errno));
+     }
++    return(false);
+   }
+ 
+   /* Reinitialize the read buffer */
+@@ -1359,20 +1185,15 @@
+     /* Set the eof mark on all streams */
+     system->end_all_streams();
+ 
+-    if(system->data_reader.fromData == true)
++    /* Get back to the beginning of the stream if possible */
++    if(SDL_RWseek(system->source, 0, SEEK_SET) < 0)
+     {
+-      system->data_reader.offset = 0;
+-    } else {
+-      /* Get back to the beginning of the stream if possible */
+-      if(lseek(system->mpeg_fd, 0, SEEK_SET) < 0)
++      if(errno != ESPIPE)
+       {
+-	if(errno != ESPIPE)
+-	{
+-	  system->errorstream = true;
+-	  system->SetError(strerror(errno));
+-	}
+-        return(false);
++        system->errorstream = true;
++        system->SetError(strerror(errno));
+       }
++      return(false);
+     }
+ 
+     /* Reinitialize the read buffer */
+Only in smpeg-0.4.2-hacked/: MPEGsystem.cpp~
+diff -ur smpeg-0.4.2/MPEGsystem.h smpeg-0.4.2-hacked/MPEGsystem.h
+--- smpeg-0.4.2/MPEGsystem.h	Mon Dec  4 20:41:58 2000
++++ smpeg-0.4.2-hacked/MPEGsystem.h	Thu Feb 22 17:07:50 2001
+@@ -19,8 +19,7 @@
+ class MPEGsystem : public MPEGerror
+ {
+ public:
+-    MPEGsystem(int MPEG_Fd);
+-    MPEGsystem(void *data, int size);
++    MPEGsystem(SDL_RWops *mpeg_source);
+     virtual ~MPEGsystem();
+ 
+     /* Buffered I/O functions */
+@@ -79,16 +78,7 @@
+     /* The system thread which fills the FIFO */
+     static int SystemThread(void * udata);
+ 
+-    struct {
+-    	bool fromData;
+-
+-	int size;
+-	int offset;
+-
+-	void *data;
+-    } data_reader;
+-
+-    int mpeg_fd;
++    SDL_RWops *source;
+ 
+     SDL_Thread * system_thread;
+     bool system_thread_running;
+Only in smpeg-0.4.2-hacked/: MPEGsystem.h~
+Only in smpeg-0.4.2-hacked/: MPEGsystem.lo
+Only in smpeg-0.4.2-hacked/: MPEGsystem.o
+Only in smpeg-0.4.2-hacked/: Makefile
+Only in smpeg-0.4.2-hacked/audio: .libs
+Only in smpeg-0.4.2-hacked/audio: MPEGaudio.lo
+Only in smpeg-0.4.2-hacked/audio: MPEGaudio.o
+Only in smpeg-0.4.2-hacked/audio: Makefile
+Only in smpeg-0.4.2-hacked/audio: bitwindow.lo
+Only in smpeg-0.4.2-hacked/audio: bitwindow.o
+Only in smpeg-0.4.2-hacked/audio: filter.lo
+Only in smpeg-0.4.2-hacked/audio: filter.o
+Only in smpeg-0.4.2-hacked/audio: filter_2.lo
+Only in smpeg-0.4.2-hacked/audio: filter_2.o
+Only in smpeg-0.4.2-hacked/audio: huffmantable.lo
+Only in smpeg-0.4.2-hacked/audio: huffmantable.o
+Only in smpeg-0.4.2-hacked/audio: libaudio.la
+Only in smpeg-0.4.2-hacked/audio: mpeglayer1.lo
+Only in smpeg-0.4.2-hacked/audio: mpeglayer1.o
+Only in smpeg-0.4.2-hacked/audio: mpeglayer2.lo
+Only in smpeg-0.4.2-hacked/audio: mpeglayer2.o
+Only in smpeg-0.4.2-hacked/audio: mpeglayer3.lo
+Only in smpeg-0.4.2-hacked/audio: mpeglayer3.o
+Only in smpeg-0.4.2-hacked/audio: mpegtable.lo
+Only in smpeg-0.4.2-hacked/audio: mpegtable.o
+Only in smpeg-0.4.2-hacked/audio: mpegtoraw.lo
+Only in smpeg-0.4.2-hacked/audio: mpegtoraw.o
+Only in smpeg-0.4.2-hacked/: config.cache
+Only in smpeg-0.4.2-hacked/: config.log
+Only in smpeg-0.4.2-hacked/: config.status
+Only in smpeg-0.4.2-hacked/: glmovie
+Only in smpeg-0.4.2-hacked/: glmovie-tile.o
+Only in smpeg-0.4.2-hacked/: glmovie.o
+Only in smpeg-0.4.2-hacked/: gtv
+Only in smpeg-0.4.2-hacked/: gtv.o
+Only in smpeg-0.4.2-hacked/: libsmpeg.la
+Only in smpeg-0.4.2-hacked/: libtool
+Only in smpeg-0.4.2-hacked/: plaympeg
+Only in smpeg-0.4.2-hacked/: plaympeg.o
+Only in smpeg-0.4.2-hacked/: smpeg-config
+diff -ur smpeg-0.4.2/smpeg.cpp smpeg-0.4.2-hacked/smpeg.cpp
+--- smpeg-0.4.2/smpeg.cpp	Thu Oct  5 21:58:08 2000
++++ smpeg-0.4.2-hacked/smpeg.cpp	Thu Feb 22 17:01:20 2001
+@@ -90,6 +90,21 @@
+     return(mpeg);
+ }
+ 
++SMPEG* SMPEG_new_rwops(SDL_RWops *src, SMPEG_Info* info, int sdl_audio)
++{
++    SMPEG *mpeg;
++
++    /* Create a new SMPEG object! */
++    mpeg = new SMPEG;
++    mpeg->obj = new MPEG(src, sdl_audio ? true : false);
++
++    /* Find out the details of the stream, if requested */
++    SMPEG_getinfo(mpeg, info);
++
++    /* We're done! */
++    return(mpeg);
++}
++
+ /* Get current information about an SMPEG object */
+ void SMPEG_getinfo( SMPEG* mpeg, SMPEG_Info* info )
+ {
+Only in smpeg-0.4.2-hacked/: smpeg.cpp~
+diff -ur smpeg-0.4.2/smpeg.h smpeg-0.4.2-hacked/smpeg.h
+--- smpeg-0.4.2/smpeg.h	Thu Oct  5 21:56:46 2000
++++ smpeg-0.4.2-hacked/smpeg.h	Thu Feb 22 16:40:55 2001
+@@ -104,6 +104,9 @@
+  */
+ extern DECLSPEC SMPEG* SMPEG_new_data(void *data, int size, SMPEG_Info* info, int sdl_audio);
+ 
++/* The same for a generic SDL_RWops structure. */
++extern DECLSPEC SMPEG* SMPEG_new_rwops(SDL_RWops *src, SMPEG_Info* info, int sdl_audio);
++
+ /* Get current information about an SMPEG object */
+ extern DECLSPEC void SMPEG_getinfo( SMPEG* mpeg, SMPEG_Info* info );
+ 
+Only in smpeg-0.4.2-hacked/: smpeg.h~
+Only in smpeg-0.4.2-hacked/: smpeg.lo
+Only in smpeg-0.4.2-hacked/: smpeg.o
+Only in smpeg-0.4.2-hacked/: smpeg.spec
+Only in smpeg-0.4.2-hacked/video: .libs
+Only in smpeg-0.4.2-hacked/video: MPEGvideo.lo
+Only in smpeg-0.4.2-hacked/video: MPEGvideo.o
+Only in smpeg-0.4.2-hacked/video: Makefile
+Only in smpeg-0.4.2-hacked/video: decoders.lo
+Only in smpeg-0.4.2-hacked/video: decoders.o
+Only in smpeg-0.4.2-hacked/video: floatdct.lo
+Only in smpeg-0.4.2-hacked/video: floatdct.o
+Only in smpeg-0.4.2-hacked/video: gdith.lo
+Only in smpeg-0.4.2-hacked/video: gdith.o
+Only in smpeg-0.4.2-hacked/video: jrevdct.lo
+Only in smpeg-0.4.2-hacked/video: jrevdct.o
+Only in smpeg-0.4.2-hacked/video: libvideo.la
+Only in smpeg-0.4.2-hacked/video: mmxflags_asm.lo
+Only in smpeg-0.4.2-hacked/video: mmxflags_asm.o
+Only in smpeg-0.4.2-hacked/video: mmxidct_asm.lo
+Only in smpeg-0.4.2-hacked/video: mmxidct_asm.o
+Only in smpeg-0.4.2-hacked/video: motionvector.lo
+Only in smpeg-0.4.2-hacked/video: motionvector.o
+Only in smpeg-0.4.2-hacked/video: parseblock.lo
+Only in smpeg-0.4.2-hacked/video: parseblock.o
+Only in smpeg-0.4.2-hacked/video: readfile.lo
+Only in smpeg-0.4.2-hacked/video: readfile.o
+Only in smpeg-0.4.2-hacked/video: util.lo
+Only in smpeg-0.4.2-hacked/video: util.o
+Only in smpeg-0.4.2-hacked/video: vhar128.lo
+Only in smpeg-0.4.2-hacked/video: vhar128.o
+Only in smpeg-0.4.2-hacked/video: video.lo
+Only in smpeg-0.4.2-hacked/video: video.o
+*************************************************************************
+*** Applied ***
 Date: Fri, 2 Mar 2001 20:29:54 -0500
 From: Joe Drew <hoserhead@woot.net>
 Subject: Debian smpeg, smpeg-xmms packages, and the fix for audio not updating current time

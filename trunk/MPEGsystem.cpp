@@ -390,9 +390,9 @@ Uint32 skip_zeros(Uint8 * pointer, Uint32 size)
   return(header_size);
 }
 
-MPEGsystem::MPEGsystem(int Mpeg_FD)
+MPEGsystem::MPEGsystem(SDL_RWops *mpeg_source)
 {
-  mpeg_fd = Mpeg_FD;
+  source = mpeg_source;
 
   /* Create a new buffer for reading */
   read_buffer = new Uint8[MPEG_BUFFER_SIZE];
@@ -400,13 +400,6 @@ MPEGsystem::MPEGsystem(int Mpeg_FD)
   /* Create a mutex to avoid concurrent access to the stream */
   system_mutex = SDL_CreateMutex();
   request_wait = SDL_CreateSemaphore(0);
-
-  /*
-     We are not being passed data, so we don't need to simulate
-     file access.  Might something like MikMod's abstraction of
-     read/seek/tell be appropriate?
-   */
-  data_reader.fromData = false;
 
   /* Invalidate the read buffer */
   pointer = read_buffer;
@@ -462,82 +455,6 @@ MPEGsystem::MPEGsystem(int Mpeg_FD)
 	!exist_stream(AUDIO_STREAMID, 0xF0) &&
 	!Eof());
 }
-
-MPEGsystem::MPEGsystem(void *data, int size)
-{
-  /* Create a new buffer for reading */
-  read_buffer = new Uint8[MPEG_BUFFER_SIZE];
-
-  /* Create a mutex to avoid concurrent access to the stream */
-  system_mutex = SDL_CreateMutex();
-  request_wait = SDL_CreateSemaphore(0);
-
-  /* 
-     Our argument list indicates that we are being passed data, 
-     so we copy it and setup the data_reader data structure.
-    */
-  data_reader.fromData = true;
-  data_reader.data = malloc(size);
-  data_reader.size = size;
-  data_reader.offset = 0;
-
-  memcpy(data_reader.data, data, size);
-
-  /* Invalidate the read buffer */
-  pointer = read_buffer;
-  read_size = 0;
-  read_total = 0;
-  packet_total = 0;
-  endofstream = errorstream = false;
-  looping = false;
-  frametime = 0.0;
-  stream_timestamp = 0.0;
-
-  /* Create an empty stream list */
-  stream_list = 
-    (MPEGstream **) malloc(sizeof(MPEGstream *));
-  stream_list[0] = 0;
-
-  /* Create the system stream and add it to the list */
-  if(!get_stream(SYSTEM_STREAMID))
-    add_stream(new MPEGstream(this, SYSTEM_STREAMID));
-
-  timestamp = 0.0;
-  timedrift = 0.0;
-  skip_timestamp = -1;
-  system_thread_running = false;
-  system_thread = 0;
-
-  /* Search the MPEG for the first header */
-  if(!seek_first_header())
-  {
-    errorstream = true;
-    SetError("Could not find the beginning of MPEG data\n");
-    return;
-  }
-
-#ifdef USE_SYSTEM_THREAD
-  /* Start the system thread */
-  system_thread = SDL_CreateThread(SystemThread, this);
-
-  /* Wait for the thread to start */
-  while(!system_thread_running && !Eof())
-    SDL_Delay(1);
-#else
-  system_thread_running = true;
-#endif
-
-  /* Look for streams */
-  do
-  {
-    RequestBuffer();
-    Wait();
-  }
-  while(!exist_stream(VIDEO_STREAMID, 0xF0) &&
-	!exist_stream(AUDIO_STREAMID, 0xF0) &&
-	!Eof());
-}
-
 
 MPEGsystem::~MPEGsystem()
 {
@@ -557,10 +474,6 @@ MPEGsystem::~MPEGsystem()
 
   /* Delete the read buffer */
   delete[] read_buffer;
-
-  /* If we were created from raw data, free that data */
-  if ( data_reader.fromData )
-    free(data_reader.data);
 }
 
 MPEGstream ** MPEGsystem::GetStreamList()
@@ -593,75 +506,47 @@ void MPEGsystem::Read()
     /* Replace unread data at the beginning of the stream */
     memmove(read_buffer, pointer, remaining);
 
-    if(data_reader.fromData == true)
-    {
-      /*
-         We were initialized from a chunk of data, so we simulate
-	 the read call
-       */
-
-       int size = READ_ALIGN(MPEG_BUFFER_SIZE - remaining);
-       char *frombuf = (char *) data_reader.data;
-
-       if(data_reader.offset > data_reader.size)
-       {
-         read_size = 0;
-       }
-       else 
-       {
-         if(data_reader.offset + size > data_reader.size)
-         {
-           size = data_reader.size - data_reader.offset;
-         }
-
-         frombuf += data_reader.offset;
-
-         memcpy(read_buffer + remaining, frombuf, size);
-
-         data_reader.offset += size;
-         read_size = size;
-       }
-    } else {
 #ifdef NO_GRIFF_MODS
-        read_size = read(mpeg_fd,
-                        read_buffer + remaining, 
-                        READ_ALIGN(MPEG_BUFFER_SIZE - remaining));
-	if(read_size < 0)
-	{
-	  errorstream = true;
-	  SDL_mutexV(system_mutex);
-	  return;
-	}
-#else
-	/* Read new data */
-	int bytes_read    = 0;
-	int buffer_offset = remaining;
-	int bytes_to_read = READ_ALIGN(MPEG_BUFFER_SIZE - remaining);
-	int read_at_once = 0;
-
-	read_size = 0;
-	do
-	{
-	  read_at_once = 
-	    read(mpeg_fd, read_buffer + buffer_offset, bytes_to_read );
-
-	  if(read_at_once < 0)
-	  {
-	    errorstream = true;
-	    SDL_mutexV(system_mutex);
-	    return;
-	  }
-	  else
-	  {
-	    bytes_read    += read_at_once;
-	    buffer_offset += read_at_once;
-	    read_size     += read_at_once;
-	    bytes_to_read -= read_at_once;
-	  }
-	}
-	while( read_at_once>0 && bytes_to_read>0 );
-#endif
+    read_size = SDL_RWread(source,
+                    read_buffer + remaining, 
+                    READ_ALIGN(MPEG_BUFFER_SIZE - remaining));
+    if(read_size < 0)
+    {
+      perror("Read");
+      errorstream = true;
+      SDL_mutexV(system_mutex);
+      return;
     }
+#else
+    /* Read new data */
+    int bytes_read    = 0;
+    int buffer_offset = remaining;
+    int bytes_to_read = READ_ALIGN(MPEG_BUFFER_SIZE - remaining);
+    int read_at_once = 0;
+
+    read_size = 0;
+    do
+    {
+      read_at_once = 
+        SDL_RWread(source, read_buffer + buffer_offset, 1, bytes_to_read );
+
+      if(read_at_once < 0)
+      {
+        perror("Read");
+        errorstream = true;
+        SDL_mutexV(system_mutex);
+        return;
+      }
+      else
+      {
+        bytes_read    += read_at_once;
+        buffer_offset += read_at_once;
+        read_size     += read_at_once;
+        bytes_to_read -= read_at_once;
+      }
+    }
+    while( read_at_once>0 && bytes_to_read>0 );
+#endif
 
     read_total += read_size;
 
@@ -1009,21 +894,12 @@ Uint32 MPEGsystem::TotalSize()
   off_t size;
   off_t pos;
 
-  if(data_reader.fromData == true)
-  {
-    /*
-       we are using simulated data access routines, so we know in advance
-       what the size is.
-     */
-    return data_reader.size;
-  }
-
   /* Lock to avoid concurrent access to the stream */
   SDL_mutexP(system_mutex);
 
   /* I made it this way (instead of fstat) to avoid #ifdef WIN32 everywhere */
   /* in case 'in some weird perversion of nature' someone wants to port this to Win32 :-) */
-  if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) < 0)
+  if((pos = SDL_RWtell(source)) < 0)
   {
     if(errno != ESPIPE)
     {
@@ -1034,7 +910,7 @@ Uint32 MPEGsystem::TotalSize()
     return(0);
   }
 
-  if((size = lseek(mpeg_fd, 0, SEEK_END)) < 0)
+  if((size = SDL_RWseek(source, 0, SEEK_END)) < 0)
   {
     if(errno != ESPIPE)
     {
@@ -1045,7 +921,7 @@ Uint32 MPEGsystem::TotalSize()
     return(0);
   }
   
-  if((pos = lseek(mpeg_fd, pos, SEEK_SET)) < 0)
+  if((pos = SDL_RWseek(source, pos, SEEK_SET)) < 0)
   {
     if(errno != ESPIPE)
     {
@@ -1071,21 +947,17 @@ double MPEGsystem::TotalTime()
   SDL_mutexP(system_mutex);
 
   /* Save current position */
-  if(data_reader.fromData == true) {
-	  /* from data, no lseek needed */
-	  pos = data_reader.offset;
-  } else {
-	  if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) < 0)
-	  {
-	    if(errno != ESPIPE)
-	    {
-	      errorstream = true;
-	      SetError(strerror(errno));
-	    }
-	    SDL_mutexV(system_mutex);
-	    return(0);
-	  }
+  if((pos = SDL_RWtell(source)) < 0)
+  {
+    if(errno != ESPIPE)
+    {
+      errorstream = true;
+      SetError(strerror(errno));
+    }
+    SDL_mutexV(system_mutex);
+    return(false);
   }
+
   file_ptr = 0;
   buffer = new Uint8[MPEG_BUFFER_SIZE];
   time = 0;
@@ -1096,43 +968,18 @@ double MPEGsystem::TotalTime()
   {
     do
     {
-      if(data_reader.fromData == true) {
-	      data_reader.offset += file_ptr;
-	      size = data_reader.offset;
-      }
-      else {
-	      if((size = lseek(mpeg_fd, file_ptr, SEEK_SET)) < 0)
-	      {
-		if(errno != ESPIPE)
-		{
-		  errorstream = true;
-		  SetError(strerror(errno));  
-		}
-		SDL_mutexV(system_mutex);
-		return(0);
-	      }
+      if((size = SDL_RWseek(source, file_ptr, SEEK_SET)) < 0)
+      {
+        if(errno != ESPIPE)
+        {
+          errorstream = true;
+          SetError(strerror(errno));  
+        }
+        SDL_mutexV(system_mutex);
+        return(false);
       }
     
-      if(data_reader.fromData == true) {
-	      char *dataptr = (char *) data_reader.data;
-	      int size = MPEG_BUFFER_SIZE;
-
-	      if(data_reader.offset + size > data_reader.size) {
-                  size = data_reader.size - data_reader.offset;
-	      }
-
-              if(size >= 0) {
-                  dataptr += size;
-      
-                  memcpy(buffer, dataptr, size);
-      
-                  data_reader.offset += size;
-             } else {
-		     break;
-	     }
-      } else {
-        if(read(mpeg_fd, buffer, MPEG_BUFFER_SIZE) < 0) break;
-      }
+      if(SDL_RWread(source, buffer, 1, MPEG_BUFFER_SIZE) < 0) break;
 
       /* Search for a valid audio header */
       for(p = buffer; p < buffer + MPEG_BUFFER_SIZE; p++)
@@ -1163,34 +1010,19 @@ double MPEGsystem::TotalTime()
           last_chance = true;
           file_ptr = -TotalSize();
       }
-      
-      if(data_reader.fromData == true) {
-	      data_reader.offset = data_reader.size - file_ptr;
-	      size = data_reader.offset;
-      } else {
-	      if((size = lseek(mpeg_fd, file_ptr, SEEK_END)) < 0)
-	      {
-		if(errno != ESPIPE)
-		{
-		  errorstream = true;
-		  SetError(strerror(errno));  
-		}
-		SDL_mutexV(system_mutex);
-		return(0);
-	      }
+     
+      if((size = SDL_RWseek(source, file_ptr, SEEK_END)) < 0)
+      {
+        if(errno != ESPIPE)
+        {
+          errorstream = true;
+          SetError(strerror(errno));  
+        }
+        SDL_mutexV(system_mutex);
+        return(false);
       }
       
-      if(data_reader.fromData == true) {
-        char *dataptr = (char *) data_reader.data;
-
-        dataptr += data_reader.offset;
-
-        memcpy(buffer, dataptr, MPEG_BUFFER_SIZE);
-
-        data_reader.offset += MPEG_BUFFER_SIZE;
-      } else {
-        if(read(mpeg_fd, buffer, MPEG_BUFFER_SIZE) < 0) break;
-      }
+      if(SDL_RWread(source, buffer, 1, MPEG_BUFFER_SIZE) < 0) break;
       
       if(stream_list[0]->streamid == SYSTEM_STREAMID)
 	for(p = buffer + MPEG_BUFFER_SIZE - 1; p >= buffer;)
@@ -1227,20 +1059,15 @@ double MPEGsystem::TotalTime()
 
   delete[] buffer;
 
-  if(data_reader.fromData == true) {
-      data_reader.offset = pos;
-  } else {
-      /* Get back to saved position */
-      if((pos = lseek(mpeg_fd, pos, SEEK_SET)) < 0)
-      {
-        if(errno != ESPIPE)
-        {
-          errorstream = true;
-          SetError(strerror(errno));  
-        }
-        SDL_mutexV(system_mutex);
-        return(0);
-      }
+  /* Get back to saved position */
+  if((pos = SDL_RWseek(source, pos, SEEK_SET)) < 0)
+  {
+    if(errno != ESPIPE)
+    {
+      errorstream = true;
+      SetError(strerror(errno));  
+    }
+    time = 0;
   }
 
   SDL_mutexV(system_mutex);
@@ -1264,21 +1091,17 @@ double MPEGsystem::TimeElapsedAudio(int atByte)
   SDL_mutexP(system_mutex);
 
   /* Save current position */
-  if(data_reader.fromData == true) {
-	  /* from data, no lseek needed */
-	  pos = data_reader.offset;
-  } else {
-	  if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) < 0)
-	  {
-	    if(errno != ESPIPE)
-	    {
-	      errorstream = true;
-	      SetError(strerror(errno));
-	    }
-	    SDL_mutexV(system_mutex);
-	    return(false);
-	  }
+  if((pos = SDL_RWtell(source)) < 0)
+  {
+    if(errno != ESPIPE)
+    {
+      errorstream = true;
+      SetError(strerror(errno));
+    }
+    SDL_mutexV(system_mutex);
+    return(false);
   }
+
   file_ptr = 0;
   buffer = new Uint8[MPEG_BUFFER_SIZE];
 
@@ -1288,43 +1111,18 @@ double MPEGsystem::TimeElapsedAudio(int atByte)
   {
     do
     {
-      if(data_reader.fromData == true) {
-	      data_reader.offset += file_ptr;
-	      size = data_reader.offset;
-      }
-      else {
-	      if((size = lseek(mpeg_fd, file_ptr, SEEK_SET)) < 0)
-	      {
-		if(errno != ESPIPE)
-		{
-		  errorstream = true;
-		  SetError(strerror(errno));  
-		}
-		SDL_mutexV(system_mutex);
-		return(false);
-	      }
+      if((size = SDL_RWseek(source, file_ptr, SEEK_SET)) < 0)
+      {
+        if(errno != ESPIPE)
+        {
+          errorstream = true;
+          SetError(strerror(errno));  
+        }
+        SDL_mutexV(system_mutex);
+        return(false);
       }
     
-      if(data_reader.fromData == true) {
-	      char *dataptr = (char *) data_reader.data;
-	      int size = MPEG_BUFFER_SIZE;
-
-	      if(data_reader.offset + size > data_reader.size) {
-                  size = data_reader.size - data_reader.offset;
-	      }
-
-              if(size >= 0) {
-                  dataptr += size;
-      
-                  memcpy(buffer, dataptr, size);
-      
-                  data_reader.offset += size;
-             } else {
-		     break;
-	     }
-      } else {
-        if(read(mpeg_fd, buffer, MPEG_BUFFER_SIZE) < 0) break;
-      }
+      if(SDL_RWread(source, buffer, 1, MPEG_BUFFER_SIZE) < 0) break;
 
       /* Search for a valid audio header */
       for(p = buffer; p < buffer + MPEG_BUFFER_SIZE; p++)
@@ -1355,20 +1153,16 @@ double MPEGsystem::TimeElapsedAudio(int atByte)
 
   delete buffer;
 
-  if(data_reader.fromData == true) {
-      data_reader.offset = pos;
-  } else {
-      /* Get back to saved position */
-      if((pos = lseek(mpeg_fd, pos, SEEK_SET)) < 0)
-      {
-        if(errno != ESPIPE)
-        {
-          errorstream = true;
-          SetError(strerror(errno));  
-        }
-        SDL_mutexV(system_mutex);
-        return(0);
-      }
+  /* Get back to saved position */
+  if((pos = SDL_RWseek(source, pos, SEEK_SET)) < 0)
+  {
+    if(errno != ESPIPE)
+    {
+      errorstream = true;
+      SetError(strerror(errno));  
+    }
+    SDL_mutexV(system_mutex);
+    return(0);
   }
 
   SDL_mutexV(system_mutex);
@@ -1388,19 +1182,15 @@ bool MPEGsystem::Seek(int length)
   /* Lock to avoid concurrent access to the stream */
   SDL_mutexP(system_mutex);
   
-  if(data_reader.fromData == true) {
-    data_reader.offset = length;
-  } else {
-    /* Get into the stream */
-    if(lseek(mpeg_fd, length, SEEK_SET) < 0)
+  /* Get into the stream */
+  if(SDL_RWseek(source, length, SEEK_SET) < 0)
+  {
+    if(errno != ESPIPE)
     {
-      if(errno != ESPIPE)
-      {
-        errorstream = true;
-        SetError(strerror(errno));
-      }
-      return(false);
+      errorstream = true;
+      SetError(strerror(errno));
     }
+    return(false);
   }
 
   /* Reinitialize the read buffer */
@@ -1500,20 +1290,15 @@ bool MPEGsystem::SystemLoop(MPEGsystem *system)
     /* Set the eof mark on all streams */
     system->end_all_streams();
 
-    if(system->data_reader.fromData == true)
+    /* Get back to the beginning of the stream if possible */
+    if(SDL_RWseek(system->source, 0, SEEK_SET) < 0)
     {
-      system->data_reader.offset = 0;
-    } else {
-      /* Get back to the beginning of the stream if possible */
-      if(lseek(system->mpeg_fd, 0, SEEK_SET) < 0)
+      if(errno != ESPIPE)
       {
-	if(errno != ESPIPE)
-	{
-	  system->errorstream = true;
-	  system->SetError(strerror(errno));
-	}
-        return(false);
+        system->errorstream = true;
+        system->SetError(strerror(errno));
       }
+      return(false);
     }
 
     /* Reinitialize the read buffer */

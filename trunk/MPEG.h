@@ -59,11 +59,12 @@ public:
     MPEG(const char * name, bool sdlaudio = true);
     MPEG(int Mpeg_FD, bool sdlaudio = true);
     MPEG(void *data, int size, bool sdlaudio = true);
+    MPEG(SDL_RWops *mpeg_source,bool sdlaudio = true);
     virtual ~MPEG();
 
     /* Initialize the MPEG */
-    void Init(int Mpeg_FD, bool Sdlaudio);
-    void Init(void *data, int size, bool Sdlaudio);
+    void Init(SDL_RWops *mpeg_source, bool Sdlaudio);
+    void InitErrorState();
 
     /* Enable/Disable audio and video */
     bool AudioEnabled(void);
@@ -111,9 +112,7 @@ public:
     MPEGsystem * system;
 
 protected:
-    int mpeg_fd;
-    bool close_fd;
-
+    SDL_RWops *source;
     MPEGaudioaction *audioaction;
     MPEGvideoaction *videoaction;
 

@@ -1,6 +1,8 @@
 0.4.3:
-Sam Lantinga -
+Sam Lantinga - Wed Apr  4 14:44:26 PDT 2001
  * Updated for SDL 1.2.0
+Andreas Kloeckner - Wed Apr  4 14:43:49 PDT 2001
+ * SMPEG now uses the SDL_RWops file abstraction internally
 Joe Drew - Wed Apr  4 13:40:44 PDT 2001
  * Fixed bug where the audio was not updating the current time
 Michel Darricau - Wed Apr  4 13:31:40 PDT 2001

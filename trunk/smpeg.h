@@ -104,6 +104,9 @@ extern DECLSPEC SMPEG* SMPEG_new_descr(int file, SMPEG_Info* info, int sdl_audio
  */
 extern DECLSPEC SMPEG* SMPEG_new_data(void *data, int size, SMPEG_Info* info, int sdl_audio);
 
+/* The same for a generic SDL_RWops structure. */
+extern DECLSPEC SMPEG* SMPEG_new_rwops(SDL_RWops *src, SMPEG_Info* info, int sdl_audio);
+
 /* Get current information about an SMPEG object */
 extern DECLSPEC void SMPEG_getinfo( SMPEG* mpeg, SMPEG_Info* info );
 

@@ -21,10 +21,9 @@ class MPEGstream;
 class MPEGsystem : public MPEGerror
 {
 public:
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
-	MPEGsystem(){}
-    MPEGsystem(int MPEG_Fd);
-    MPEGsystem(void *data, int size);
+	/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
+    MPEGsystem() {}
+    MPEGsystem(SDL_RWops *mpeg_source);
     virtual ~MPEGsystem();
 
     /* Buffered I/O functions */
@@ -89,16 +88,7 @@ protected:
     /* The system thread which fills the FIFO */
     static int SystemThread(void * udata);
 
-    struct {
-    	bool fromData;
-
-	int size;
-	int offset;
-
-	void *data;
-    } data_reader;
-
-    int mpeg_fd;
+    SDL_RWops *source;
 
     SDL_Thread * system_thread;
     bool system_thread_running;
