@@ -1,4 +1,6 @@
 0.4.1:
+Richard Kim - Thu Sep 21 11:28:31 PDT 2000
+ * Fixed read buffer memory leak in MPEGsystem class
 Tim Jansen - Thu Sep 21 11:13:06 PDT 2000
  * Fixed potential stack corruption in MPEG level 3 audio decoding
 Sam Lantinga - Wed Sep  6 03:04:12 PDT 2000
