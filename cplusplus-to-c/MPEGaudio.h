@@ -176,7 +176,8 @@ Mpegbitwindow * METH(init) (_THIS);
 #define Mpegbitwindow_gettotalbit(self) ((self)->bitindex)
 
 //  void putbyte(int c)    {buffer[point&(WINDOWSIZE-1)]=c;point++;};
-#define Mpegbitwindow_putbyte(self, c) ((self)->buffer[(self)->point&(WINDOWSIZE-1)]=c, (self)->point++)
+//#define Mpegbitwindow_putbyte(self, c) ((self)->buffer[(self)->point&(WINDOWSIZE-1)]=c, (self)->point++)
+#define Mpegbitwindow_putbyte(self, c) ((self)->buffer [ (self)->point & (WINDOWSIZE-1) ] = c, (self)->point++, 0)
 
 //  void wrap(void);
 void METH(wrap) (_THIS);
@@ -539,6 +540,7 @@ struct MPEGaudio {
   /*****************************/
   Uint8 _buffer[4096];
   Uint32 _buffer_pos;
+  int  bitindex;
 
 
   /********************/

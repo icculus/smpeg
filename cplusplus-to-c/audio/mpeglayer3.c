@@ -11,6 +11,9 @@
 // MPEG-2 is implemented
 // Speed up in fixstereo (maybe buggy) 
 
+/* MP3 needs to die a quick and horrible death.  -PH */
+/* http://www.vorbis.com/ */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -28,12 +31,16 @@
 
 #define wgetbit() MPEGaudio_wgetbit(self)
 #define wgetbits(x) MPEGaudio_wgetbits(self, x)
+#define wgetbits8(x) MPEGaudio_wgetbits8(self)
 #define wgetbits9(x) MPEGaudio_wgetbits9(self, x)
+#define getbit() MPEGaudio_getbit(self)
+#define getbits(x) MPEGaudio_getbits(self, x)
+#define getbits8() MPEGaudio_getbits8(self)
+#define getbits9(x) MPEGaudio_getbits9(self, x)
+#define getbyte() MPEGaudio_getbyte(self)
 
 
-
-inline
-void
+inline void
 Mpegbitwindow_wrap (Mpegbitwindow *self)
 {
   register int i;
@@ -88,9 +95,9 @@ static REAL ca[8],cs[8];
 
 
 //static REAL cos1_6=cos(PI/6.0*1.0);
-#define cos1_6 (cos(PI/6.0*1.0))
 //static REAL cos2_6=cos(PI/6.0*2.0);
-#define cos2_6 (cos(PI/6.0*2.0))
+REAL cos1_6 = 0.523599; /* temp.  Reassign calculated in _initialize(). */
+REAL cos2_6 = 1.047198; /* temp.  Reassign calculated in _initialize(). */
 static REAL win[4][36];
 static REAL cos_18[9];
 static REAL hsec_36[9],hsec_12[3];
@@ -102,8 +109,15 @@ typedef struct
 
 static RATIOS rat_1[16],rat_2[2][64];
 
+
+#undef _THIS
+#define _THIS MPEGaudio *self
+#undef METH
+#define METH(m) MPEGaudio_##m
+
+
 void
-MPEGaudio_layer3initialize (MPEGaudio *self)
+METH(layer3initialize) (_THIS)
 {
   static bool initializedlayer3=false;
   register int i;
@@ -128,10 +142,12 @@ printf( "B\n" );
 	    self->prevblck[l][i][j][k]=0.0f;
   }
 
-//  bitwindow.initialize();
   Mpegbitwindow_initialize(&(self->bitwindow));
 
   if(initializedlayer3)return;
+/* one-time initialization stuff. */
+  cos1_6=cos(PI/6.0*1.0); /* global */
+  cos2_6=cos(PI/6.0*2.0); /* global */
 
   // Calculate win
   {
@@ -230,26 +246,25 @@ printf( "B\n" );
 }
 
 bool
-MPEGaudio_layer3getsideinfo (MPEGaudio *self)
+METH(layer3getsideinfo) (_THIS)
 {
-  int gr;
-  int ch;
-  self->sideinfo.main_data_begin=MPEGaudio_getbits(self, 9);
+  int gr, ch;
 
-  if (!self->inputstereo)
-      self->sideinfo.private_bits=MPEGaudio_getbits(self, 5);
-  else self->sideinfo.private_bits=MPEGaudio_getbits(self, 3);
+  self->sideinfo.main_data_begin=getbits(9);
+
+  if(!self->inputstereo)self->sideinfo.private_bits=getbits(5);
+  else self->sideinfo.private_bits=getbits(3);
   
-    self->sideinfo.ch[LS].scfsi[0]=MPEGaudio_getbit(self);
-    self->sideinfo.ch[LS].scfsi[1]=MPEGaudio_getbit(self);
-    self->sideinfo.ch[LS].scfsi[2]=MPEGaudio_getbit(self);
-    self->sideinfo.ch[LS].scfsi[3]=MPEGaudio_getbit(self);
+    self->sideinfo.ch[LS].scfsi[0]=getbit();
+    self->sideinfo.ch[LS].scfsi[1]=getbit();
+    self->sideinfo.ch[LS].scfsi[2]=getbit();
+    self->sideinfo.ch[LS].scfsi[3]=getbit();
   if(self->inputstereo)
   {
-    self->sideinfo.ch[RS].scfsi[0]=MPEGaudio_getbit(self);
-    self->sideinfo.ch[RS].scfsi[1]=MPEGaudio_getbit(self);
-    self->sideinfo.ch[RS].scfsi[2]=MPEGaudio_getbit(self);
-    self->sideinfo.ch[RS].scfsi[3]=MPEGaudio_getbit(self);
+    self->sideinfo.ch[RS].scfsi[0]=getbit();
+    self->sideinfo.ch[RS].scfsi[1]=getbit();
+    self->sideinfo.ch[RS].scfsi[2]=getbit();
+    self->sideinfo.ch[RS].scfsi[3]=getbit();
   }
 
   for(gr=0;gr<2;gr++)
@@ -257,22 +272,22 @@ MPEGaudio_layer3getsideinfo (MPEGaudio *self)
     {
       layer3grinfo *gi=&(self->sideinfo.ch[ch].gr[gr]);
 
-      gi->part2_3_length       =MPEGaudio_getbits(self, 12);
-      gi->big_values           =MPEGaudio_getbits(self, 9);
-      gi->global_gain          =MPEGaudio_getbits(self, 8);
-      gi->scalefac_compress    =MPEGaudio_getbits(self, 4);
-      gi->window_switching_flag=MPEGaudio_getbit(self);
+      gi->part2_3_length       =getbits(12);
+      gi->big_values           =getbits(9);
+      gi->global_gain          =getbits(8);
+      gi->scalefac_compress    =getbits(4);
+      gi->window_switching_flag=getbit();
       if(gi->window_switching_flag)
       {
-	gi->block_type      =MPEGaudio_getbits(self, 2);
-	gi->mixed_block_flag=MPEGaudio_getbit(self);
+	gi->block_type      =getbits(2);
+	gi->mixed_block_flag=getbit();
 	
-	gi->table_select[0] =MPEGaudio_getbits(self, 5);
-	gi->table_select[1] =MPEGaudio_getbits(self, 5);
+	gi->table_select[0] =getbits(5);
+	gi->table_select[1] =getbits(5);
 	
-	gi->subblock_gain[0]=MPEGaudio_getbits(self, 3);
-	gi->subblock_gain[1]=MPEGaudio_getbits(self, 3);
-	gi->subblock_gain[2]=MPEGaudio_getbits(self, 3);
+	gi->subblock_gain[0]=getbits(3);
+	gi->subblock_gain[1]=getbits(3);
+	gi->subblock_gain[2]=getbits(3);
 	
 	/* Set region_count parameters since they are implicit in this case. */
 	if(gi->block_type==0)
@@ -288,16 +303,16 @@ MPEGaudio_layer3getsideinfo (MPEGaudio *self)
       }
       else
       {
-	gi->table_select[0] =MPEGaudio_getbits(self, 5);
-	gi->table_select[1] =MPEGaudio_getbits(self, 5);
-	gi->table_select[2] =MPEGaudio_getbits(self, 5);
-	gi->region0_count   =MPEGaudio_getbits(self, 4);
-	gi->region1_count   =MPEGaudio_getbits(self, 3);
+	gi->table_select[0] =getbits(5);
+	gi->table_select[1] =getbits(5);
+	gi->table_select[2] =getbits(5);
+	gi->region0_count   =getbits(4);
+	gi->region1_count   =getbits(3);
 	gi->block_type      =0;
       }
-      gi->preflag           =MPEGaudio_getbit(self);
-      gi->scalefac_scale    =MPEGaudio_getbit(self);
-      gi->count1table_select=MPEGaudio_getbit(self);
+      gi->preflag           =getbit();
+      gi->scalefac_scale    =getbit();
+      gi->count1table_select=getbit();
 
       gi->generalflag=gi->window_switching_flag && (gi->block_type==2);
 
@@ -308,36 +323,35 @@ MPEGaudio_layer3getsideinfo (MPEGaudio *self)
 }
 
 bool
-MPEGaudio_layer3getsideinfo_2 (MPEGaudio *self)
+METH(layer3getsideinfo_2) (_THIS)
 {
   int ch;
 
-  self->sideinfo.main_data_begin=MPEGaudio_getbits(self, 8);
+  self->sideinfo.main_data_begin=getbits(8);
 
-  if (!self->inputstereo)
-      self->sideinfo.private_bits=MPEGaudio_getbit(self);
-  else self->sideinfo.private_bits=MPEGaudio_getbits(self, 2);
+  if(!self->inputstereo)self->sideinfo.private_bits=getbit();
+  else self->sideinfo.private_bits=getbits(2);
   
   for(ch=0;;ch++)
   {
     layer3grinfo *gi=&(self->sideinfo.ch[ch].gr[0]);
 
-    gi->part2_3_length       =MPEGaudio_getbits(self, 12);
-    gi->big_values           =MPEGaudio_getbits(self, 9);
-    gi->global_gain          =MPEGaudio_getbits(self, 8);
-    gi->scalefac_compress    =MPEGaudio_getbits(self, 9);
-    gi->window_switching_flag=MPEGaudio_getbit(self);
+    gi->part2_3_length       =getbits(12);
+    gi->big_values           =getbits(9);
+    gi->global_gain          =getbits(8);
+    gi->scalefac_compress    =getbits(9);
+    gi->window_switching_flag=getbit();
     if(gi->window_switching_flag)
     {
-      gi->block_type      =MPEGaudio_getbits(self, 2);
-      gi->mixed_block_flag=MPEGaudio_getbit(self);
+      gi->block_type      =getbits(2);
+      gi->mixed_block_flag=getbit();
 
-      gi->table_select[0] =MPEGaudio_getbits(self, 5);
-      gi->table_select[1] =MPEGaudio_getbits(self, 5);
+      gi->table_select[0] =getbits(5);
+      gi->table_select[1] =getbits(5);
 	
-      gi->subblock_gain[0]=MPEGaudio_getbits(self, 3);
-      gi->subblock_gain[1]=MPEGaudio_getbits(self, 3);
-      gi->subblock_gain[2]=MPEGaudio_getbits(self, 3);
+      gi->subblock_gain[0]=getbits(3);
+      gi->subblock_gain[1]=getbits(3);
+      gi->subblock_gain[2]=getbits(3);
 	
       /* Set region_count parameters since they are implicit in this case. */
       if(gi->block_type==0)
@@ -353,15 +367,15 @@ MPEGaudio_layer3getsideinfo_2 (MPEGaudio *self)
     }
     else
     {
-      gi->table_select[0] =MPEGaudio_getbits(self, 5);
-      gi->table_select[1] =MPEGaudio_getbits(self, 5);
-      gi->table_select[2] =MPEGaudio_getbits(self, 5);
-      gi->region0_count   =MPEGaudio_getbits(self, 4);
-      gi->region1_count   =MPEGaudio_getbits(self, 3);
+      gi->table_select[0] =getbits(5);
+      gi->table_select[1] =getbits(5);
+      gi->table_select[2] =getbits(5);
+      gi->region0_count   =getbits(4);
+      gi->region1_count   =getbits(3);
       gi->block_type      =0;
     }
-    gi->scalefac_scale    =MPEGaudio_getbit(self);
-    gi->count1table_select=MPEGaudio_getbit(self);
+    gi->scalefac_scale    =getbit();
+    gi->count1table_select=getbit();
     
     gi->generalflag=gi->window_switching_flag && (gi->block_type==2);
     
@@ -372,13 +386,13 @@ MPEGaudio_layer3getsideinfo_2 (MPEGaudio *self)
 }
 
 void
-MPEGaudio_layer3getscalefactors (MPEGaudio *self, int ch, int gr)
+METH(layer3getscalefactors) (_THIS, int ch,int gr)
 {
   static int slen[2][16]={{0, 0, 0, 0, 3, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4},
 			  {0, 1, 2, 3, 0, 1, 2, 3, 1, 2, 3, 1, 2, 3, 2, 3}};
 
   layer3grinfo *gi=&(self->sideinfo.ch[ch].gr[gr]);
-  register layer3scalefactor *sf=&(self->scalefactors[ch]);
+  register layer3scalefactor *sf=(&(self->scalefactors[ch]));
   int l0,l1;
 
   {
@@ -498,7 +512,7 @@ MPEGaudio_layer3getscalefactors (MPEGaudio *self, int ch, int gr)
 }
 
 void
-MPEGaudio_layer3getscalefactors_2 (MPEGaudio *self, int ch)
+METH(layer3getscalefactors_2) (_THIS, int ch)
 {
   static int sfbblockindex[6][3][4]=
   {
@@ -512,7 +526,7 @@ MPEGaudio_layer3getscalefactors_2 (MPEGaudio *self, int ch)
 
   int sb[54];
   layer3grinfo *gi=&(self->sideinfo.ch[ch].gr[0]);
-  register layer3scalefactor *sf=&(self->scalefactors[ch]);
+  register layer3scalefactor *sf=(&(self->scalefactors[ch]));
 
   {
     int blocktypenumber,sc;
@@ -639,7 +653,7 @@ typedef unsigned int HUFFBITS;
 /* note! for counta,countb -the 4 bit value is returned in y, discard x */
 // Huffman decoder for tablename<32
 void
-MPEGaudio_huffmandecoder_1 (MPEGaudio *self, const HUFFMANCODETABLE *h, int *x, int *y)
+METH(huffmandecoder_1) (_THIS, const HUFFMANCODETABLE *h,int *x,int *y)
 {  
   HUFFBITS level=(1<<(sizeof(HUFFBITS)*8-1));
   int point=0;
@@ -694,7 +708,7 @@ MPEGaudio_huffmandecoder_1 (MPEGaudio *self, const HUFFMANCODETABLE *h, int *x, 
 
 // Huffman decoder tablenumber>=32
 void
-MPEGaudio_huffmandecoder_2 (MPEGaudio *self, const HUFFMANCODETABLE *h, int *x, int *y, int *v, int *w)
+METH(huffmandecoder_2) (_THIS, const HUFFMANCODETABLE *h, int *x,int *y,int *v,int *w)
 {  
   HUFFBITS level=(1<<(sizeof(HUFFBITS)*8-1));
   int point=0;
@@ -751,8 +765,8 @@ static SFBANDINDEX sfBandIndextable[2][3]=
 };
 
 
-void
-MPEGaudio_layer3huffmandecode (MPEGaudio *self, int ch, int gr, int out[SBLIMIT][SSLIMIT])
+void 
+METH(layer3huffmandecode) (_THIS, int ch,int gr,int out[SBLIMIT][SSLIMIT])
 {
   layer3grinfo *gi=&(self->sideinfo.ch[ch].gr[gr]);
   int part2_3_end=self->layer3part2start+(gi->part2_3_length);
@@ -769,8 +783,7 @@ MPEGaudio_layer3huffmandecode (MPEGaudio *self, int ch, int gr, int out[SBLIMIT]
   else
   {          /* Find region boundary for long block case. */
     region1Start=sfBandIndextable[self->version][self->frequency].l[gi->region0_count+1];
-    region2Start=sfBandIndextable[self->version][self->frequency].l[gi->region0_count+
-						        gi->region1_count+2];
+    region2Start=sfBandIndextable[self->version][self->frequency].l[gi->region0_count + gi->region1_count+2];
   }
 
   /* Read bigvalues area. */
@@ -809,8 +822,7 @@ MPEGaudio_layer3huffmandecode (MPEGaudio *self, int ch, int gr, int out[SBLIMIT]
 
   /* Read count1 area. */
   const HUFFMANCODETABLE *h=&MPEGaudio_ht[gi->count1table_select+32];
-//  while(bitwindow.gettotalbit()<part2_3_end)
-  while (Mpegbitwindow_gettotalbit(&(self->bitwindow)) < part2_3_end)
+  while(Mpegbitwindow_gettotalbit(&(self->bitwindow))<part2_3_end)
   {
     METH(huffmandecoder_2)(self, h,&out[0][i+2],&out[0][i+3],
 		     &out[0][i  ],&out[0][i+1]);
@@ -824,15 +836,14 @@ MPEGaudio_layer3huffmandecode (MPEGaudio *self, int ch, int gr, int out[SBLIMIT]
   }
   
   for(;i<ARRAYSIZE;i++)out[0][i]=0;
-//  bitwindow.rewind(bitwindow.gettotalbit()-part2_3_end);
-  Mpegbitwindow_rewind(&(self->bitwindow), Mpegbitwindow_gettotalbit(&(self->bitwindow)) - part2_3_end);
+  Mpegbitwindow_rewind(&(self->bitwindow), Mpegbitwindow_gettotalbit(&(self->bitwindow))-part2_3_end);
 }
 
 
 static int pretab[22]={0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,2,2,3,3,3,2,0};
 
 REAL
-MPEGaudio_layer3twopow2 (MPEGaudio *self, int scale, int preflag, int pretab_offset, int l)
+METH(layer3twopow2) (_THIS, int scale,int preflag, int pretab_offset,int l)
 {
   int index=l;
   
@@ -841,18 +852,21 @@ MPEGaudio_layer3twopow2 (MPEGaudio *self, int scale, int preflag, int pretab_off
 }
 
 REAL
-MPEGaudio_layer3twopow2_1 (MPEGaudio *self, int a, int b, int c)
+METH(layer3twopow2_1) (_THIS, int a,int b,int c)
 {
   return POW2_1[a][b][c];
 }
 
-void
-MPEGaudio_layer3dequantizesample(MPEGaudio *self, int ch, int gr, int in[SBLIMIT][SSLIMIT], REAL out[SBLIMIT][SSLIMIT])
+void 
+METH(layer3dequantizesample) (_THIS, int ch,int gr,
+			       int   in[SBLIMIT][SSLIMIT],
+			       REAL out[SBLIMIT][SSLIMIT])
 {
   layer3grinfo *gi=&(self->sideinfo.ch[ch].gr[gr]);
   SFBANDINDEX *sfBandIndex=&(sfBandIndextable[self->version][self->frequency]);
   REAL globalgain=POW2[gi->global_gain];
   REAL *TO_FOUR_THIRDS=TO_FOUR_THIRDSTABLE+FOURTHIRDSTABLENUMBER;
+  register int k;
 
   /* choose correct scalefactor band per block type, initalize boundary */
   /* and apply formula per block type */
@@ -880,7 +894,6 @@ MPEGaudio_layer3dequantizesample(MPEGaudio *self, int ch, int gr, int in[SBLIMIT
   {
     int cb=0,index=0;
     int cb_width;
-    register int k;
 
     do
     {
@@ -993,7 +1006,7 @@ MPEGaudio_layer3dequantizesample(MPEGaudio *self, int ch, int gr, int in[SBLIMIT
 }
 
 void
-MPEGaudio_layer3fixtostereo (MPEGaudio *self, int gr, REAL in[2][SBLIMIT][SSLIMIT])
+METH(layer3fixtostereo) (_THIS, int gr,REAL in[2][SBLIMIT][SSLIMIT])
 {
   layer3grinfo *gi=&(self->sideinfo.ch[0].gr[gr]);
   SFBANDINDEX *sfBandIndex=&(sfBandIndextable[self->version][self->frequency]);
@@ -1291,12 +1304,14 @@ MPEGaudio_layer3fixtostereo (MPEGaudio *self, int gr, REAL in[2][SBLIMIT][SSLIMI
   // channels==2
 }
 
-inline
-void
-layer3reorder_1 (int version, int frequency, REAL in[SBLIMIT][SSLIMIT], REAL out[SBLIMIT][SSLIMIT])
+inline void
+METH(layer3reorder_1) (_THIS, int version,int frequency,
+			    REAL  in[SBLIMIT][SSLIMIT],
+			    REAL out[SBLIMIT][SSLIMIT])
 {
-  SFBANDINDEX *sfBandIndex=&(sfBandIndextable[version][frequency]);
+  SFBANDINDEX *sfBandIndex=&(sfBandIndextable[self->version][self->frequency]);
   int sfb,sfb_start,sfb_lines;
+  int freq;
   
   /* NO REORDER FOR LOW 2 SUBBANDS */
   out[0][ 0]=in[0][ 0];out[0][ 1]=in[0][ 1];out[0][ 2]=in[0][ 2];
@@ -1321,7 +1336,6 @@ layer3reorder_1 (int version, int frequency, REAL in[SBLIMIT][SSLIMIT], REAL out
       sfb++,sfb_start=sfBandIndex->s[sfb],
 	(sfb_lines=sfBandIndex->s[sfb+1]-sfb_start))
   {
-    int freq;
     for(freq=0;freq<sfb_lines;freq++)
     {
       int src_line=sfb_start+(sfb_start<<1)+freq;
@@ -1333,13 +1347,16 @@ layer3reorder_1 (int version, int frequency, REAL in[SBLIMIT][SSLIMIT], REAL out
   }
 }
 
-inline
-void
-layer3reorder_2 (int version, int frequency, REAL  in[SBLIMIT][SSLIMIT], REAL out[SBLIMIT][SSLIMIT])
+inline void
+METH(layer3reorder_2) (_THIS, int version,int frequency,
+			    REAL  in[SBLIMIT][SSLIMIT],
+			    REAL out[SBLIMIT][SSLIMIT])
 {
-  SFBANDINDEX *sfBandIndex=&(sfBandIndextable[version][frequency]);
+  SFBANDINDEX *sfBandIndex;
   int sfb,sfb_start,sfb_lines;
   int freq;
+
+  sfBandIndex = &(sfBandIndextable[self->version][self->frequency]);
   
   for(sfb=0,sfb_start=0,sfb_lines=sfBandIndex->s[1];
       sfb<13;
@@ -1359,9 +1376,8 @@ layer3reorder_2 (int version, int frequency, REAL  in[SBLIMIT][SSLIMIT], REAL ou
 }
 
 
-inline
-void
-layer3antialias_1 (REAL in[SBLIMIT][SSLIMIT])
+inline void
+METH(layer3antialias_1) (_THIS, REAL  in[SBLIMIT][SSLIMIT])
 {
   int ss;
   for(ss=0;ss<8;ss++)
@@ -1376,10 +1392,11 @@ layer3antialias_1 (REAL in[SBLIMIT][SSLIMIT])
 
 inline
 void
-layer3antialias_2 (REAL in[SBLIMIT][SSLIMIT], REAL out[SBLIMIT][SSLIMIT])
+METH(layer3antialias_2) (_THIS,
+			    REAL  in[SBLIMIT][SSLIMIT],
+			    REAL out[SBLIMIT][SSLIMIT])
 {
-  int index;
-  int n;
+  int index, n;
 
   out[0][0]=in[0][0];out[0][1]=in[0][1];
   out[0][2]=in[0][2];out[0][3]=in[0][3];
@@ -1408,7 +1425,9 @@ layer3antialias_2 (REAL in[SBLIMIT][SSLIMIT], REAL out[SBLIMIT][SSLIMIT])
 }
 
 void
-MPEGaudio_layer3reorderandantialias (MPEGaudio *self, int ch,int gr, REAL in[SBLIMIT][SSLIMIT], REAL out[SBLIMIT][SSLIMIT])
+METH(layer3reorderandantialias) (_THIS, int ch,int gr,
+					  REAL  in[SBLIMIT][SSLIMIT],
+					  REAL out[SBLIMIT][SSLIMIT])
 {
   register layer3grinfo *gi=&(self->sideinfo.ch[ch].gr[gr]);
 
@@ -1417,14 +1436,14 @@ MPEGaudio_layer3reorderandantialias (MPEGaudio *self, int ch,int gr, REAL in[SBL
     if(gi->mixed_block_flag)
     {
       fprintf(stderr,"Notchecked!");
-      layer3reorder_1  (self->version,self->frequency,in,out);    // Not checked...
-      layer3antialias_1(out);
+      METH(layer3reorder_1)  (self, self->version,self->frequency,in,out);    // Not checked...
+      METH(layer3antialias_1)(self, out);
     }
     else
-      layer3reorder_2(self->version,self->frequency,in,out);
+      METH(layer3reorder_2)(self, self->version,self->frequency,in,out);
   }
   else
-    layer3antialias_2(in,out);
+    METH(layer3antialias_2)(self, in,out);
 }
 
 static void dct36(REAL *inbuf,REAL *prevblk1,REAL *prevblk2,REAL *wi,REAL *out)
@@ -1655,8 +1674,9 @@ static void dct12(REAL *in,REAL *prevblk1,REAL *prevblk2,register REAL *wi,regis
   }
 }
 
-void
-MPEGaudio_layer3hybrid (MPEGaudio *self, int ch, int gr, REAL in[SBLIMIT][SSLIMIT], REAL out[SSLIMIT][SBLIMIT])
+void 
+METH(layer3hybrid) (_THIS, int ch,int gr,REAL in[SBLIMIT][SSLIMIT],
+			                   REAL out[SSLIMIT][SBLIMIT])
 {
   layer3grinfo *gi=&(self->sideinfo.ch[ch].gr[gr]);
   int bt1,bt2;
@@ -1714,10 +1734,21 @@ MPEGaudio_layer3hybrid (MPEGaudio *self, int ch, int gr, REAL in[SBLIMIT][SSLIMI
 #define NEG(a)  (a)=-(a)
 
 void
-MPEGaudio_extractlayer3 (MPEGaudio *self)
+METH(extractlayer3) (_THIS)
 {
   int gr;
   int ss;
+  union
+  {
+    int  is      [SBLIMIT][SSLIMIT];
+    REAL hin  [2][SBLIMIT][SSLIMIT];
+  }b1;
+  union
+  {
+    REAL ro   [2][SBLIMIT][SSLIMIT];
+    REAL lr   [2][SBLIMIT][SSLIMIT];
+    REAL hout [2][SSLIMIT][SBLIMIT];
+  }b2;
 
   if(self->version)
   {
@@ -1732,31 +1763,26 @@ MPEGaudio_extractlayer3 (MPEGaudio *self)
 
     METH(layer3getsideinfo)(self);
 	 
-    if(MPEGaudio_issync(self))
+    if(METH(issync)(self))
     {
       for(i=self->layer3slots;i>0;i--)  // read main data.
-//	bitwindow.putbyte(getbyte());
-        Mpegbitwindow_putbyte(&(self->bitwindow), MPEGaudio_getbyte(self));
+	Mpegbitwindow_putbyte(&(self->bitwindow), getbyte());
     }
     else
     {
       for(i=self->layer3slots;i>0;i--)  // read main data.
-//	bitwindow.putbyte(getbits8());
-        Mpegbitwindow_putbyte(&(self->bitwindow), MPEGaudio_getbits8(self));
+	Mpegbitwindow_putbyte(&(self->bitwindow), getbits8());
     }
 
-//    main_data_end=bitwindow.gettotalbit()>>3;// of previous frame
-    main_data_end=Mpegbitwindow_gettotalbit(&(self->bitwindow)) >> 3; /* of previous frame */
+    main_data_end=Mpegbitwindow_gettotalbit(&(self->bitwindow))>>3;// of previous frame
     if (main_data_end < 0) // Fix from Michael Vogt
     {
       return;
     }
 
-//    if((flush_main=(bitwindow.gettotalbit() & 0x7)))
     if((flush_main=(Mpegbitwindow_gettotalbit(&(self->bitwindow)) & 0x7)))
     {
-//      bitwindow.forward(8-flush_main);
-      Mpegbitwindow_forward(&(self->bitwindow), 8 - flush_main);
+      Mpegbitwindow_forward(&(self->bitwindow), 8-flush_main);
       main_data_end++;
     }
 
@@ -1764,36 +1790,19 @@ MPEGaudio_extractlayer3 (MPEGaudio *self)
     if(main_data_end>WINDOWSIZE)
     {
       self->layer3framestart-=WINDOWSIZE;
-//      bitwindow.rewind(WINDOWSIZE*8);
       Mpegbitwindow_rewind(&(self->bitwindow), WINDOWSIZE*8);
     }
   
     self->layer3framestart+=self->layer3slots;
   
-//    bitwindow.wrap();
     Mpegbitwindow_wrap(&(self->bitwindow));
 
     if(bytes_to_discard<0)return;
-//    bitwindow.forward(bytes_to_discard<<3);
-    Mpegbitwindow_forward(&(self->bitwindow), bytes_to_discard << 3);
+    Mpegbitwindow_forward(&(self->bitwindow), bytes_to_discard<<3);
   }
 
   for(gr=0;gr<2;gr++)
   {
-    union
-    {
-      int  is      [SBLIMIT][SSLIMIT];
-      REAL hin  [2][SBLIMIT][SSLIMIT];
-    }b1;
-    union
-    {
-      REAL ro   [2][SBLIMIT][SSLIMIT];
-      REAL lr   [2][SBLIMIT][SSLIMIT];
-      REAL hout [2][SSLIMIT][SBLIMIT];
-    }b2;
-
-
-//      layer3part2start=bitwindow.gettotalbit();
       self->layer3part2start=Mpegbitwindow_gettotalbit(&(self->bitwindow));
       METH(layer3getscalefactors) (self, LS,gr);
       METH(layer3huffmandecode)   (self, LS,gr      ,b1.is);
@@ -1844,12 +1853,12 @@ MPEGaudio_extractlayer3 (MPEGaudio *self)
     }
 
     for(ss=0;ss<SSLIMIT;ss++)
-      METH(subbandsynthesis)(self, b2.hout[LS][ss],b2.hout[RS][ss]);
+      METH(subbandsynthesis) (self, b2.hout[LS][ss],b2.hout[RS][ss]);
   }
 }
 
 void
-MPEGaudio_extractlayer3_2 (MPEGaudio *self)
+METH(extractlayer3_2) (_THIS)
 {
   int ss;
   {
@@ -1859,28 +1868,22 @@ MPEGaudio_extractlayer3_2 (MPEGaudio *self)
 
     METH(layer3getsideinfo_2)(self);
 	 
-    if(MPEGaudio_issync(self))
+    if(METH(issync)(self))
     {
       for(i=self->layer3slots;i>0;i--)  // read main data.
-//	bitwindow.putbyte(getbyte());
-        Mpegbitwindow_putbyte(&(self->bitwindow), MPEGaudio_getbyte(self));
+	Mpegbitwindow_putbyte(&(self->bitwindow), getbyte());
     }
     else
     {
       for(i=self->layer3slots;i>0;i--)  // read main data.
-//	bitwindow.putbyte(getbits8());
-        Mpegbitwindow_putbyte(&(self->bitwindow), MPEGaudio_getbits8(self));
+	Mpegbitwindow_putbyte(&(self->bitwindow), getbits8());
     }
-//    bitwindow.wrap();
     Mpegbitwindow_wrap(&(self->bitwindow));
 
-//    main_data_end=bitwindow.gettotalbit()>>3;// of previous frame
-    main_data_end=Mpegbitwindow_gettotalbit(&(self->bitwindow)) >> 3; /* of previous frame */
+    main_data_end=Mpegbitwindow_gettotalbit(&(self->bitwindow))>>3;// of previous frame
 
-//    if((flush_main=(bitwindow.gettotalbit() & 0x7)))
-    if((flush_main=( Mpegbitwindow_gettotalbit(&(self->bitwindow)) & 0x7)))
+    if((flush_main=(Mpegbitwindow_gettotalbit(&(self->bitwindow)) & 0x7)))
     {
-//      bitwindow.forward(8-flush_main);
       Mpegbitwindow_forward(&(self->bitwindow), 8-flush_main);
       main_data_end++;
     }
@@ -1889,15 +1892,13 @@ MPEGaudio_extractlayer3_2 (MPEGaudio *self)
     if(main_data_end>WINDOWSIZE)
     {
       self->layer3framestart-=WINDOWSIZE;
-//      bitwindow.rewind(WINDOWSIZE*8);
       Mpegbitwindow_rewind(&(self->bitwindow), WINDOWSIZE*8);
     }
   
     self->layer3framestart+=self->layer3slots;
   
     if(bytes_to_discard<0) return;
-//    bitwindow.forward(bytes_to_discard<<3);
-    Mpegbitwindow_forward(&(self->bitwindow), bytes_to_discard << 3);
+    Mpegbitwindow_forward(&(self->bitwindow), bytes_to_discard<<3);
   }
 
   //  for(int gr=0;gr<2;gr++)
@@ -1915,14 +1916,12 @@ MPEGaudio_extractlayer3_2 (MPEGaudio *self)
     }b2;
 
 
-//      layer3part2start=bitwindow.gettotalbit();
       self->layer3part2start=Mpegbitwindow_gettotalbit(&(self->bitwindow));
       METH(layer3getscalefactors_2)(self, LS);
       METH(layer3huffmandecode)    (self, LS,0      ,b1.is);
       METH(layer3dequantizesample) (self, LS,0,b1.is,b2.ro[LS]);
     if(self->inputstereo)
     {
-//      layer3part2start=bitwindow.gettotalbit();
       self->layer3part2start=Mpegbitwindow_gettotalbit(&(self->bitwindow));
       METH(layer3getscalefactors_2)(self, RS);
       METH(layer3huffmandecode)    (self, RS,0      ,b1.is);
@@ -1959,6 +1958,6 @@ MPEGaudio_extractlayer3_2 (MPEGaudio *self)
     }
 
     for(ss=0;ss<SSLIMIT;ss++)
-      METH(subbandsynthesis)(self, b2.hout[LS][ss],b2.hout[RS][ss]);
+      METH(subbandsynthesis) (self, b2.hout[LS][ss],b2.hout[RS][ss]);
   }
 }

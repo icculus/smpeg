@@ -24,25 +24,17 @@
 #include "MPEGaudio.h"
 #include "MPEGstream.h"
 
+
 #undef _THIS
 #define _THIS MPEGaudio *self
-#undef METH /* method */
-#define METH(name) MPEGaudio_##name
-#undef PROP /* property */
-#define PROP(name) (self->name)
-
-void METH(ResetPause) (_THIS)
-{
-  self->action->paused = false;
-}
-
+#undef METH
+#define METH(m) MPEGaudio_##m
+#undef PROP
+#define PROP(p) (self->p)
 
 MPEGaudio *
 METH(init) (_THIS, MPEGstream *stream, bool initSDL)
 {
-    bool audio_active;
-    SDL_AudioSpec wanted = { 0, }; /* Valgrind-B-Happy */
-    SDL_AudioSpec actual;
     int i;
 
     MAKE_OBJECT(MPEGaudio);
@@ -59,6 +51,7 @@ METH(init) (_THIS, MPEGstream *stream, bool initSDL)
 
     /* Analyze the MPEG audio stream */
     if ( METH(loadheader)(self) ) {
+        SDL_AudioSpec wanted;
         METH(WantedSpec)(self, &wanted);
 
         /* Calculate the samples per frame */
@@ -76,12 +69,14 @@ METH(init) (_THIS, MPEGstream *stream, bool initSDL)
         }
         if ( PROP(sdl_audio) ) {
             /* Open the audio, get actual audio hardware format and convert */
+            bool audio_active;
+            SDL_AudioSpec actual;
             audio_active = (SDL_OpenAudio(&wanted, &actual) == 0);
             if ( audio_active ) {
                 METH(ActualSpec)(self, &actual);
                 PROP(valid_stream) = true;
             } else {
-                MPEGerror_SetError(self->error, SDL_GetError());
+                MPEGerror_SetError(PROP(error), SDL_GetError());
             }
             SDL_PauseAudio(0);
         } else { /* The stream is always valid if we don't initialize SDL */
@@ -100,7 +95,6 @@ METH(init) (_THIS, MPEGstream *stream, bool initSDL)
 void
 METH(destroy) (_THIS)
 {
-
 #ifdef THREADED_AUDIO
     /* Stop the decode thread */
     METH(StopDecoding)(self);
@@ -108,19 +102,19 @@ METH(destroy) (_THIS)
 
     /* Remove ourselves from the mixer hooks */
     METH(Stop)(self);
-//    self->audioaction->Stop(self->audioaction);
     if ( PROP(sdl_audio) ) {
         /* Close up the audio so others may play */
         SDL_CloseAudio();
     }
 
-  MPEGaction_destroy(self->action);
-  free(self->action);
-  self->action = NULL;
+  MPEGaction_destroy(PROP(action));
+  free(PROP(action));
+  PROP(action) = NULL;
 
-  MPEGerror_destroy(self->error);
-  free(self->error);
-  self->error = NULL;
+  MPEGerror_destroy(PROP(error));
+  free(PROP(error));
+  PROP(error) = NULL;
+
 }
 
 bool
@@ -139,13 +133,12 @@ METH(WantedSpec) (_THIS, SDL_AudioSpec *wanted)
     }
     wanted->samples = 4096;
     wanted->callback = Play_MPEGaudioSDL;
-//    wanted->userdata = this;
     wanted->userdata = (void*)self;
     return true;
 }
 
 void
-METH(ActualSpec)(_THIS, const SDL_AudioSpec *actual)
+METH(ActualSpec) (_THIS, const SDL_AudioSpec *actual)
 {
     /* Splay can optimize some of the conversion */
     if ( actual->channels == 1 && PROP(outputstereo) ) {
@@ -185,7 +178,8 @@ METH(StartDecoding) (_THIS)
     PROP(decoding) = true;
     /* Create the ring buffer to hold audio */
     if ( ! PROP(ring) ) {
-        PROP(ring) = MPEG_ring_init(NULL, PROP(samplesperframe)*2, 16);
+//        ring = new MPEG_ring(samplesperframe*2);
+        PROP(ring) = MPEG_ring_init(NULL, PROP(samplesperframe) * 2, 16);
     }
     if ( ! PROP(decode_thread) ) {
         PROP(decode_thread) = SDL_CreateThread(Decode_MPEGaudio, self);
@@ -213,13 +207,11 @@ double
 METH(Time) (_THIS)
 {
     double now;
-    double play_time;
 
-    play_time = self->action->play_time;
     if ( PROP(frag_time) ) {
-        now = (play_time + (double)(SDL_GetTicks() - PROP(frag_time))/1000.0);
+        now = (PROP(action->play_time) + (double)(SDL_GetTicks() - PROP(frag_time))/1000.0);
     } else {
-        now = play_time;
+        now = PROP(action->play_time);
     }
     return now;
 }
@@ -231,7 +223,6 @@ METH(Play) (_THIS)
 #ifdef THREADED_AUDIO
         METH(StartDecoding)(self);
 #endif
-//        playing = true;
         PROP(action->playing) = true;
     }
 }
@@ -242,7 +233,6 @@ METH(Stop) (_THIS)
         if ( PROP(sdl_audio) )
             SDL_LockAudio();
 
-//        playing = false;
         PROP(action->playing) = false;
 
         if ( PROP(sdl_audio) )
@@ -266,15 +256,16 @@ METH(Rewind) (_THIS)
     PROP(frags_playing) = 0;
 }
 void
-METH(ResetSynchro)(_THIS, double time)
+METH(ResetSynchro) (_THIS, double time)
 {
     int i;
+
     PROP(action->play_time) = time;
     PROP(frag_time) = 0;
 
     /* Reinit the timestamp FIFO */
     for (i=0; i<N_TIMESTAMPS; i++)
-      PROP(timestamp[i]) = -1;
+      PROP(timestamp)[i] = -1;
 }
 void
 METH(Skip) (_THIS, float seconds)
@@ -299,8 +290,7 @@ METH(GetStatus) (_THIS)
 {
     if ( PROP(valid_stream) ) {
         /* Has decoding stopped because of end of stream? */
-//        if ( mpeg->eof() && (decodedframe <= currentframe) ) {
-        if (MPEGstream_eof(self->mpeg) && (PROP(decodedframe) <= PROP(currentframe))) {
+        if ( MPEGstream_eof(PROP(mpeg)) && (PROP(decodedframe) <= PROP(currentframe)) ) {
             return(MPEG_STOPPED);
         }
         /* Have we been told to play? */
@@ -330,40 +320,42 @@ METH(GetAudioInfo) (_THIS, MPEG_AudioInfo *info)
 bool
 METH(fillbuffer) (_THIS, int size)
   {
-      PROP(bitwindow.bitindex)=0;
-      PROP(_buffer_pos) = PROP(mpeg->pos);
+      PROP(bitindex)=0;
+      PROP(_buffer_pos) = PROP(mpeg)->pos;
 //      return(mpeg->copy_data(_buffer, size) > 0);
-//      return (MPEG_copy_data(PROP(mpeg), PROP(_buffer), size) > 0);
       return (MPEGstream_copy_data(PROP(mpeg), PROP(_buffer), size, false) > 0);
   };
   
 void
 METH(sync) (_THIS)
 {
-  PROP(bitwindow.bitindex)=(PROP(bitwindow.bitindex)+7)&0xFFFFFFF8;
+  PROP(bitindex)=(PROP(bitindex)+7)&0xFFFFFFF8;
 }
   
 bool
 METH(issync) (_THIS)
 {
-  return (PROP(bitwindow.bitindex)&7) != 0;
+  return (PROP(bitindex)&7) != 0;
 }
   
 int 
 METH(getbyte) (_THIS)
 {
-  int r=(unsigned char)PROP(_buffer[PROP(bitwindow.bitindex)>>3]);
+//  int r=(unsigned char)_buffer[bitindex>>3];
+  int r;
 
-  PROP(bitwindow.bitindex)+=8;
+  r = (unsigned char)(PROP(_buffer)[PROP(bitindex)>>3]);
+
+  PROP(bitindex)+=8;
   return r;
 }
   
 int 
 METH(getbit) (_THIS)
 {
-  register int r=(PROP(_buffer[PROP(bitwindow.bitindex)>>3])>>(7-(PROP(bitwindow.bitindex)&7)))&1;
+  register int r=(PROP(_buffer)[PROP(bitindex)>>3]>>(7-(PROP(bitindex)&7)))&1;
 
-  PROP(bitwindow.bitindex)++;
+  PROP(bitindex)++;
   return r;
 }
   
@@ -371,12 +363,13 @@ int
 METH(getbits8) (_THIS)
 {
   register unsigned short a;
-  { int offset=PROP(bitwindow.bitindex)>>3;
+  { int offset=PROP(bitindex)>>3;
 
-  a=(((unsigned char)PROP(_buffer[offset]))<<8) | ((unsigned char)PROP(_buffer[offset+1]));
+//  a=(((unsigned char)_buffer[offset])<<8) | ((unsigned char)_buffer[offset+1]);
+  a=(((unsigned char)(PROP(_buffer)[offset]))<<8) | ((unsigned char)(PROP(_buffer)[offset+1]));
   }
-  a<<=(PROP(bitwindow.bitindex)&7);
-  PROP(bitwindow.bitindex)+=8;
+  a<<=(PROP(bitindex)&7);
+  PROP(bitindex)+=8;
   return (int)((unsigned int)(a>>8));
 }
   
@@ -384,31 +377,38 @@ int
 METH(getbits9) (_THIS, int bits)
 {
   register unsigned short a;
-  { int offset=PROP(bitwindow.bitindex)>>3;
+  { int offset=PROP(bitindex)>>3;
 
-  a=(((unsigned char)PROP(_buffer[offset])<<8)) | ((unsigned char)PROP(_buffer[offset+1]));
+  a=(((unsigned char)(PROP(_buffer)[offset]))<<8) | ((unsigned char)(PROP(_buffer)[offset+1]));
   }
-  a<<=(PROP(bitwindow.bitindex)&7);
-  PROP(bitwindow.bitindex)+=bits;
+  a<<=(PROP(bitindex)&7);
+  PROP(bitindex)+=bits;
   return (int)((unsigned int)(a>>(16-bits)));
 }
 
 
 
-/* other virtual methods of MPEGaction */
 
-void METH(Loop) (_THIS, bool toggle)
+/* other virtual methods of MPEGaction. */
+
+void
+METH(ResetPause) (_THIS)
 {
-  self->action->looping = toggle;
+  PROP(action->paused) = false;
 }
 
-/*virtual*/ void METH(Pause) (_THIS) /* A toggle action */
+void
+METH(Pause) (_THIS)
 {
-    if ( self->action->paused ) {
-        self->action->paused = false;
-        METH(Play) (self);
-    } else {
-        METH(Stop) (self);
-        self->action->paused = true;
+  if (PROP(action->paused))
+    {
+      PROP(action->paused) = false;
+      METH(Play)(self);
     }
-}
+  else
+    {
+      METH(Stop)(self);
+      PROP(action->paused) = true;
+    }
+} 
+
