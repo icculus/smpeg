@@ -15,23 +15,23 @@
 #define O_BINARY 0
 #endif
 
-MPEG::MPEG(const char * name, bool Sdlaudio) :
+MPEG::MPEG(const char * name, bool SDLaudio) :
   MPEGerror()
 {
   SDL_RWops *source;
 
   mpeg_mem = 0;
 
-  source = SDL_RWFromFile(name,"r");
+  source = SDL_RWFromFile(name, "rb");
   if (!source) {
     InitErrorState();
     SetError(SDL_GetError());
     return;
   }
-  Init(source, Sdlaudio);
+  Init(source, SDLaudio);
 }
 
-MPEG::MPEG(int Mpeg_FD, bool Sdlaudio) :
+MPEG::MPEG(int Mpeg_FD, bool SDLaudio) :
   MPEGerror()
 {
   SDL_RWops *source;
@@ -40,7 +40,7 @@ MPEG::MPEG(int Mpeg_FD, bool Sdlaudio) :
 
   // *** FIXME we're leaking a bit of memory for the FILE *
   // best solution would be to have SDL_RWFromFD
-  FILE *file = fdopen(Mpeg_FD,"r");
+  FILE *file = fdopen(Mpeg_FD, "rb");
   if (!file) {
     InitErrorState();
     SetError(strerror(errno));
@@ -53,10 +53,10 @@ MPEG::MPEG(int Mpeg_FD, bool Sdlaudio) :
     SetError(SDL_GetError());
     return;
   }
-  Init(source, Sdlaudio);
+  Init(source, SDLaudio);
 }
 
-MPEG::MPEG(void *data, int size, bool Sdlaudio) :
+MPEG::MPEG(void *data, int size, bool SDLaudio) :
   MPEGerror()
 {
   SDL_RWops *source;
@@ -72,20 +72,20 @@ MPEG::MPEG(void *data, int size, bool Sdlaudio) :
     SetError(SDL_GetError());
     return;
   }
-  Init(source, Sdlaudio);
+  Init(source, SDLaudio);
 }
 
-MPEG::MPEG(SDL_RWops *mpeg_source,bool sdlaudio = true) :
+MPEG::MPEG(SDL_RWops *mpeg_source, bool SDLaudio) :
   MPEGerror()
 {
   mpeg_mem = 0;
-  Init(mpeg_source, sdlaudio);
+  Init(mpeg_source, SDLaudio);
 }
 
-void MPEG::Init(SDL_RWops *mpeg_source,bool Sdlaudio)
+void MPEG::Init(SDL_RWops *mpeg_source, bool SDLaudio)
 {
     source = mpeg_source;
-    sdlaudio = Sdlaudio;
+    sdlaudio = SDLaudio;
 
     /* Create the system that will parse the MPEG stream */
     system = new MPEGsystem(source);

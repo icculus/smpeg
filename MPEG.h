@@ -47,7 +47,7 @@
    stream in the MPEG file because each needs a separate pointer to
    the MPEG data.  The MPEG stream then creates an accessor object to
    do all the data parsing for that stream type.  It's a little odd,
-   but seemed like the best way do implement stream parsing.
+   but seemed like the best way to implement stream parsing.
  */
 class MPEG : public MPEGerror
 {
@@ -56,14 +56,14 @@ public:
     MPEG():MPEGerror(){}
 	MPEG(bool Sdlaudio, char *addresse,char *asset,long buffersize){}
 
-    MPEG(const char * name, bool sdlaudio = true);
-    MPEG(int Mpeg_FD, bool sdlaudio = true);
-    MPEG(void *data, int size, bool sdlaudio = true);
-    MPEG(SDL_RWops *mpeg_source,bool sdlaudio = true);
+    MPEG(const char * name, bool SDLaudio = true);
+    MPEG(int Mpeg_FD, bool SDLaudio = true);
+    MPEG(void *data, int size, bool SDLaudio = true);
+    MPEG(SDL_RWops *mpeg_source,bool SDLaudio = true);
     virtual ~MPEG();
 
     /* Initialize the MPEG */
-    void Init(SDL_RWops *mpeg_source, bool Sdlaudio);
+    void Init(SDL_RWops *mpeg_source, bool SDLaudio);
     void InitErrorState();
 
     /* Enable/Disable audio and video */
