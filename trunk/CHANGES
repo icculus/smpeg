@@ -1,4 +1,6 @@
 0.4.1:
+Kevin Squire - Thu Aug  3 18:23:01 PDT 2000
+ * Fixed a bug in the audio layer 2 decoding
 Sam Lantinga - Thu Aug  3 17:56:09 PDT 2000
  * Fixed FD_ZERO compile problem on some systems
 Sam Lantinga - Thu Aug  3 17:51:35 PDT 2000
