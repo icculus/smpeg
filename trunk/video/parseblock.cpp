@@ -64,7 +64,6 @@
  */
 
 /* External declarations. */
-extern const int zigzag_direct[];
 #ifdef DCPREC
 extern int dcprec;
 #endif

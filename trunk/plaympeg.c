@@ -46,6 +46,8 @@ void update(SDL_Surface *screen, Sint32 x, Sint32 y, Uint32 w, Uint32 h)
 
 int main(int argc, char *argv[])
 {
+    const SDL_VideoInfo *video_info;
+    int video_bpp;
     int use_audio, use_video;
     int fullscreen;
     int doublesize;
@@ -102,8 +104,20 @@ int main(int argc, char *argv[])
     if (argc == 1) {
         usage(argv[0]);
         exit(0);
-     }
+    }
 
+    /* Get the "native" video mode */
+    video_info = SDL_GetVideoInfo();
+    switch (video_info->vfmt->BitsPerPixel) {
+        case 16:
+        case 32:
+            video_bpp = video_info->vfmt->BitsPerPixel;
+            break;
+        default:
+            video_bpp = 16;
+            break;
+    }
+        
     /* Play the mpeg files! */
     for ( ; argv[i]; ++i ) {
         /* Create the MPEG stream */
@@ -148,9 +162,16 @@ int main(int argc, char *argv[])
             video_flags = SDL_SWSURFACE;
             if ( fullscreen ) {
                 video_flags = SDL_FULLSCREEN|SDL_DOUBLEBUF|SDL_HWSURFACE;
+            }
+            screen = SDL_SetVideoMode(info.width, info.height, video_bpp, video_flags);
+            if ( screen == NULL ) {
+                fprintf(stderr, "Unable to set %dx%d video mode: %s\n",
+                                info.width, info.height, SDL_GetError());
+                continue;
+            }
+            if ( screen->flags & SDL_FULLSCREEN ) {
                 SDL_ShowCursor(0);
             }
-            screen = SDL_SetVideoMode(info.width, info.height, 0, video_flags);
             SMPEG_setdisplay(mpeg, screen, NULL, update);
         }
 
