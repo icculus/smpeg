@@ -88,22 +88,31 @@ CFLAGS="$CFLAGS -I.. -DNOCONTROLS"
 CXXFLAGS="$CFLAGS"
 
 dnl See if we can build the GTk player
+AC_ARG_ENABLE(gtk_player,
+[  --enable-gtk-player     build a GTk sample SMPEG player [default=yes]],
+              , enable_gtk_player=yes)
 have_gtk=no
-AM_PATH_GTK(1.2.1, have_gtk=yes)
-if test x$have_gtk = xyes; then
-    CFLAGS="$CFLAGS $GTK_CFLAGS"
+if test x$enable_gtk_player = xyes; then
+    AM_PATH_GTK(1.2.1, have_gtk=yes)
+    if test x$have_gtk = xyes; then
+        CFLAGS="$CFLAGS $GTK_CFLAGS"
+    fi
+    AC_SUBST(GTK_LIBS)
 fi
-AC_SUBST(GTK_LIBS)
 AM_CONDITIONAL(HAVE_GTK, test x$have_gtk = xyes)
 
 dnl See if we can build the Mesa player
-dnl FIXME:  Need a better test here...
-have_glx=no
-#AC_CHECK_HEADER(GL/gl.h, have_gl=yes)
-AC_CHECK_LIB(GL, glXCreateContext, have_gl=yes)
+AC_ARG_ENABLE(opengl_player,
+[  --enable-opengl-player  build an OpenGL sample SMPEG player [default=yes]],
+              , enable_opengl_player=yes)
 have_glu=no
-AC_CHECK_HEADER(GL/glu.h, have_glu=yes)
-#AC_CHECK_LIB(GLU, gluOrtho2D, have_glu=yes)
+if test x$enable_opengl_player = xyes; then
+    dnl FIXME:  Need a better test here...
+    #AC_CHECK_HEADER(GL/gl.h, have_gl=yes)
+    AC_CHECK_LIB(GL, glXCreateContext, have_gl=yes)
+    AC_CHECK_HEADER(GL/glu.h, have_glu=yes)
+    #AC_CHECK_LIB(GLU, gluOrtho2D, have_glu=yes)
+fi
 AM_CONDITIONAL(HAVE_MESA, test x$have_gl = xyes -a x$have_glu = xyes)
 
 dnl Add the source include directories
@@ -120,4 +129,5 @@ AC_OUTPUT([
 Makefile
 audio/Makefile
 video/Makefile
+smpeg.spec
 ])
