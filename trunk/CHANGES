@@ -1,4 +1,7 @@
 0.4.3:
+Sam Lantinga - Fri Feb  9 23:37:31 PST 2001
+ * Ported to MacOS X - one line fix.  I love portable code! :)
+   It's still unusably slow, but it works! :)
 Sam Lantinga - Thu Feb  8 17:33:15 PST 2001
  * Fixed a hang playing invalid MPEG files
 Joe Drew - Mon, 5 Feb 2001 23:29:43 -0500
