@@ -16,6 +16,9 @@
 
 #include "MPEGaudio.h"
 #include "MPEGstream.h"
+#if defined(_WIN32)
+#include <windows.h>
+#endif
 
 #define MY_PI 3.14159265358979323846
 
@@ -264,7 +267,7 @@ bool MPEGaudio::loadheader()
 }
 
 
-bool MPEGaudio::run( int frames, double *timestamp = NULL)
+bool MPEGaudio::run( int frames, double *timestamp)
 {
     double last_timestamp = -1;
     int totFrames = frames;
@@ -315,6 +318,10 @@ int Decode_MPEGaudio(void *udata)
 {
     MPEGaudio *audio = (MPEGaudio *)udata;
     double timestamp;
+
+#if defined(_WIN32)
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+#endif
 
     while ( audio->decoding && ! audio->mpeg->eof() ) {
         audio->rawdata = (Sint16 *)audio->ring->NextWriteBuffer();
@@ -425,12 +432,12 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
         copylen = (audio->rawdatawriteoffset-audio->rawdatareadoffset);
         assert(copylen >= 0);
         if ( copylen >= len ) {
-            SDL_MixAudio(stream, &audio->spillover[audio->rawdatareadoffset],
+            SDL_MixAudio(stream, (Uint8 *)&audio->spillover[audio->rawdatareadoffset],
                                                        len*2, volume);
             audio->rawdatareadoffset += len;
             return;
         }
-        SDL_MixAudio(stream, &audio->spillover[audio->rawdatareadoffset],
+        SDL_MixAudio(stream, (Uint8 *)&audio->spillover[audio->rawdatareadoffset],
                                                        copylen*2, volume);
         len -= copylen;
         stream += copylen*2;
@@ -448,7 +455,7 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
     audio->rawdatawriteoffset = 0;
     if ( audio->run(1) ) {
         assert(audio->rawdatawriteoffset > len);
-        SDL_MixAudio(stream, audio->spillover, len*2, volume);
+        SDL_MixAudio(stream, (Uint8 *) audio->spillover, len*2, volume);
         audio->rawdatareadoffset = len;
     } else {
         audio->rawdatareadoffset = 0;

@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <assert.h>
 #ifdef WIN32
+#include <sys/types.h>
 #include <io.h>
 #include <winsock.h>
 #else
@@ -575,7 +576,7 @@ header_size, packet_size, stream_id, stream_timestamp);
 
     if(!stream_list[1])
     { 
-      Uint8 * packet_end;
+      //Uint8 * packet_end;
 
       packet_size = 0;
 

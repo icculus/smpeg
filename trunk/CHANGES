@@ -1,4 +1,6 @@
 0.4.0:
+Markus Overhumer - Tue May 30 15:16:30 PDT 2000
+ * Some cleanups for compiling on Win32 with VC++
 Vivien Chappelier - Fri May 26 10:53:44 PDT 2000
  * Added a movable progress slidebar to gtv
 Vivien, Manuel - Wed May 17 17:36:39 PDT 2000

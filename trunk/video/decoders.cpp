@@ -78,7 +78,7 @@ motion_vectors_entry  motion_vectors[2048];
 
 /* Decoding table for coded_block_pattern */
 
-coded_block_pattern_entry coded_block_pattern[512] = 
+const coded_block_pattern_entry coded_block_pattern[512] = 
 { {(unsigned int)ERROR, 0}, {(unsigned int)ERROR, 0}, {39, 9}, {27, 9}, {59, 9}, {55, 9}, {47, 9}, {31, 9},
     {58, 8}, {58, 8}, {54, 8}, {54, 8}, {46, 8}, {46, 8}, {30, 8}, {30, 8},
     {57, 8}, {57, 8}, {53, 8}, {53, 8}, {45, 8}, {45, 8}, {29, 8}, {29, 8},
@@ -146,27 +146,27 @@ coded_block_pattern_entry coded_block_pattern[512] =
 };
 
 /* Decoding tables for dct_dc_size_luminance */
-dct_dc_size_entry dct_dc_size_luminance[32] =
+const dct_dc_size_entry dct_dc_size_luminance[32] =
 {   {1, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, 
     {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, 
     {0, 3}, {0, 3}, {0, 3}, {0, 3}, {3, 3}, {3, 3}, {3, 3}, {3, 3}, 
     {4, 3}, {4, 3}, {4, 3}, {4, 3}, {5, 4}, {5, 4}, {6, 5}, {(unsigned int)ERROR, 0}
 };
 
-dct_dc_size_entry dct_dc_size_luminance1[16] =
+const dct_dc_size_entry dct_dc_size_luminance1[16] =
 {   {7, 6}, {7, 6}, {7, 6}, {7, 6}, {7, 6}, {7, 6}, {7, 6}, {7, 6},
     {8, 7}, {8, 7}, {8, 7}, {8, 7}, {9, 8}, {9, 8}, {10, 9}, {11, 9}
 };
 
 /* Decoding table for dct_dc_size_chrominance */
-dct_dc_size_entry dct_dc_size_chrominance[32] =
+const dct_dc_size_entry dct_dc_size_chrominance[32] =
 {   {0, 2}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, 
     {1, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, 
     {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, 
     {3, 3}, {3, 3}, {3, 3}, {3, 3}, {4, 4}, {4, 4}, {5, 5}, {(unsigned int)ERROR, 0}
 };
 
-dct_dc_size_entry dct_dc_size_chrominance1[32] =
+const dct_dc_size_entry dct_dc_size_chrominance1[32] =
 {   {6, 6}, {6, 6}, {6, 6}, {6, 6}, {6, 6}, {6, 6}, {6, 6}, {6, 6}, 
     {6, 6}, {6, 6}, {6, 6}, {6, 6}, {6, 6}, {6, 6}, {6, 6}, {6, 6}, 
     {7, 7}, {7, 7}, {7, 7}, {7, 7}, {7, 7}, {7, 7}, {7, 7}, {7, 7}, 
@@ -175,7 +175,7 @@ dct_dc_size_entry dct_dc_size_chrominance1[32] =
 
 /* DCT coeff tables. */
 
-unsigned short int dct_coeff_tbl_0[256] =
+const unsigned short int dct_coeff_tbl_0[256] =
 {
 0xffff, 0xffff, 0xffff, 0xffff, 
 0xffff, 0xffff, 0xffff, 0xffff, 
@@ -243,7 +243,7 @@ unsigned short int dct_coeff_tbl_0[256] =
 0x581c, 0x581c, 0x581c, 0x581c, 
 };
 
-unsigned short int dct_coeff_tbl_1[16] = 
+const unsigned short int dct_coeff_tbl_1[16] = 
 {
 0x00bb, 0x202b, 0x103b, 0x00ab, 
 0x084b, 0x1c2b, 0x541b, 0x501b, 
@@ -251,17 +251,17 @@ unsigned short int dct_coeff_tbl_1[16] =
 0x0c3b, 0x008b, 0x182b, 0x441b, 
 };
 
-unsigned short int dct_coeff_tbl_2[4] =
+const unsigned short int dct_coeff_tbl_2[4] =
 {
 0x4019, 0x1429, 0x0079, 0x0839, 
 };
 
-unsigned short int dct_coeff_tbl_3[4] = 
+const unsigned short int dct_coeff_tbl_3[4] = 
 {
 0x0449, 0x3c19, 0x3819, 0x1029, 
 };
 
-unsigned short int dct_coeff_next[256] = 
+const unsigned short int dct_coeff_next[256] = 
 {
 0xffff, 0xffff, 0xffff, 0xffff, 
 0xf7d5, 0xf7d5, 0xf7d5, 0xf7d5, 
@@ -329,7 +329,7 @@ unsigned short int dct_coeff_next[256] =
 0x0011, 0x0011, 0x0011, 0x0011, 
 };
 
-unsigned short int dct_coeff_first[256] = 
+const unsigned short int dct_coeff_first[256] = 
 {
 0xffff, 0xffff, 0xffff, 0xffff, 
 0xf7d5, 0xf7d5, 0xf7d5, 0xf7d5, 

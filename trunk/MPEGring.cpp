@@ -152,7 +152,7 @@ MPEG_ring:: NextWriteBuffer( void )
 */
 
 void
-MPEG_ring:: WriteDone( Uint32 len, double timestamp=-1 )
+MPEG_ring:: WriteDone( Uint32 len, double timestamp)
 {
     if ( ring->active ) {
         assert(len <= ring->bufSize);

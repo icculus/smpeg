@@ -298,7 +298,7 @@ bool MPEGstream::eof() const
   return(!br->Size());
 }
 
-void MPEGstream::insert_packet(Uint8 * Data, Uint32 Size, double timestamp=-1)
+void MPEGstream::insert_packet(Uint8 * Data, Uint32 Size, double timestamp)
 {
   MPEGlist * newbr;
 
