@@ -263,7 +263,10 @@ void
 METH(run) (_THIS)
 {
 #ifndef THREADED_VIDEO
-  MPEGvideo_run(self->video);
+  if (self->video)
+    {
+      MPEGvideo_run(self->video);
+    }
 #endif /* THREADED_VIDEO */
 }
 
@@ -272,7 +275,14 @@ int
 METH(frametime) (_THIS)
 {
 #ifndef THREADED_VIDEO
-  return self->video->frametime;
+  if (self->video)
+    {
+      return self->video->frametime;
+    }
+  else
+    {
+      return 10; /* 100 fps? */
+    }
 #else
   return 10;
 #endif /* THREADED_VIDEO */
