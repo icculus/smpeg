@@ -52,7 +52,7 @@ void usage(char *argv0)
 "	--loop or -l	     Play MPEG over and over\n"
 "	--volume N or -v N   Set audio volume to N (0-100)\n"
 "	--scale wxh or -s wxh  Play MPEG at given resolution\n"
-"       --skip N or -S N     Skip N seconds\n"
+"       --seek N or -S N     Skip N bytes\n"
 "	--help or -h\n"
 "	--version or -V\n"
 "Specifying - as filename will use stdin for input\n", argv0);
@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
     int loop_play;
     int i, done, pause;
     int volume;
-    float skip;
+    float seek;
     SDL_Surface *screen;
     SMPEG *mpeg;
     SMPEG_Info info;
@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
     scale_height = 0;
     loop_play = 0;
     volume = 100;
-    skip = 0;
+    seek = 0;
     for ( i=1; argv[i] && (argv[i][0] == '-') && (argv[i][1] != 0); ++i ) {
         if ( (strcmp(argv[i], "--noaudio") == 0) ||
              (strcmp(argv[i], "--nosound") == 0) ) {
@@ -118,10 +118,10 @@ int main(int argc, char *argv[])
         if ((strcmp(argv[i], "--loop") == 0) || (strcmp(argv[i], "-l") == 0)) {
             loop_play = 1;
         } else
-        if ((strcmp(argv[i], "--skip") == 0)||(strcmp(argv[i], "-S") == 0)) {
+        if ((strcmp(argv[i], "--seek") == 0)||(strcmp(argv[i], "-S") == 0)) {
             ++i;
             if ( argv[i] ) {
-                skip = (float)atof(argv[i]);
+                seek = (float)atof(argv[i]);
             }
         } else
         if ((strcmp(argv[i], "--volume") == 0)||(strcmp(argv[i], "-v") == 0)) {
@@ -299,6 +299,9 @@ int main(int argc, char *argv[])
 	    printf("\tAudio %s\n", info.audio_string);
         }
 
+	/* Print info on the stream */
+	printf("\t Total size: %d\n", SMPEG_total_size(mpeg));
+
         /* Set up video display if needed */
         if ( info.has_video && use_video ) {
             const SDL_VideoInfo *video_info;
@@ -352,10 +355,10 @@ int main(int argc, char *argv[])
         if ( loop_play ) {
             SMPEG_loop(mpeg, 1);
         }
-	
-	/* Skip to starting position */
-	if(skip) SMPEG_skip(mpeg, skip);
 
+	/* Skip to starting position */
+	if(seek) SMPEG_seek(mpeg, seek);
+	
         /* Play it, and wait for playback to complete */
         SMPEG_play(mpeg);
         done = 0;

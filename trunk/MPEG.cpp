@@ -175,23 +175,7 @@ void MPEG::Stop(void) {
 }
 
 void MPEG::Rewind(void) {
-  Stop();
-
-  /* Go to the beginning of the file */
-  system->Rewind();
-
-  /* Skip the first empty buffer made when creating a mpegstream */
-  /* which would otherwise be interpreted as end of file */
-  if(audiostream) audiostream->next_packet();
-  if(videostream) videostream->next_packet();
-
-  if ( AudioEnabled() ) {
-    audioaction->Rewind();
-  }
-
-  if ( VideoEnabled() ) {
-    videoaction->Rewind();
-  }
+  seekIntoStream(0);
 }
 
 void MPEG::Pause(void) {
@@ -256,6 +240,7 @@ MPEGstatus MPEG::Status(void) {
 
   return(status);
 }
+
 
 /* MPEG audio actions */
 bool MPEG::GetAudioInfo(MPEG_AudioInfo *info) {
@@ -329,15 +314,60 @@ void MPEG::RenderFinal(SDL_Surface *dst, int x, int y) {
   if( audiostream ) audiostream->enable(true);
 }
 
-void MPEG::Skip(float seconds)
+void MPEG::Seek(int position)
 {
+  int were_playing = 0;
+
+  /* Cannot seek past end of file */
+  if(position > TotalSize()) return;
+  
+  /* get info whrether we need to restart playing at the end */
+  if( Status() == MPEG_PLAYING )
+    were_playing = 1;
+
+  seekIntoStream(position);
+
+  /* If we were playing and not rewind then play again */
+  if (were_playing)
+    Play();
+}
+
+void MPEG::seekIntoStream(int position)
+{
+  /* First we stop everything */
+  Stop();
+
+  /* Go to the desired position into file */
+  system->Seek(position);
+
+  /* Skip the first empty buffer made when creating a mpegstream */
+  /* which would otherwise be interpreted as end of file */
+
+  if(audiostream) audiostream->next_packet();
+  if(videostream) videostream->next_packet();
+
+  /* And forget what we previouly buffered */
+
   if ( AudioEnabled() ) {
-    audioaction->Skip(seconds);
+    audioaction->Rewind();
+    audioaction->ResetSynchro();
   }
 
   if ( VideoEnabled() ) {
-    videoaction->Skip(seconds);
+    videoaction->Rewind();
+    videoaction->ResetSynchro();
   }
+
+}
+
+Uint32 MPEG::Tell()
+{
+  return(system->Tell());
+}
+
+Uint32 MPEG::TotalSize()
+{
+  return(system->TotalSize());
 }
 
 void MPEG::parse_stream_list()

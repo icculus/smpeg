@@ -149,6 +149,7 @@ MPEGaudio:: StopDecoding(void)
 {
     decoding = false;
     if ( decode_thread ) {
+        if( ring ) ring->ReleaseThreads();
         SDL_WaitThread(decode_thread, NULL);
         decode_thread = NULL;
     }
@@ -206,19 +207,12 @@ MPEGaudio:: Rewind(void)
     decodedframe = 0;
     currentframe = 0;
     frags_playing = 0;
-    frag_time = 0;
-    play_time = 0.0;
 }
 void
-MPEGaudio:: Skip(float seconds)
+MPEGaudio:: ResetSynchro(void)
 {
-  printf("Audio: Skipping %f seconds...\n", seconds);  
-  while(seconds > 0)
-  {
-    seconds -= (double) samplesperframe / ((double) frequencies[version][frequency]*(1+inputstereo));
-
-    if(!loadheader()) break;
-  }
+    frag_time = 0;
+    play_time = 0.0;
 }
 void
 MPEGaudio:: Volume(int vol)

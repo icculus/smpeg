@@ -7,6 +7,8 @@
 #include <winsock.h>
 #else
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #endif
 
 #include "MPEGsystem.h"
@@ -485,7 +487,27 @@ Uint32 MPEGsystem::Tell()
   return(read_total);
 }
 
+Uint32 MPEGsystem::TotalSize()
+{
+#ifndef WIN32
+    struct stat st;
+    Uint32 size;
+
+    if(!fstat(mpeg_fd, &st))
+      return(st.st_size);
+    else
+      return(0);
+#else
+#error "Not implemented"
+#endif
+}
+
 void MPEGsystem::Rewind()
+{
+  Seek(0);
+}
+
+void MPEGsystem::Seek(int length)
 {
   request = 0;
 
@@ -496,8 +518,8 @@ void MPEGsystem::Rewind()
   /* Reset the streams */
   reset_all_streams();
 
-  /* Get back to the beginning of the stream */
-  if(lseek(mpeg_fd, 0, SEEK_SET) == (long) -1)
+  /* Get into the stream */
+  if(lseek(mpeg_fd, length, SEEK_SET) == (off_t) -1)
   {
     if(errno != ESPIPE)
     {

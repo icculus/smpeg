@@ -167,7 +167,7 @@ public:
     void Play(void);
     void Stop(void);
     void Rewind(void);
-    void Skip(float seconds);
+    void ResetSynchro(void);
     void Volume(int vol);
     MPEGstatus Status(void);
 

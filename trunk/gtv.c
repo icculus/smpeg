@@ -175,12 +175,7 @@ static void gtv_open_file( gchar* name, gpointer raw )
 	return;
     }
     /* Get the file size */
-    mpeg_size = 0.0;
-    { struct stat sb;
-      if ( stat(name, &sb) == 0 ) {
-        mpeg_size = (float)sb.st_size;
-      }
-    }
+    mpeg_size = (float)SMPEG_total_size(mpeg);
 
     gtk_object_set_data( GTK_OBJECT( raw ), "mpeg", mpeg );
     strncpy( (char*) gtk_object_get_data( GTK_OBJECT( raw ), "filename_buffer" ),
@@ -665,13 +660,9 @@ static void gtv_seek( GtkAdjustment* adjust, gpointer raw )
 
     mpeg = (SMPEG*) gtk_object_get_data( GTK_OBJECT( raw ), "mpeg" );
 
-#if 1
-#warning Seeking is not implemented yet
-#else
     if( mpeg && mpeg_size ) {
         SMPEG_seek(mpeg, (int)((mpeg_size*adjust->value)/100));
     }
-#endif
 }
 
 static void gtv_set_frame( gpointer raw, int value )

@@ -57,7 +57,7 @@ public:
     void Play(void);
     void Stop(void);
     void Rewind(void);
-    void Skip(float seconds);
+    void ResetSynchro(void);
     MPEGstatus Status(void);
 
     /* MPEG video actions */
