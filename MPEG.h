@@ -45,83 +45,8 @@
  */
 class MPEG : public MPEGstream, public MPEGaudioaction,public MPEGvideoaction {
 public:
-    MPEG(Uint8 *Mpeg, Uint32 Size, Uint8 StreamID = 0, bool sdlaudio = true) :
-                        MPEGstream(Mpeg, Size, StreamID) {
-        audiostream = NULL; audio = NULL; audioaction = NULL;
-        audioaction_enabled = false;
-        videostream = NULL; video = NULL; videoaction = NULL;
-        videoaction_enabled = false;
-        if ( streamid == SYSTEM_STREAMID ) {
-            /* Do special parsing to find out which MPEG streams to create */
-            while ( next_packet(false) ) {
-                data += 6;
-                while ( data[0] & 0x80 ) {
-#ifndef PROFILE_VIDEO
-                    if ( (data[1] == AUDIO_STREAMID) && !audiostream ) {
-                        audiostream = new MPEG(mpeg, size, data[1], sdlaudio);
-                        if ( audiostream->WasError() ) {
-                            SetError(audiostream->TheError());
-                        }
-                        audioaction = audiostream;
-                        audioaction_enabled = true;
-                    } else
-#endif
-                    if ( (data[1] == VIDEO_STREAMID) && !videostream ) {
-                        videostream = new MPEG(mpeg, size, data[1], sdlaudio);
-                        if ( videostream->WasError() ) {
-                            SetError(videostream->TheError());
-                        }
-                        videoaction = videostream;
-                        videoaction_enabled = true;
-                    }
-                    data += 3;
-                }
-            }
-            EnableAudio(audioaction_enabled);
-            EnableVideo(videoaction_enabled);
-            reset_stream();
-        }
-        /* Determine if we are reading a system layer, and get first packet */
-        if ( mpeg[3] == 0xba ) {
-            next_packet();
-        } else {
-            packet = mpeg;
-            packetlen = size;
-            data = packet;
-            stop = data + packetlen;
-        }
-        if ( streamid == AUDIO_STREAMID ) {
-            audiostream = this;
-            audio = new MPEGaudio(audiostream, sdlaudio);
-            audioaction = audio;
-            audioaction_enabled = true;
-        } else
-        if ( streamid == VIDEO_STREAMID ) {
-            videostream = this;
-            video = new MPEGvideo(videostream);
-            videoaction = video;
-            videoaction_enabled = true;
-        }
-        if ( ! audiostream && ! videostream ) {
-            SetError("No audio/video stream found in MPEG");
-        }
-    }
-    virtual ~MPEG() {
-        if ( audiostream ) {
-            if ( audiostream == this ) {
-                delete audio;
-            } else {
-                delete audiostream;
-            }
-        }
-        if ( videostream ) {
-            if ( videostream == this ) {
-                delete video;
-            } else {
-                delete videostream;
-            }
-        }
-    }
+    MPEG(Uint8 *Mpeg, Uint32 Size, Uint8 StreamID = 0, bool sdlaudio = true);
+    virtual ~MPEG();
 
     /* Enable/Disable audio and video */
     bool AudioEnabled(void) {
@@ -163,10 +88,10 @@ public:
 
     /* MPEG actions */
     void Loop(bool toggle) {
-        if ( VideoEnabled() ) {
+        if ( videoaction ) {
             videoaction->Loop(toggle);
         }
-        if ( AudioEnabled() ) {
+        if ( audioaction ) {
             audioaction->Loop(toggle);
         }
     }

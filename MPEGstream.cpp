@@ -165,6 +165,13 @@ MPEGstream:: next_packet(bool recurse)
             return(true);
         }
     }
+    /* Hack to seek past raw video data in a system stream */
+    else if ( streamid == VIDEO_STREAMID ) {
+        /* Possibly an embedded video packet? */
+        if ( stream_id == 0xb3 ) {
+            packetlen = 6;
+        }
+    }
 
     /* Look for another packet of ours? */
     if ( recurse || !packetlen || (stream_id == PAD_STREAMID) ) {

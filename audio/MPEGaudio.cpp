@@ -21,10 +21,6 @@
 
 #include "MPEGaudio.h"
 
-#ifdef SDL_MIXER             /* From the SDL mixer example library */
-#include "SDL_mixer.h"
-#endif
-
 
 MPEGaudio:: MPEGaudio(MPEGstream *stream, bool initSDL) : sdl_audio(initSDL)
 {
@@ -59,23 +55,15 @@ MPEGaudio:: MPEGaudio(MPEGstream *stream, bool initSDL) : sdl_audio(initSDL)
             /* Open the audio, get actual audio hardware format and convert */
             bool audio_active;
             SDL_AudioSpec actual;
-#ifdef SDL_MIXER
-            Mix_OpenAudio(wanted.freq,wanted.format,wanted.channels,wanted.samples);
-            int actual_channels;    /* This is stupid, need to fix the API */
-            audio_active = Mix_QuerySpec(&actual.freq,
-                                         &actual.format, &actual_channels);
-            actual.channels = actual_channels;
-#else
             audio_active = (SDL_OpenAudio(&wanted, &actual) == 0);
-            SDL_PauseAudio(0);
-#endif
             if ( audio_active ) {
                 ActualSpec(&actual);
                 valid_stream = true;
             } else {
                 SetError(SDL_GetError());
             }
-        } else { /* The stream is always valid if we don't initiliaze SDL */
+            SDL_PauseAudio(0);
+        } else { /* The stream is always valid if we don't initialize SDL */
             valid_stream = true; 
         }
         Volume(100);
@@ -86,14 +74,13 @@ MPEGaudio:: ~MPEGaudio()
 {
     /* Remove ourselves from the mixer hooks */
     Stop();
-
+#ifdef THREADED_AUDIO
+    /* Stop the decode thread */
+    StopDecoding();
+#endif
     if ( sdl_audio ) {
         /* Close up the audio so others may play */
-#ifdef SDL_MIXER
-        Mix_CloseAudio();
-#else
         SDL_CloseAudio();
-#endif
     }
 }
 
@@ -145,6 +132,34 @@ MPEGaudio:: ActualSpec(const SDL_AudioSpec *actual)
     rate_in_s = (double)(((actual->format&0xFF)/8)*actual->channels*actual->freq);
 }
 
+#ifdef THREADED_AUDIO
+void
+MPEGaudio:: StartDecoding(void)
+{
+    decoding = true;
+    /* Create the ring buffer to hold audio */
+    if ( ! ring ) {
+        ring = new MPEG_ring(samplesperframe*2);
+    }
+    if ( ! decode_thread ) {
+        decode_thread = SDL_CreateThread(Decode_MPEGaudio, this);
+    }
+}
+void
+MPEGaudio:: StopDecoding(void)
+{
+    decoding = false;
+    if ( decode_thread ) {
+        SDL_WaitThread(decode_thread, NULL);
+        decode_thread = NULL;
+    }
+    if ( ring ) {
+        delete ring;
+        ring = NULL;
+    }
+}
+#endif
+
 /* MPEG actions */
 double
 MPEGaudio:: Time(void)
@@ -163,56 +178,19 @@ MPEGaudio:: Play(void)
 {
     ResetPause();
     if ( valid_stream ) {
-        if (Status() == MPEG_PLAYING) {
-            Stop();
-        }
 #ifdef THREADED_AUDIO
-        /* Create the ring buffer to hold audio */
-        ring = new MPEG_ring(samplesperframe*2);
+        StartDecoding();
 #endif
         playing = true;
-
-#ifdef THREADED_AUDIO
-        /* Start the decoding thread */
-        decode_thread = SDL_CreateThread(Decode_MPEGaudio, this);
-#endif
-#ifdef SDL_MIXER
-        if ( sdl_audio ) {
-            /* Hook ourselves up to the mixer */
-            Mix_HookMusic(Play_MPEGaudio, this);
-        }
-#endif
     }
 }
 void
 MPEGaudio:: Stop(void)
 {
     if ( valid_stream ) {
+        SDL_LockAudio();
         playing = false;
-#ifdef THREADED_AUDIO
-        /* Release the threads */
-        if ( ring ) {
-            ring->ReleaseThreads();
-        }
-
-        /* Stop the decoding thread */
-        if ( decode_thread ) {
-            SDL_WaitThread(decode_thread, NULL);
-            decode_thread = NULL;
-        }
-#endif
-#ifdef SDL_MIXER
-        /* Unhook ourselves from the mixer */
-        if ( sdl_audio && Mix_GetMusicHookData() == this ) {
-            Mix_HookMusic(NULL, NULL);
-        }
-#endif
-#ifdef THREADED_AUDIO
-        if ( ring ) {
-            delete ring;
-            ring = NULL;
-        }
-#endif
+        SDL_UnlockAudio();
     }
     ResetPause();
 }
@@ -220,6 +198,10 @@ void
 MPEGaudio:: Rewind(void)
 {
     Stop();
+#ifdef THREADED_AUDIO
+    /* Stop the decode thread */
+    StopDecoding();
+#endif
     mpeg->reset_stream();
     clearrawdata();
     decodedframe = 0;

@@ -304,21 +304,16 @@ int Decode_MPEGaudio(void *udata)
 {
     MPEGaudio *audio = (MPEGaudio *)udata;
 
-    while ( audio->playing && ! audio->mpeg->eof() ) {
+    while ( audio->decoding && ! audio->mpeg->eof() ) {
         audio->rawdata = (Sint16 *)audio->ring->NextWriteBuffer();
-        audio->rawdatawriteoffset = 0;
         if ( audio->rawdata ) {
-//fprintf(stderr, "+");
+            audio->rawdatawriteoffset = 0;
             audio->run(1);
+            audio->ring->WriteDone(audio->rawdatawriteoffset*2);
+        } else {
+            SDL_Delay(100);  /* The write buffer is full, wait a bit */
         }
-        audio->ring->WriteDone(audio->rawdatawriteoffset*2);
     }
-    while ( audio->playing && audio->ring->BuffersWritten() ) {
-	SDL_Delay(100);
-    }
-    /* Release the reader thread */
-    audio->ring->ReleaseThreads();
-
     return(0);
 }
 #endif /* THREADED_AUDIO */
@@ -328,9 +323,11 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
 {
     MPEGaudio *audio = (MPEGaudio *)udata;
     int volume;
+    long copylen;
 
     /* Bail if audio isn't playing */
-    if ( ! audio->playing ) {
+    if ( audio->Status() != MPEG_PLAYING ) {
+printf("-- Audio isn't playing, returning\n");
         return;
     }
     volume = audio->volume;
@@ -350,7 +347,7 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
 
     /* Copy the audio data to output */
 #ifdef THREADED_AUDIO
-    long copylen; Uint8 *rbuf;
+    Uint8 *rbuf;
     assert(audio);
     assert(audio->ring);
     do {
@@ -374,7 +371,7 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
 
     /* Copy in any saved data */
     if ( audio->rawdatawriteoffset > 0 ) {
-        int copylen = (audio->rawdatawriteoffset-audio->rawdatareadoffset);
+        copylen = (audio->rawdatawriteoffset-audio->rawdatareadoffset);
         assert(copylen >= 0);
         if ( copylen >= len ) {
             SDL_MixAudio(stream, &audio->spillover[audio->rawdatareadoffset],

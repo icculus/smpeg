@@ -29,7 +29,7 @@
 class MPEG_ring {
 public:
     /* Create a ring with 'count' buffers, each 'size' bytes long */
-    MPEG_ring(Uint32 size, int count = 32);
+    MPEG_ring(Uint32 size, int count = 16);
 
     /* Release any waiting threads on the ring so they can be cleaned up.
        The ring isn't valid after this call, so when threads are done you
@@ -85,9 +85,6 @@ protected:
     int reader_active;
     SDL_mutex* readwait;
     int read_waiting;
-    SDL_mutex* writewait;
-    int write_waiting;
-    int writer_active;
 };
 
 #endif /* _MPEGRING_H */

@@ -1,4 +1,14 @@
 0.3.4:
+Sam Lantinga - Wed Mar  1 00:26:49 PST 2000
+ * If the audio couldn't be opened, the error is propogated to the user
+Sam Lantinga - Wed Mar  1 00:18:42 PST 2000
+ * The audio decoder thread now runs while the movie is paused
+Sam Lantinga - Tue Feb 29 15:22:52 PST 2000
+ * Added a hack to seek past raw video data in a system stream
+Sam Lantinga - Tue Feb 29 10:57:14 PST 2000
+ * Fixed pause and loop, with and without audio
+Sam Lantinga - Mon Feb 28 20:28:24 PST 2000
+ * Removed special SDL mixer support - not necessary.  See README.SDL_mixer
 Sam Lantinga - Mon Feb 28 12:45:59 PST 2000
  * Fixed a problem where audio stopped playing before the end of the movie
 Sam Lantinga - Thu Feb 10 13:17:29 PST 2000
@@ -11,8 +21,6 @@ Bill Kendrick - Thu Feb 03 16:57:27 PST 2000
    whichever stream it can).
 Bill Kendrick - Sat Jan 22 17:32:00 PST 2000
  * Added --version to plaympeg and made usage help more complete.
-Jesper Pedersen - Mon Jan 31 12:33:25 PST 2000
- * Fixed a bug in the pausing code.
 Sam Lantinga - Mon Jan 24 12:57:54 PST 2000
  * Disabled consistency checks by default, now plays more video streams
 Laurent Bonnaud - Tue Jan 25 13:46:32 PST 2000

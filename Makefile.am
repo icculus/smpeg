@@ -8,6 +8,7 @@ SUBDIRS = audio video
 lib_LTLIBRARIES = libsmpeg.la
 
 libsmpeg_la_SOURCES =		\
+	MPEG.cpp		\
 	MPEGring.cpp		\
 	MPEGstream.cpp		\
 	smpeg.cpp
@@ -35,6 +36,7 @@ EXTRA_DIST =		\
 	CHANGES		\
 	COPYING		\
 	README		\
+	README.SDL_mixer \
 	plaympeg.1	\
 	gtv.1
 

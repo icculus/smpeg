@@ -60,9 +60,6 @@ MPEG_ring:: MPEG_ring( Uint32 size, int count )
         ring->readwait = SDL_CreateMutex();
         SDL_mutexP(ring->readwait);
         ring->read_waiting = 0;
-        ring->writewait = SDL_CreateMutex();
-        SDL_mutexP(ring->writewait);
-        ring->write_waiting = 0;
     }
     else
     {
@@ -74,14 +71,11 @@ MPEG_ring:: MPEG_ring( Uint32 size, int count )
 
         ring->readwait = 0;
         ring->read_waiting = 0;
-        ring->writewait = 0;
-        ring->write_waiting = 0;
     }
 
     ring->usedCount = 0;
     ring->active = 1;
     ring->reader_active = 0;
-    ring->writer_active = 0;
 }
 
 /* Release any waiting threads on the ring so they can be cleaned up.
@@ -95,12 +89,9 @@ MPEG_ring:: ReleaseThreads( void )
     ring->active = 0;
 
     /* Wait for the threads to get off of the ring */
-    while ( ring->reader_active || ring->writer_active ) {
+    while ( ring->reader_active ) {
         if ( ring->reader_active ) {
             SDL_mutexV(ring->readwait);
-        }
-        if ( ring->writer_active ) {
-            SDL_mutexV(ring->writewait);
         }
         SDL_Delay(10);
     }
@@ -112,15 +103,11 @@ MPEG_ring:: ~MPEG_ring( void )
     if( ring )
     {
         /* Free up the mutexes */
+        ReleaseThreads();
         if( ring->readwait )
         {
             SDL_DestroyMutex( ring->readwait );
             ring->readwait = 0;
-        }
-        if( ring->writewait )
-        {
-            SDL_DestroyMutex( ring->writewait );
-            ring->writewait = 0;
         }
 
         /* Free data buffer */
@@ -139,20 +126,9 @@ MPEG_ring:: ~MPEG_ring( void )
 Uint8 *
 MPEG_ring:: NextWriteBuffer( void )
 {
-    if ( ring->active ) {
-        if ( ring->usedCount >= ring->bufCount ) {
-            ring->write_waiting = 1;
-//fprintf(stderr, "Waiting for write buffers on ring %p\n", ring);
-            ring->writer_active = 1;
-            SDL_mutexP(ring->writewait);
-            ring->writer_active = 0;
-            if ( ! ring->active ) {
-                goto inactive;
-            }
-        }
+    if ( ring->active && (ring->usedCount < ring->bufCount) ) {
         return( ring->write + sizeof(Uint32) );
     }
-inactive:
     return(NULL);
 }
 
@@ -251,12 +227,6 @@ MPEG_ring:: ReadDone( void )
             ring->read = ring->begin;
         }
         ring->usedCount--;
-
-        if ( ring->write_waiting ) {
-//fprintf(stderr, "Allowing write thread to continue on ring %p\n", ring);
-            ring->write_waiting = 0;
-            SDL_mutexV(ring->writewait);
-        }
     }
 }
 
