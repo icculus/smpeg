@@ -147,6 +147,7 @@ int timeSync( VidStream* vid_stream )
 
     /* Update the number of frames displayed */
     vid_stream->totNumFrames++;
+    vid_stream->current_frame++;
 
     /* Do we need to initialize framerate? */
     if ( vid_stream->rate_deal < 0 ) {

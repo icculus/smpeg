@@ -1,5 +1,211 @@
 *************************************************************************
 *** Applied ***
+Date: Fri, 09 Jun 2000 00:30:56 +0900
+From: Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
+Subject: smpeg patch (frame count fix after seeking)
+
+Hello.
+
+I'm looked latest cvs version of smpeg.
+
+gtv's movie seek function is very great&cool!!
+
+I'm tried to add a little change.
+
+patch attached.(gtvfix.diff)
+
+Window size change.(Double <-> Normal)
+SMPEG_info's frame counter adjust after seeking.
+
+thanks.
+-----------------------------------------------
+Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
+
+Index: gtv.c
+===================================================================
+RCS file: /home/ncvs/smpeg/gtv.c,v
+retrieving revision 1.1.1.3
+diff -u -r1.1.1.3 gtv.c
+--- gtv.c	2000/06/06 06:53:36	1.1.1.3
++++ gtv.c	2000/06/07 17:21:36
+@@ -70,7 +70,7 @@
+ 	audio = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "audio" ) );
+ 
+ #if 1 /* Sam 5/31/2000 - Default to doubled video and audio on */
+-	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( twotimes ), TRUE );
++	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( twotimes ), FALSE );
+ 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( loop ), FALSE );
+ 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( audio ), TRUE );
+ #else
+@@ -255,7 +255,7 @@
+ #ifdef linux
+ 	putenv("SDL_VIDEO_CENTERED=1");
+ #endif
+-	sdl_screen = SDL_SetVideoMode( info->width * 2, info->height * 2, video_bpp, SDL_ASYNCBLIT );
++	sdl_screen = SDL_SetVideoMode( info->width , info->height , video_bpp, SDL_ASYNCBLIT);
+         SDL_WM_SetCaption(name, "gtv movie");
+         gtv_center_window(sdl_screen);
+ 	SMPEG_setdisplay( mpeg, sdl_screen, NULL, NULL );
+@@ -519,8 +519,10 @@
+ static void gtv_double( GtkWidget* item, gpointer raw )
+ {
+     SMPEG* mpeg = NULL;
+-    SDL_Surface* sdl_screen = NULL;
+-    int scale = 1;
++    SDL_Surface* sdl_screen = NULL,*newscreen;
++    SMPEG_Info* info = NULL;
++    int stopped=0;
++    int width,height;
+ 
+     assert( raw );
+ 
+@@ -534,22 +536,26 @@
+ 	twotimes = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "twotimes" ) );
+ 	active = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( twotimes ) );
+ 
++	info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
++	assert( info );
++        if (SMPEG_status(mpeg)==SMPEG_PLAYING) {
++		SMPEG_pause(mpeg);
++		stopped=1;
++	}
+ 	if( active ) {
+-	    SMPEG_move( mpeg, 0, 0 );
+-	    scale = 2;
++	    width = info->width * 2;
++	    height = info->height * 2;
+ 	} else {
+-	    SMPEG_Info* info = NULL;
+-
+-	    info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
+-	    assert( info );
+-	    SMPEG_move( mpeg,
+-			( sdl_screen->w - info->width ) / 2,
+-			( sdl_screen->h - info->height ) / 2 );
+-	    scale = 1;
++	    width = info->width;
++	    height = info->height;
+ 	}
+-
+-	SMPEG_scale( mpeg, scale );
+-	gtv_clear_screen( raw );
++	newscreen = SDL_SetVideoMode(width, height,
++		sdl_screen->format->BitsPerPixel,sdl_screen->flags);
++	
++	gtk_object_set_data( GTK_OBJECT( raw ), "sdl_screen", newscreen );
++	SMPEG_scaleXY( mpeg, newscreen->w,newscreen->h );
++        gtv_center_window(sdl_screen);
++        if (stopped) SMPEG_pause(mpeg);
+     }
+ 
+ }
+Index: video/MPEGvideo.cpp
+===================================================================
+RCS file: /home/ncvs/smpeg/video/MPEGvideo.cpp,v
+retrieving revision 1.1.1.2
+diff -u -r1.1.1.2 MPEGvideo.cpp
+--- video/MPEGvideo.cpp	2000/06/05 09:53:00	1.1.1.2
++++ video/MPEGvideo.cpp	2000/06/07 17:19:41
+@@ -303,6 +303,20 @@
+   _stream->_jumpFrame = -1;
+   _stream->realTimeStart = -time;
+   play_time = time;
++  if (time > 0) {
++	double oneframetime;
++	if (_stream->_oneFrameTime == 0)
++		oneframetime = 1.0 / _stream->_smpeg->_fps;	
++	else
++		oneframetime = _stream->_oneFrameTime;
++
++	/* time -> frame */
++	_stream->totNumFrames = (int)(time / oneframetime);
++
++	/* Set Current Frame To 0 & Frame Adjust Frag Set */
++	_stream->current_frame = 0;
++	_stream->need_frameadjust=true;
++  }
+ }
+ 
+ 
+@@ -348,7 +362,7 @@
+         info->width = _w;
+         info->height = _h;
+         if ( _stream ) {
+-            info->current_frame = _stream->totNumFrames;
++            info->current_frame = _stream->current_frame;
+ #ifdef CALCULATE_FPS
+ 
+             /* Get the appropriate indices for the timestamps */
+Index: video/gdith.cpp
+===================================================================
+RCS file: /home/ncvs/smpeg/video/gdith.cpp,v
+retrieving revision 1.1.1.1
+diff -u -r1.1.1.1 gdith.cpp
+--- video/gdith.cpp	2000/06/01 12:01:43	1.1.1.1
++++ video/gdith.cpp	2000/06/06 15:23:29
+@@ -147,6 +147,7 @@
+ 
+     /* Update the number of frames displayed */
+     vid_stream->totNumFrames++;
++    vid_stream->current_frame++;
+ 
+     /* Do we need to initialize framerate? */
+     if ( vid_stream->rate_deal < 0 ) {
+Index: video/video.cpp
+===================================================================
+RCS file: /home/ncvs/smpeg/video/video.cpp,v
+retrieving revision 1.1.1.3
+diff -u -r1.1.1.3 video.cpp
+--- video/video.cpp	2000/06/06 06:53:37	1.1.1.3
++++ video/video.cpp	2000/06/07 17:20:25
+@@ -799,6 +799,9 @@
+ 
+   /* Reset EOF_flag to 0 */
+   vid->EOF_flag = FALSE;
++
++  vid->current_frame=0;
++  vid->need_frameadjust=false;
+ }
+ 
+ 
+@@ -1079,6 +1082,19 @@
+             fprintf( stderr, "mpegVidRsrc ParseGOP\n" );
+             goto error;
+         }
++	/* need adjust current_frame (after Seek) */
++	if (vid_stream->need_frameadjust) {
++		int prev;
++		prev = vid_stream->totNumFrames;
++		vid_stream->current_frame = (int)
++		(
++		vid_stream->group.tc_hours * 3600 * vid_stream->rate_deal +
++		vid_stream->group.tc_minutes * 60 * vid_stream->rate_deal +
++		vid_stream->group.tc_seconds * vid_stream->rate_deal +
++		vid_stream->group.tc_pictures);
++		vid_stream->need_frameadjust=false;
++	printf("Adjusted Frame %d -> %d\n",prev,vid_stream->current_frame);
++	}
+         goto done;
+ 
+ 
+Index: video/video.h
+===================================================================
+RCS file: /home/ncvs/smpeg/video/video.h,v
+retrieving revision 1.1.1.1
+diff -u -r1.1.1.1 video.h
+--- video/video.h	2000/06/01 12:01:43	1.1.1.1
++++ video/video.h	2000/06/06 15:23:29
+@@ -309,6 +309,8 @@
+   unsigned int *timestamp_mark;
+   bool timestamp_used;
+ /* begining of added variables */
++  bool need_frameadjust;
++  int  current_frame;
+ } VidStream;   
+ 
+ /* Declaration of global display pointer. */
+*************************************************************************
+*** Applied ***
 Date: Tue, 06 Jun 2000 03:13:46 +0200
 From: Vivien Chappelier <vivien.chappelier@enst-bretagne.fr>
 Subject: Re: Buffering problems

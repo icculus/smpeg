@@ -309,6 +309,8 @@ typedef struct vid_stream {
   unsigned int *timestamp_mark;
   bool timestamp_used;
 /* begining of added variables */
+  bool need_frameadjust;
+  int  current_frame;
 } VidStream;   
 
 /* Declaration of global display pointer. */

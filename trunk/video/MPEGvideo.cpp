@@ -303,6 +303,20 @@ MPEGvideo:: ResetSynchro(double time)
   _stream->_jumpFrame = -1;
   _stream->realTimeStart = -time;
   play_time = time;
+  if (time > 0) {
+	double oneframetime;
+	if (_stream->_oneFrameTime == 0)
+		oneframetime = 1.0 / _stream->_smpeg->_fps;	
+	else
+		oneframetime = _stream->_oneFrameTime;
+
+	/* time -> frame */
+	_stream->totNumFrames = (int)(time / oneframetime);
+
+	/* Set Current Frame To 0 & Frame Adjust Frag Set */
+	_stream->current_frame = 0;
+	_stream->need_frameadjust=true;
+  }
 }
 
 
@@ -348,7 +362,7 @@ MPEGvideo:: GetVideoInfo(MPEG_VideoInfo *info)
         info->width = _w;
         info->height = _h;
         if ( _stream ) {
-            info->current_frame = _stream->totNumFrames;
+            info->current_frame = _stream->current_frame;
 #ifdef CALCULATE_FPS
 
             /* Get the appropriate indices for the timestamps */
