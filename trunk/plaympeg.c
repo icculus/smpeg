@@ -572,8 +572,8 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
-#ifdef linux /* Plaympeg doesn't need a mouse */
-    setenv("SDL_NOMOUSE","1",0);
+#if defined(linux) || defined(__FreeBSD__) /* Plaympeg doesn't need a mouse */
+    putenv("SDL_NOMOUSE=1");
 #endif
 
     /* Play the mpeg files! */
@@ -765,6 +765,7 @@ int main(int argc, char *argv[])
 			  // toggle fullscreen
 			  if ( event.key.keysym.mod & KMOD_ALT ) {
                             SDL_WM_ToggleFullScreen(screen);
+                           fullscreen = !fullscreen;
                           }
                         } else if ( event.key.keysym.sym == SDLK_UP ) {
 			  // Volume up
