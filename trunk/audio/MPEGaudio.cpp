@@ -41,7 +41,7 @@ MPEGaudio:: MPEGaudio(MPEGstream *stream, bool initSDL) : sdl_audio(initSDL)
 
         SDL_AudioSpec wanted;
         WantedSpec(&wanted);
-        if(initSDL){
+        if ( initSDL ) {
             /* Open the audio, get actual audio hardware format and convert */
             bool audio_active;
             SDL_AudioSpec actual;
@@ -77,7 +77,7 @@ MPEGaudio:: MPEGaudio(MPEGstream *stream, bool initSDL) : sdl_audio(initSDL)
                 samplesperframe *= 3;
             }
         }
-    Volume(100);
+        Volume(100);
     }
 }
 
@@ -86,7 +86,7 @@ MPEGaudio:: ~MPEGaudio()
     /* Remove ourselves from the mixer hooks */
     Stop();
 
-    if(sdl_audio) {
+    if ( sdl_audio ) {
         /* Close up the audio so others may play */
 #ifdef SDL_MIXER
         Mix_CloseAudio();
@@ -110,7 +110,6 @@ MPEGaudio:: WantedSpec(SDL_AudioSpec *wanted)
     } else {
         wanted->channels = 1;
     }
-wanted->channels = 2;
     wanted->samples = 4096;
     wanted->callback = Play_MPEGaudio;
     wanted->userdata = this;
@@ -121,12 +120,12 @@ void
 MPEGaudio:: ActualSpec(const SDL_AudioSpec *actual)
 {
     /* Splay can optimize some of the conversion */
-    if ( actual->channels == 1 && outputstereo) {
+    if ( actual->channels == 1 && outputstereo ) {
         forcetomonoflag = true;
     }
     if ( actual->channels == 2 && !outputstereo ) {
-printf("Forcing stereo output\n");
         forcetostereoflag = true;
+        samplesperframe *= 2;
     }
     /* FIXME: Create an audio conversion block */
     if ( (actual->freq/100) == ((frequencies[version][frequency]/2)/100) ) {
@@ -177,7 +176,7 @@ MPEGaudio:: Play(void)
         decode_thread = SDL_CreateThread(Decode_MPEGaudio, this);
 #endif
 #ifdef SDL_MIXER
-        if(sdl_audio) {
+        if ( sdl_audio ) {
             /* Hook ourselves up to the mixer */
             Mix_HookMusic(Play_MPEGaudio, this);
         }
