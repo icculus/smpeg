@@ -102,7 +102,7 @@ MPEGaudio:: WantedSpec(SDL_AudioSpec *wanted)
         wanted->channels = 1;
     }
     wanted->samples = 4096;
-    wanted->callback = Play_MPEGaudio;
+    wanted->callback = Play_MPEGaudioSDL;
     wanted->userdata = this;
     return true;
 }

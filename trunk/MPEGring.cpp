@@ -154,7 +154,7 @@ MPEG_ring:: NextWriteBuffer( void )
 void
 MPEG_ring:: WriteDone( Uint32 len, double timestamp)
 {
-    if ( ring->active ) {
+    if ( ring->active && len ) {
 #ifdef NO_GRIFF_MODS
         assert(len <= ring->bufSize);
 #else
@@ -170,7 +170,7 @@ MPEG_ring:: WriteDone( Uint32 len, double timestamp)
             ring->write = ring->begin;
             ring->timestamp_write = ring->timestamps;
         }
-//printf("Finished write buffer, making available for reads (%d+1 available for reads)\n", SDL_SemValue(ring->readwait));
+//printf("Finished write buffer of %u bytes, making available for reads (%d+1 available for reads)\n", len, SDL_SemValue(ring->readwait));
         SDL_SemPost(ring->readwait);
     }
 }

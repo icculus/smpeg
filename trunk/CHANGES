@@ -1,4 +1,9 @@
 0.4.2:
+Sam Lantinga - Thu Oct  5 14:07:35 PDT 2000
+ * Fixed spurious empty audio buffer at start of playback
+Sam Lantinga - Thu Oct  5 12:58:43 PDT 2000
+ * SMPEG_playAudio() now returns the amount of audio data mixed
+ * SMPEG_playAudioSDL() wraps SMPEG_playAudio, as a callback hook for SDL.
 Joe Valenzuela - Wed Oct  4 12:07:51 PDT 2000
  * Added a configure option --disable-thread-audio
 Sam Lantinga - Wed Oct  4 10:12:58 PDT 2000
