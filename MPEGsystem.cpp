@@ -557,6 +557,10 @@ MPEGsystem::~MPEGsystem()
 
   /* Delete the read buffer */
   delete[] read_buffer;
+
+  /* If we were created from raw data, free that data */
+  if ( data_reader.fromData )
+    free(data_reader.data);
 }
 
 MPEGstream ** MPEGsystem::GetStreamList()
