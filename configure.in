@@ -48,21 +48,6 @@ AC_PROG_CXX
 AM_PROG_LIBTOOL
 AC_PROG_INSTALL
 
-dnl Check for SDL mixer support
-AC_ARG_ENABLE(mixer,
-[  --enable-mixer          use the SDL sample mixer for audio [default=no]],
-              , enable_mixer=no)
-if test x$enable_mixer = xyes; then
-    CFLAGS="$CFLAGS -DSDL_MIXER"
-fi
-AC_ARG_WITH(mixer-prefix,
-[  --with-mixer-prefix=PFX   Prefix where SDL mixer is installed (optional)],
-            mixer_prefix="$withval", mixer_prefix="")
-if test x$mixer_prefix != x; then
-    CFLAGS="$CFLAGS -I$mixer_prefix/include"
-    LIBS="$LIBS -I$mixer_prefix/lib"
-fi
-
 dnl SMPEG uses mmap() for file loading:
 AC_FUNC_MMAP
 if test x$ac_cv_func_mmap_fixed_mapped != xyes; then
@@ -73,6 +58,22 @@ dnl Check for SDL 0.11.2
 AM_PATH_SDL(0.11.2)
 CFLAGS="$CFLAGS $SDL_CFLAGS"
 LIBS="$LIBS $SDL_LIBS"
+
+dnl Check for SDL mixer support
+AC_ARG_ENABLE(mixer,
+[  --enable-mixer          use the SDL sample mixer for audio [default=no]],
+              , enable_mixer=no)
+if test x$enable_mixer = xyes; then
+    CFLAGS="$CFLAGS -DSDL_MIXER"
+    LIBS="$LIBS -lmixer"
+fi
+AC_ARG_WITH(mixer-prefix,
+[  --with-mixer-prefix=PFX   Prefix where SDL mixer is installed (optional)],
+            mixer_prefix="$withval", mixer_prefix="")
+if test x$mixer_prefix != x; then
+    CFLAGS="$CFLAGS -I$mixer_prefix/include"
+    LIBS="$LIBS -I$mixer_prefix/lib"
+fi
 
 dnl Add the parent directory for sub-make
 CFLAGS="$CFLAGS -I.. -DNOCONTROLS"
