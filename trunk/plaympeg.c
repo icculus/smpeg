@@ -65,6 +65,7 @@ void usage(char *argv0)
 "	--fullscreen	     Play MPEG in fullscreen mode\n"
 "	--double or -2	     Play MPEG at double size\n"
 "	--loop or -l	     Play MPEG over and over\n"
+"	--bilinear	     Use software bilinear filtering\n"
 "	--volume N or -v N   Set audio volume to N (0-100)\n"
 "	--scale wxh or -s wxh  Play MPEG at given resolution\n"
 "	--seek N or -S N     Skip N bytes\n"
@@ -470,6 +471,7 @@ int main(int argc, char *argv[])
     int volume;
     Uint32 seek;
     float skip;
+    int bilinear_filtering;
     SDL_Surface *screen;
     SMPEG *mpeg;
     SMPEG_Info info;
@@ -490,6 +492,7 @@ int main(int argc, char *argv[])
     volume = 100;
     seek = 0;
     skip = 0;
+    bilinear_filtering = 0;
     fd = 0;
     for ( i=1; argv[i] && (argv[i][0] == '-') && (argv[i][1] != 0); ++i ) {
         if ( (strcmp(argv[i], "--noaudio") == 0) ||
@@ -507,6 +510,9 @@ int main(int argc, char *argv[])
         } else
         if ((strcmp(argv[i], "--loop") == 0) || (strcmp(argv[i], "-l") == 0)) {
             loop_play = 1;
+        } else
+        if ( strcmp(argv[i], "--bilinear") == 0 ) {
+            bilinear_filtering = 1;
         } else
         if ((strcmp(argv[i], "--seek") == 0)||(strcmp(argv[i], "-S") == 0)) {
             ++i;
@@ -627,6 +633,15 @@ int main(int argc, char *argv[])
         SMPEG_enableaudio(mpeg, use_audio);
         SMPEG_enablevideo(mpeg, use_video);
         SMPEG_setvolume(mpeg, volume);
+
+        /* Enable software bilinear filtering, if desired */
+        if ( bilinear_filtering ) {
+            SMPEG_Filter *filter;
+
+            filter = SMPEGfilter_bilinear();
+            filter = SMPEG_filter( mpeg, filter );
+            filter->destroy(filter);
+        }
 
         /* Print information about the video */
         basefile = strrchr(argv[i], '/');
