@@ -6,6 +6,7 @@
 								
 
 Written by Karl Robillard and Sam Lantinga, Loki Entertainment Software.
+Streaming MPEG support contributed by Vivien Chappelier.
 
 
 SMPEG is a free MPEG1 video player library with sound support.  Video playback
