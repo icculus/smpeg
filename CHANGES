@@ -1,4 +1,8 @@
 0.4.1:
+Jens Vaasjo, Sam Lantinga, Nicholas Vining - Thu Aug  3 16:49:40 PDT 2000
+ * Modified glmovie to do fullscreen hardware accelerated display
+David Hedbor - Wed Aug  2 14:08:20 PDT 2000
+ * Minor smpeg-config fixes for Solaris
 Sam Lantinga - Wed Jun 21 14:58:24 PDT 2000
  * The MMX idct code resulted in much less quality, so disabled by default
 Sam Lantinga - Thu Jun 15 00:07:33 PDT 2000

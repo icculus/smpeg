@@ -79,14 +79,14 @@ void glmovie_draw( GLubyte* frame )
 			 frame );
 
 	glBegin( GL_QUADS );
-	glTexCoord2f( 0.0, 0.0 );
-	glVertex2i( 0, 0 );
-	glTexCoord2f( 0.0, 1.0 );
-	glVertex2i( 0, textures[0].poly_height );
-	glTexCoord2f( 1.0, 1.0 );
-	glVertex2i( textures[0].poly_width, textures[0].poly_height );
-	glTexCoord2f( 1.0, 0.0 );
-	glVertex2i( textures[0].poly_width, 0 );
+	glTexCoord2f( textures[0].offset_x/256.0, textures[0].offset_y/256.0 );
+	glVertex2i( 0.0f, 0.0f );
+	glTexCoord2f( textures[0].offset_x/256.0, 1.0-(textures[0].offset_y/256.0));
+	glVertex2i( 0, 255 );
+	glTexCoord2f( 1.0, 1.0f-(textures[0].offset_y/256.0f));
+	glVertex2i( 256, 255 );
+	glTexCoord2f( 1.0, textures[0].offset_y/256.0f );
+	glVertex2i( 256, 0 );
 	glEnd( );
 
 	glBindTexture( GL_TEXTURE_2D, textures[1].id );
@@ -103,15 +103,16 @@ void glmovie_draw( GLubyte* frame )
 			 frame );
 
 	glBegin( GL_QUADS );
-	glTexCoord2f( 0.0, 0.0 );
-	glVertex2i( textures[0].poly_width, 0 );
-	glTexCoord2f( 0.0, 1.0 );
-	glVertex2i( textures[0].poly_width, textures[1].poly_height );
-	glTexCoord2f( 1.0, 1.0 );
-	glVertex2i( textures[0].poly_width + textures[1].poly_width, textures[1].poly_height );
-	glTexCoord2f( 1.0, 0.0 );
-	glVertex2i( textures[0].poly_width + textures[1].poly_width, 0 );
+	glTexCoord2f( 0.001f, textures[1].offset_y/256.0 );
+	glVertex2i( 255, 0.0f );
+	glTexCoord2f( 0.001f, 1.0-(textures[1].offset_y/256.0));
+	glVertex2i( 255, 255 );
+	glTexCoord2f( 1.0-(textures[0].offset_x/256.0), 1.0f-(textures[1].offset_y/256.0f));
+	glVertex2i( 511, 255 );
+	glTexCoord2f( 1.0-(textures[0].offset_x/256.0), textures[1].offset_y/256.0f );
+	glVertex2i( 511, 0 );
 	glEnd( );
+
     } else {
 	/* PENDING - implement me. */
 	return;
@@ -129,7 +130,7 @@ void glmovie_draw( GLubyte* frame )
  */
 void glmovie_resize( GLuint width, GLuint height )
 {
-    glViewport( ( width - tiled_width ) / 2, ( height - tiled_height ) / 2, tiled_width, tiled_height );
+    glViewport( 0, 0, width, height );
     glMatrixMode( GL_PROJECTION );
     glLoadIdentity( );
     gluOrtho2D( 0, tiled_width, tiled_height, 0 );
@@ -202,8 +203,8 @@ GLenum glmovie_init( GLuint width, GLuint height )
     /* Initial black texels. */
     GLubyte* pixels;
     /* Absolute offsets from within tiled frame. */
-    GLuint offset_x;
-    GLuint offset_y;
+    GLuint offset_x = 0;
+    GLuint offset_y = 0;
     GLuint i;
 
     /* Save original movie dimensions. */
@@ -232,6 +233,7 @@ GLenum glmovie_init( GLuint width, GLuint height )
     /* Time for fun with data structures. */
     glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
     glEnable( GL_TEXTURE_2D );
+    glEnable( GL_DITHER );
     texture_ids = (GLuint*) malloc( sizeof( GLuint ) * num_texture_rows * num_texture_cols );
 
     if( !texture_ids ) {
@@ -288,8 +290,8 @@ GLenum glmovie_init( GLuint width, GLuint height )
 	    glTexEnvf( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL );
 	    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP );
 	    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );
-	    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
-	    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+	    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+	    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
 
 	    /* Specify our 256x256 black texture. */
 	    glTexImage2D( GL_TEXTURE_2D,

@@ -54,12 +54,12 @@ GTK_PLAYER = gtv
 else
 GTK_PLAYER =
 endif
-if HAVE_MESA
-MESA_PLAYER = glmovie
+if HAVE_OPENGL
+OPENGL_PLAYER = glmovie
 else
-MESA_PLAYER =
+OPENGL_PLAYER =
 endif
-bin_PROGRAMS = plaympeg $(GTK_PLAYER) $(MESA_PLAYER)
+bin_PROGRAMS = plaympeg $(GTK_PLAYER) $(OPENGL_PLAYER)
 
 # Sources for plaympeg
 man_MANS = plaympeg.1 gtv.1
@@ -72,7 +72,7 @@ gtv_LDADD = @GTK_LIBS@ libsmpeg.la
 
 # Sources for glmovie
 glmovie_SOURCES = glmovie-tile.c glmovie.c glmovie.h
-glmovie_LDADD = -lGL -lGLU libsmpeg.la
+glmovie_LDADD = @GL_LIBS@ libsmpeg.la
 
 
 # Rule to build tar-gzipped distribution package

@@ -64,9 +64,9 @@ void usage(char *argv0)
 "	--loop or -l	     Play MPEG over and over\n"
 "	--volume N or -v N   Set audio volume to N (0-100)\n"
 "	--scale wxh or -s wxh  Play MPEG at given resolution\n"
-"       --seek N or -S N     Skip N bytes\n"
+"	--seek N or -S N     Skip N bytes\n"
 #ifdef USE_SYSTEM_TIMESTAMP
-"       --skip N or -k N     Skip N seconds\n"
+"	--skip N or -k N     Skip N seconds\n"
 #endif
 "	--help or -h\n"
 "	--version or -V\n"

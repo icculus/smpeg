@@ -48,7 +48,7 @@ while test $# -gt 0; do
       if [ "`uname`" = "SunOS" ]; then
         libdirs="-L@libdir@ -R@libdir@"
       else
-        libdirs="-L@libdir@"
+        libdirs="-L@libdir@ @SMPEG_RLD_FLAGS@"
       fi
       echo $libdirs -lsmpeg `sdl-config --libs`
       ;;

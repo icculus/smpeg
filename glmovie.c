@@ -11,56 +11,42 @@
 #include <unistd.h>
 #include "glmovie.h"
 
-/* SDL 1.1 and newer has native OpenGL support */
-#if (SDL_MAJOR_VERSION > 1) || (SDL_MINOR_VERSION >= 1)
-#define SDL_HAS_OPENGL
-#else
-#include <GL/glx.h>
-#endif
-
 static void glmpeg_create_window( unsigned int, unsigned int );
 static void glmpeg_update( SDL_Surface*, Sint32, Sint32, Uint32, Uint32 );
-
-#ifndef SDL_HAS_OPENGL
-static Display* display = NULL;
-static Window window = 0;
-#endif
 
 int main( int argc, char* argv[] )
 {
     SMPEG* mpeg;
     SMPEG_Info mpeg_info;
+    SDL_Surface* screen;
     SDL_Surface* surface;
-    GLuint window_height;
-    GLuint window_width;
 
     if( argc < 2 ) {
-	fprintf( stderr, "glmpeg-test: I need a file here, damnit!\n" );
+	fprintf( stderr, "Usage: %s file.mpg\n", argv[0]);
 	return 1;
     }
 
-#ifndef SDL_HAS_OPENGL
-    display = XOpenDisplay( NULL );
-#endif
-
     if( SDL_Init( SDL_INIT_VIDEO | SDL_INIT_AUDIO ) < 0 ) {
-	fprintf( stderr, "glmpeg-test: I couldn't initizlize SDL (shrug)\n" );
+	fprintf( stderr, "glmovie: I couldn't initizlize SDL (shrug)\n" );
 	return 1;
     }
 
     mpeg = SMPEG_new( argv[1], &mpeg_info, 1 );
-
     if( !mpeg ) {
-	fprintf( stderr, "glmpeg-test: I'm not so sure about this %s file...\n", argv[1] );
+	fprintf( stderr, "glmovie: I'm not so sure about this %s file...\n", argv[1] );
+        SDL_Quit();
 	return 1;
     }
 
-    window_width = glmovie_next_power_of_2( mpeg_info.width );
-    window_height = glmovie_next_power_of_2( mpeg_info.height );
-    glmpeg_create_window( 640, 480 );
-#ifndef SDL_HAS_OPENGL
-    XMapWindow( display, window );
-#endif
+    /* Grab the mouse and input and set the video mode */
+    SDL_ShowCursor(0);
+    SDL_WM_GrabInput(SDL_GRAB_ON);
+    screen = SDL_SetVideoMode(640, 480, 0, SDL_OPENGL|SDL_FULLSCREEN);
+    if ( !screen ) {
+	fprintf( stderr, "glmovie: Couldn't set 640x480 GL vide mode\n", SDL_GetError());
+        SDL_Quit();
+        return 1;
+    }
 
     /* Everything needs to be in RGB for GL, but needs to be 32-bit for SMPEG. */
     surface = SDL_AllocSurface( SDL_SWSURFACE,
@@ -73,27 +59,45 @@ int main( int argc, char* argv[] )
 				0xFF000000 );
 
     if( !surface ) {
-	fprintf( stderr, "glmpeg-test: I couldn't make a surface (boo hoo)\n" );
+	fprintf( stderr, "glmovie: I couldn't make a surface (boo hoo)\n" );
+        SDL_Quit();
 	exit( 1 );
     }
 
     /* *Initialize* with mpeg size. */
-    if( glmovie_init( mpeg_info.width, mpeg_info.height ) != GL_NO_ERROR ) {
-	fprintf( stderr, "glmpeg-test: glmovie_init() failed!\n" );
+    if ( glmovie_init( mpeg_info.width, mpeg_info.height ) != GL_NO_ERROR ) {
+	fprintf( stderr, "glmovie: glmovie_init() failed!\n" );
+        SDL_Quit();
 	exit( 1 );
     }
 
     /* *Resize* with window size. */
-    glmovie_resize( 640, 480 );
+    glmovie_resize( screen->w, screen->h );
     SMPEG_setdisplay( mpeg, surface, NULL, glmpeg_update );
     SMPEG_play( mpeg );
 
     while( SMPEG_status( mpeg ) == SMPEG_PLAYING ) {
-	sleep( 1 );
+        SDL_Event event;
+
+        while ( SDL_PollEvent(&event) ) {
+            switch (event.type) {
+              case SDL_KEYDOWN:
+                if ( event.key.keysym.sym == SDLK_ESCAPE ) {
+                    SMPEG_stop( mpeg );
+                }
+                break;
+              case SDL_MOUSEBUTTONDOWN:
+              case SDL_QUIT:
+                SMPEG_stop( mpeg );
+                break;
+            }
+        }
+        SDL_Delay(100);
     }
 
     glmovie_quit( );
 
+    SDL_Quit();
     return 0;
 }
 
@@ -106,62 +110,10 @@ static void glmpeg_update( SDL_Surface* surface, Sint32 x, Sint32 y, Uint32 w, U
     error = glGetError( );
 
     if( error != GL_NO_ERROR ) {
-	fprintf( stderr, "glmpeg-test: GL error: %s\n", gluErrorString( error ) );
+	fprintf( stderr, "glmovie: GL error: %s\n", gluErrorString( error ) );
 	exit( 1 );
     }
 
-#ifdef SDL_HAS_OPENGL
     SDL_GL_SwapBuffers();
-#else
-    glXSwapBuffers( display, window );
-#endif
 }
 
-static void glmpeg_create_window( unsigned int width, unsigned int height )
-{
-#ifdef SDL_HAS_OPENGL
-    SDL_SetVideoMode(width, height, 0, SDL_OPENGL);
-#else
-    int screen;
-    Window root;
-    int glx_attributes[] = { GLX_RGBA,
-			     GLX_RED_SIZE, 1,
-			     GLX_GREEN_SIZE, 1,
-			     GLX_BLUE_SIZE, 1,
-			     GLX_DOUBLEBUFFER,
-			     None };
-    XVisualInfo* visual_info;
-    XSetWindowAttributes attributes;
-    unsigned long mask;
-    GLXContext context;
-
-    screen = DefaultScreen( display );
-    root = RootWindow( display, screen );
-    visual_info = glXChooseVisual( display, screen, glx_attributes );
-
-    if( !visual_info ) {
-	fprintf( stderr, "glmpeg: could not allocate Visual, exiting\n" );
-	exit( 1 );
-    }
-
-    attributes.background_pixel = 0;
-    attributes.border_pixel = 0;
-    attributes.colormap = XCreateColormap( display, root, visual_info->visual, AllocNone );
-    attributes.event_mask = StructureNotifyMask | ExposureMask;
-    mask = CWBackPixel | CWBorderPixel | CWColormap | CWEventMask;
-
-    window = XCreateWindow( display,
-			    root,
-			    0, 0,
-			    width, height,
-			    0,
-			    visual_info->depth,
-			    InputOutput,
-			    visual_info->visual,
-			    mask,
-			    &attributes );
-
-    context = glXCreateContext( display, visual_info, NULL, True );
-    glXMakeCurrent( display, window, context );
-#endif
-}
