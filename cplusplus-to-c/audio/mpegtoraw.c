@@ -397,7 +397,6 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
     long copylen;
     int mixed = 0;
 
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  conflict name in popcorn */
     /* Bail if audio isn't playing */
     if ( MPEGaudio_GetStatus(audio) != MPEG_PLAYING ) {
         return(0);
@@ -478,14 +477,12 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
         copylen = (audio->rawdatawriteoffset-audio->rawdatareadoffset);
         assert(copylen >= 0);
         if ( copylen >= len ) {
-            SDL_MixAudio(stream, (Uint8 *)&audio->spillover[audio->rawdatareadoffset],
-                                                       len*2, volume);
+            SDL_MixAudio(stream, (Uint8 *)&audio->spillover[audio->rawdatareadoffset], len*2, volume);
             mixed += len*2;
             audio->rawdatareadoffset += len;
             goto finished_mixing;
         }
-        SDL_MixAudio(stream, (Uint8 *)&audio->spillover[audio->rawdatareadoffset],
-                                                       copylen*2, volume);
+        SDL_MixAudio(stream, (Uint8 *)&audio->spillover[audio->rawdatareadoffset], copylen*2, volume);
         mixed += copylen*2;
         len -= copylen;
         stream += copylen*2;
