@@ -24,6 +24,7 @@
 
 #include "SDL.h"
 #include "SDL_mutex.h"
+#include "SDL_audio.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,8 +60,11 @@ typedef void(*SMPEG_DisplayCallback)(SDL_Surface* dst, int x, int y,
    about the MPEG object.
    This function returns a new SMPEG object.  Use SMPEG_error() to find out
    whether or not there was a problem building the MPEG stream.
+   The sdl_audio parameter indicates if SMPEG should initialize the SDL audio
+   subsystem. If not, you will have to use the SMPEG_playaudio() function below
+   to extract the decoded data.
  */
-extern SMPEG* SMPEG_new(const char *file, SMPEG_Info* info);
+extern SMPEG* SMPEG_new(const char *file, SMPEG_Info* info, int sdl_audio);
 
 /* Get current information about an SMPEG object */
 extern void SMPEG_getinfo( SMPEG* mpeg, SMPEG_Info* info );
@@ -121,6 +125,16 @@ extern void SMPEG_renderFinal( SMPEG* mpeg, SDL_Surface* dst, int x, int y );
 */
 extern char *SMPEG_error( SMPEG* mpeg );
 
+/* Exported callback function for SDL audio playback.
+   The data parameter must be a pointer to the SMPEG object, casted to void *.
+*/
+extern void SMPEG_playAudio( void *mpeg, Uint8 *stream, int len );
+
+/* Get the best SDL audio spec for the audio stream */
+extern int SMPEG_wantedSpec( SMPEG *mpeg, SDL_AudioSpec *wanted );
+
+/* Inform SMPEG of the actual SDL audio spec used for sound playback */
+extern void SMPEG_actualSpec( SMPEG *mpeg, SDL_AudioSpec *spec );
 
 #ifdef __cplusplus
 };

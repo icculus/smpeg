@@ -45,7 +45,7 @@
  */
 class MPEG : public MPEGstream, public MPEGaudioaction,public MPEGvideoaction {
 public:
-    MPEG(Uint8 *Mpeg, Uint32 Size, Uint8 StreamID = 0) :
+    MPEG(Uint8 *Mpeg, Uint32 Size, Uint8 StreamID = 0, bool sdlaudio = true) :
                         MPEGstream(Mpeg, Size, StreamID) {
         audiostream = NULL; audio = NULL; audioaction = NULL;
         audioaction_enabled = false;
@@ -90,7 +90,7 @@ public:
         }
         if ( streamid == AUDIO_STREAMID ) {
             audiostream = this;
-            audio = new MPEGaudio(audiostream);
+            audio = new MPEGaudio(audiostream, sdlaudio);
             audioaction = audio;
             audioaction_enabled = true;
         } else
@@ -225,6 +225,20 @@ public:
             return(audioaction->Volume(vol));
         }
     }
+	bool WantedSpec(SDL_AudioSpec *wanted) {
+		if( AudioEnabled() && audio ) {
+			return(audio->WantedSpec(wanted));
+		}
+		return(false);
+	}
+	void ActualSpec(const SDL_AudioSpec *actual) {
+		if( AudioEnabled() && audio ) {
+			audio->ActualSpec(actual);
+		}
+	}
+	MPEGaudio *GetAudio(void) { // Simple accessor used in the C interface
+		return audio;
+	}
 
     /* MPEG video actions */
     bool GetVideoInfo(MPEG_VideoInfo *info) {
@@ -266,6 +280,7 @@ protected:
 public:
     MPEG *audiostream;
     MPEG *videostream;
+
 protected:
     MPEGaudio *audio;
     MPEGvideo *video;
@@ -285,15 +300,15 @@ protected:
 class MPEGfile : public MPEGerror,
                  public MPEGaudioaction, public MPEGvideoaction {
 public:
-    MPEGfile(const char *file) {
+    MPEGfile(const char *file, bool sdlaudio = true) {
         FILE *newfp;
         newfp = fopen(file, "rb");
-        Init(newfp, true);
+        Init(newfp, true, sdlaudio);
     }
     MPEGfile(FILE *MPEG_fp, bool autoclose = false) {
         Init(MPEG_fp, autoclose);
     }
-    void Init(FILE *MPEG_fp, bool autoclose) {
+    void Init(FILE *MPEG_fp, bool autoclose, bool sdlaudio = true) {
         /* Initialize everything to invalid values for cleanup */
         mpeg_fp = MPEG_fp;
         mpeg_area = (caddr_t)-1;
@@ -310,7 +325,7 @@ public:
                 mpeg_area = mmap(NULL, mpeg_size, PROT_READ, MAP_SHARED,
                                                      fileno(mpeg_fp), 0);
                 if ( mpeg_area != (caddr_t)-1 ) {
-                    mpeg = new MPEG((Uint8 *)mpeg_area, mpeg_size);
+                    mpeg = new MPEG((Uint8 *)mpeg_area, mpeg_size, 0, sdlaudio);
                     if ( mpeg->WasError() ) {
                         SetError(mpeg->TheError());
                         delete mpeg;
@@ -397,7 +412,16 @@ public:
             return(mpeg->Volume(vol));
         }
     }
-
+	bool WantedSpec(SDL_AudioSpec *wanted) {
+		if( mpeg ) {
+			return(mpeg->WantedSpec(wanted));
+		}
+	}
+	void ActualSpec(const SDL_AudioSpec *actual) {
+		if( mpeg ) {
+			mpeg->ActualSpec(actual);
+		}
+	}
     /* MPEG video actions */
     bool GetVideoInfo(MPEG_VideoInfo *info) {
         if ( mpeg ) {

@@ -32,7 +32,7 @@ USEMATH=true
 #USE_MIXER = true
 
 # This library hooks into the mixer library
-MIXER = ../mixer	# The location of the SDL mixer example library
+#MIXER = ../SDL-demos/mixer	# The location of the SDL mixer example library
 
 # Get the list of objects
 HDRS = -I. -Iaudio -Ivideo

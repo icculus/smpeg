@@ -38,13 +38,13 @@ struct _SMPEG {
    about the MPEG object.
    This function returns a new SMPEG object, or NULL if there was an error.
  */
-SMPEG* SMPEG_new(const char *file, SMPEG_Info* info)
+SMPEG* SMPEG_new(const char *file, SMPEG_Info* info, int sdl_audio)
 {
     SMPEG *mpeg;
 
     /* Create a new SMPEG object! */
     mpeg = new SMPEG;
-    mpeg->obj = new MPEGfile(file);
+    mpeg->obj = new MPEGfile(file, sdl_audio);
 
     /* Find out the details of the stream, if requested */
     SMPEG_getinfo(mpeg, info);
@@ -184,6 +184,25 @@ void SMPEG_renderFinal( SMPEG* mpeg, SDL_Surface* dst, int x, int y )
     mpeg->obj->RenderFinal(dst, x, y);
 }
 
+/* Exported function for SDL audio playback */
+void SMPEG_playAudio(void *udata, Uint8 *stream, int len)
+{
+    MPEGaudio *audio = ((SMPEG *)udata)->obj->mpeg->GetAudio();
+	Play_MPEGaudio(audio, stream, len);
+}
+
+/* Get the best SDL audio spec for the audio stream */
+int SMPEG_wantedSpec( SMPEG *mpeg, SDL_AudioSpec *wanted )
+{
+	return (int)mpeg->obj->WantedSpec(wanted);
+}
+
+/* Inform SMPEG of the actual SDL audio spec used for sound playback */
+void SMPEG_actualSpec( SMPEG *mpeg, SDL_AudioSpec *spec )
+{
+	mpeg->obj->ActualSpec(spec);
+}
+
 /* Return NULL if there is no error in the MPEG stream, or an error message
    if there was a fatal error in the MPEG stream for the SMPEG object.
 */
@@ -197,6 +216,7 @@ char *SMPEG_error( SMPEG* mpeg )
     }
     return(error);
 }
+
 
 /* Extern "C" */
 };
