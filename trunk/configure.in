@@ -48,6 +48,14 @@ AC_PROG_CXX
 AM_PROG_LIBTOOL
 AC_PROG_INSTALL
 
+dnl The alpha architecture needs special flags for binary portability
+AC_CANONICAL_TARGET
+case "$target" in
+    alpha*-*-linux*)
+        CFLAGS="$CFLAGS -mcpu=ev4 -Wa,-mall"
+        ;;
+esac
+
 dnl SMPEG uses mmap() for file loading:
 AC_FUNC_MMAP
 if test x$ac_cv_func_mmap_fixed_mapped != xyes; then
@@ -103,6 +111,9 @@ AM_CONDITIONAL(HAVE_MESA, test x$have_gl = xyes -a x$have_glu = xyes)
 
 dnl C++ flags are the same as the C flags
 CXXFLAGS="$CFLAGS"
+if test x$compiler_rtti_exceptions = xyes; then
+    CXXFLAGS="$CXXFLAGS -fno-exceptions -fno-rtti"
+fi
 
 # Finally create all the generated files
 AC_OUTPUT([

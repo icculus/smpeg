@@ -291,7 +291,7 @@ protected:
 };
 
 /* This class is system dependent in the way it uses memory mapping */
-#ifdef unix
+#if HAVE_MMAP
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -471,6 +471,8 @@ protected:
 public:
     MPEG *mpeg;
 };
+#else
+#error Non-mmap implementation not completed
 #endif /* unix */
 
 #endif /* _MPEG_H_ */
