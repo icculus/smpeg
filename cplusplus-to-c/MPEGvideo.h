@@ -39,7 +39,7 @@ typedef struct vid_stream VidStream;
 typedef double TimeStamp;
 
 typedef struct {
-    MPEGstream *mpeg;
+    struct MPEGstream *mpeg;
 
     VidStream *_stream;
     SDL_Surface *_dst;
@@ -59,8 +59,8 @@ typedef struct {
     SMPEG_Filter *_filter; // pointer to the current filter used
     SDL_mutex *_filter_mutex; // make sure the filter is not changed while being used
 
-    MPEGerror *err;
-    MPEGvideoaction *act;
+    struct MPEGerror *MPEGerror;
+    struct MPEGvideoaction *MPEGvideoaction;
 } MPEGvideo;
 
 /* Thread to play the video asynchronously */
@@ -70,8 +70,8 @@ int Play_MPEGvideo(void *udata);
 VidStream *mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first );
 int get_more_data( VidStream* vid_stream );
 
-MPEGvideo *MPEGvideo_create(MPEGstream *stream);
-MPEGvideo *MPEGvideo_destroy(MPEGvideo *self);
+struct MPEGvideo *MPEGvideo_create(struct MPEGstream *stream);
+struct MPEGvideo *MPEGvideo_destroy(struct MPEGvideo *self);
 
 /* MPEG actions */
 void MPEGvideo_Play(MPEGvideo *self);

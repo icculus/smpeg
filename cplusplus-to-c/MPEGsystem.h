@@ -10,7 +10,13 @@
 #include "SDL_thread.h"
 #include "MPEGerror.h"
 
-class MPEGstream;
+
+#define bool int
+#define false 0
+#define true (!false)
+
+//class MPEGstream;
+struct MPEGstream;
 
 /* MPEG System library
    by Vivien Chappelier */
@@ -18,13 +24,13 @@ class MPEGstream;
 /* The system class is necessary for splitting the MPEG stream into */
 /* peaces of data that will be sent to the audio or video decoder.  */
 
-typedef struct {
+struct MPEGsystem {
     SDL_RWops *source;
 
     SDL_Thread * system_thread;
     bool system_thread_running;
 
-    MPEGstream ** stream_list;
+    struct MPEGstream ** stream_list;
 
     Uint8 * read_buffer;
     Uint8 * pointer;
@@ -32,7 +38,7 @@ typedef struct {
     Uint32 read_total;
     Uint32 packet_total;
     int request;
-    SDL_semaphore * request_wait;
+    struct SDL_semaphore * request_wait;
     SDL_mutex * system_mutex;
 
     bool endofstream;
@@ -41,15 +47,18 @@ typedef struct {
     double frametime;
     double stream_timestamp;
 
-    MPEGerror *err;
-
 #ifdef USE_SYSTEM_TIMESTAMP
     /* Current timestamp for this stream */
     double timestamp;
     double timedrift;
     double skip_timestamp;
 #endif
-} MPEGsystem;
+
+    struct MPEGerror *MPEGerror;
+};
+
+typedef struct MPEGsystem MPEGsystem;
+
 
 MPEGsystem *MPEGsystem_create();
 MPEGsystem *MPEGsystem_create_rwops(SDL_RWops *mpeg_source);
@@ -62,7 +71,7 @@ Uint32 MPEGsystem_Tell(MPEGsystem *self);
 void MPEGsystem_Rewind(MPEGsystem *self);
 void MPEGsystem_Start(MPEGsystem *self);
 void MPEGsystem_Stop(MPEGsystem *self);
-bool MPEGsystem_Eof(MPEGsystem *self) const;
+bool MPEGsystem_Eof(MPEGsystem *self); // const;
 bool MPEGsystem_Seek(MPEGsystem *self, int length);
 Uint32 MPEGsystem_TotalSize(MPEGsystem *self);
 double MPEGsystem_TotalTime(MPEGsystem *self);
@@ -72,13 +81,13 @@ double MPEGsystem_TimeElapsedAudio(MPEGsystem *self, int atByte);
 void MPEGsystem_Skip(MPEGsystem *self, double seconds);
 
 /* Create all the streams present in the MPEG */
-MPEGstream ** MPEGsystem_GetStreamList(MPEGsystem *self);
+struct MPEGstream ** MPEGsystem_GetStreamList(MPEGsystem *self);
 
 /* Insert a stream in the list */
-void MPEGsystem_add_stream(MPEGsystem *self, MPEGstream * stream);
+void MPEGsystem_add_stream(MPEGsystem *self, struct MPEGstream * stream);
 
 /* Search for a stream in the list */
-MPEGstream * MPEGsystem_get_stream(MPEGsystem *self, Uint8 stream_id);
+struct MPEGstream * MPEGsystem_get_stream(MPEGsystem *self, Uint8 stream_id);
 
 /* Test if a stream is in the list */
 Uint8 MPEGsystem_exist_stream(MPEGsystem *self, Uint8 stream_id, Uint8 mask);
