@@ -1,5 +1,100 @@
 *************************************************************************
 *** Applied ***
+Date: Mon, 12 Jun 2000 03:39:24 +0900
+From: Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
+Subject: Re: smpeg patch (frame count fix after seeking)
+
+
+Oops. I found bug in my patch.
+
+in gtv 
+  Play -> Pause -> Seek -> Step -> Hang...(Oh My God !!!)
+
+fix patch attached. 
+
+thanks & sorry.
+-----------------------------------------------
+Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
+
+Index: MPEG.cpp
+===================================================================
+RCS file: /home/ncvs/smpeg/MPEG.cpp,v
+retrieving revision 1.1.1.3
+diff -u -r1.1.1.3 MPEG.cpp
+--- MPEG.cpp	2000/06/06 06:53:35	1.1.1.3
++++ MPEG.cpp	2000/06/11 17:37:32
+@@ -334,6 +334,9 @@
+   if (was_playing)
+     Play();
+ 
++  if (VideoEnabled() && !was_playing) 
++    videoaction->RenderFrame(0);
++
+   if ( pause && VideoEnabled() ) {
+     videoaction->Pause();
+   }
+Index: gtv.c
+===================================================================
+RCS file: /home/ncvs/smpeg/gtv.c,v
+retrieving revision 1.1.1.4
+diff -u -r1.1.1.4 gtv.c
+--- gtv.c	2000/06/10 09:04:50	1.1.1.4
++++ gtv.c	2000/06/11 17:48:04
+@@ -744,6 +744,8 @@
+       
+       SMPEG_seek(mpeg, (int)((info->total_size*adjust->value)/100));
+     }
++    SMPEG_getinfo( mpeg, info );
++    gtv_set_frame( raw, info->current_frame );
+ }
+ 
+ static void gtv_trackbar_drag_on(GtkWidget *widget, gpointer raw)
+Index: video/MPEGvideo.cpp
+===================================================================
+RCS file: /home/ncvs/smpeg/video/MPEGvideo.cpp,v
+retrieving revision 1.1.1.3
+diff -u -r1.1.1.3 MPEGvideo.cpp
+--- video/MPEGvideo.cpp	2000/06/10 09:04:51	1.1.1.3
++++ video/MPEGvideo.cpp	2000/06/11 17:59:54
+@@ -463,6 +463,19 @@
+ void
+ MPEGvideo:: RenderFrame( int frame )
+ {
++
++   if (_stream->need_frameadjust) {
++      _stream->_jumpFrame=0;
++      while(_stream->need_frameadjust) {
++        mpegVidRsrc(0, _stream, 0);
++#ifdef DEBUG
++        printf("Adjusting Frame %d Timecode %f\n",_stream->totNumFrames,_stream->timestamp);
++#endif
++      }
++      _stream->_jumpFrame=-1;
++      return;
++   }
++
+     if( _stream->totNumFrames > frame ) {
+         mpeg->rewind_stream();
+ 	mpeg->next_packet();
+Index: video/video.cpp
+===================================================================
+RCS file: /home/ncvs/smpeg/video/video.cpp,v
+retrieving revision 1.1.1.4
+retrieving revision 1.1.1.4.4.1
+diff -u -r1.1.1.4 -r1.1.1.4.4.1
+--- video/video.cpp	2000/06/10 09:04:53	1.1.1.4
++++ video/video.cpp	2000/06/11 17:35:06	1.1.1.4.4.1
+@@ -1093,6 +1093,7 @@
+ 		vid_stream->group.tc_seconds * vid_stream->rate_deal +
+ 		vid_stream->group.tc_pictures);
+ 		vid_stream->need_frameadjust=false;
++		vid_stream->totNumFrames=vid_stream->current_frame;
+ #if 0
+ 	printf("Adjusted Frame %d -> %d\n",prev,vid_stream->current_frame);
+ #endif
+
+*************************************************************************
+*** Applied ***
 Date: Fri, 09 Jun 2000 22:46:21 +0200
 From: Vivien Chappelier <vivien.chappelier@enst-bretagne.fr>
 Subject: Re: Buffering problems

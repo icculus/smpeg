@@ -334,6 +334,9 @@ void MPEG::Seek(int position)
   if (was_playing)
     Play();
 
+  if (VideoEnabled() && !was_playing) 
+    videoaction->RenderFrame(0);
+
   if ( pause && VideoEnabled() ) {
     videoaction->Pause();
   }
