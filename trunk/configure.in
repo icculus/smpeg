@@ -61,6 +61,8 @@ AC_PROG_INSTALL
 dnl Ugh.
 AS="$CC"
 CCAS="$CC"
+AC_SUBST(AS)
+AC_SUBST(CCAS)
 
 dnl Work around the lack of certain typedefs.
 AC_TYPE_SOCKLEN_T
