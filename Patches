@@ -1,5 +1,54 @@
 *************************************************************************
 *** Applied ***
+Date: Fri, 28 Jul 2000 16:38:43 +0900
+From: "Kevin Squire" <k-squire@uiuc.edu>
+Subject: audio bug patch...
+
+Hi there,
+
+   I was playing with the original splay source, trying to compile it
+on Windows, and I found a small bug in the audio mpeg layer 2 code which
+does not seem to be fixed in smpeg 0.4.0.  In many cases, the decode still
+works acceptably, but I found cases under Windows/Visual C++ where it
+doesn't.
+Anyway, the patch is below.  I've already forwarded it to the orignal
+author and the maintainer of splay.sourceforge.net, although I'm not sure if
+either one is doing much with splay right now.
+
+Kevin
+
+----
+Kevin Squire      k-squire@uiuc.edu
+Ph.D. Student
+Department of Electrical and Computer Engineering
+University of Illinois at Urbana-Champaign
+
+-------------------------
+--- audio/mpeglayer2.orig.cpp   Fri Jul 28 16:31:41 2000
++++ audio/mpeglayer2.cpp        Fri Jul 28 16:33:05 2000
+@@ -727,9 +727,9 @@
+          {
+            if(!group[RS][i])
+            {
+-
+fraction[RS][0][i]=(fraction[RS][0][i]+d[RS][i])*c[LS][i];
+-
+fraction[RS][1][i]=(fraction[RS][1][i]+d[RS][i])*c[LS][i];
+-
+fraction[RS][2][i]=(fraction[RS][2][i]+d[RS][i])*c[LS][i];
++
+fraction[RS][0][i]=(fraction[RS][0][i]+d[RS][i])*c[RS][i];
++
+fraction[RS][1][i]=(fraction[RS][1][i]+d[RS][i])*c[RS][i];
++
+fraction[RS][2][i]=(fraction[RS][2][i]+d[RS][i])*c[RS][i];
+            }
+
+            register REAL t=scalefactor[RS][l>>2][i];
+
+
+*************************************************************************
+*** Applied ***
 Date: 30 Jun 2000 15:40:51 -0700
 From: David Hedbor <david@hedbor.org>
 To: Sam Lantinga <slouken@devolution.com>

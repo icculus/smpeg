@@ -727,9 +727,9 @@ void MPEGaudio::extractlayer2(void)
 	  {
 	    if(!group[RS][i])
 	    {
-	      fraction[RS][0][i]=(fraction[RS][0][i]+d[RS][i])*c[LS][i];
-	      fraction[RS][1][i]=(fraction[RS][1][i]+d[RS][i])*c[LS][i];
-	      fraction[RS][2][i]=(fraction[RS][2][i]+d[RS][i])*c[LS][i];
+	      fraction[RS][0][i]=(fraction[RS][0][i]+d[RS][i])*c[RS][i];
+	      fraction[RS][1][i]=(fraction[RS][1][i]+d[RS][i])*c[RS][i];
+	      fraction[RS][2][i]=(fraction[RS][2][i]+d[RS][i])*c[RS][i];
 	    }
 
 	    register REAL t=scalefactor[RS][l>>2][i];
