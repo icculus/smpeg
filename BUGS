@@ -1,0 +1,3 @@
+
+* Some MP3 files have strange audio artifacts on big-endian systems
+* If you don't have a sound card, you need to use --nosound for plaympeg
