@@ -474,8 +474,8 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
     } else {
         audio->rawdatareadoffset = 0;
     }
-#endif
 finished_mixing:
+#endif
     return(mixed);
 }
 void Play_MPEGaudioSDL(void *udata, Uint8 *stream, int len)

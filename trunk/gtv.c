@@ -201,7 +201,11 @@ static void gtv_center_window(SDL_Surface *screen)
             info.info.x11.unlock_func();
         }
 #else
+#ifdef WIN32
+	/* FIXME: implement centering code for Windows */
+#else
 #warning Need to implement these functions for other systems
+#endif // WIN32
 #endif // unix
     }
 }
@@ -563,6 +567,8 @@ static void gtv_double( GtkWidget* item, gpointer raw )
 	}
 	sdl_screen = SDL_SetVideoMode(width, height,
 		sdl_screen->format->BitsPerPixel,sdl_screen->flags);
+        gtv_center_window(sdl_screen);
+	SMPEG_setdisplay( mpeg, sdl_screen, NULL, NULL );
 	
 	gtk_object_set_data( GTK_OBJECT( raw ), "sdl_screen", sdl_screen );
 	SMPEG_scaleXY( mpeg, sdl_screen->w, sdl_screen->h );
@@ -882,7 +888,7 @@ static void gtv_drag_data_received(GtkWidget * widget,
             *(temp - 1) = '\0';
         *temp = '\0';
     }
-    if (!strncasecmp(string, "file:", 5))
+    if (!strncmp(string, "file:", 5))
         string = string + 5;
 
     gtv_open_file(string, widget);

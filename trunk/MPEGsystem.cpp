@@ -1016,9 +1016,9 @@ double MPEGsystem::TotalTime()
     {
     /* Otherwise search the stream backwards for a valid header */
       file_ptr -= MPEG_BUFFER_SIZE;
-      if ( file_ptr < -TotalSize() ) {
+      if ( file_ptr < -(Sint32)TotalSize() ) {
           last_chance = true;
-          file_ptr = -TotalSize();
+          file_ptr = -(Sint32)TotalSize();
       }
      
       if((size = SDL_RWseek(source, file_ptr, SEEK_END)) < 0)

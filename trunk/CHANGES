@@ -1,6 +1,8 @@
 0.4.3:
-Sam Lantinga - Wed Apr  4 17:18:22 PDT 2001
+Sam Lantinga - Thu Apr  5 01:09:43 PDT 2001
  * Updated for Simple DirectMedia Layer version 1.2.0
+Sam Lantinga - Wed Apr  4 17:18:22 PDT 2001
+ * Fixed crash in gtv when doubling the video on Windows
 Sam Lantinga - Wed Apr  4 17:18:14 PDT 2001
  * Fixed audio stream detection in non-standard MPEG streams
 Sam Lantinga - Wed Apr  4 16:42:53 PDT 2001
