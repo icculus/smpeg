@@ -362,8 +362,9 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
     long copylen;
     int mixed = 0;
 
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  conflict name in popcorn */
     /* Bail if audio isn't playing */
-    if ( audio->Status() != MPEG_PLAYING ) {
+    if ( audio->GetStatus() != MPEG_PLAYING ) {
         return(0);
     }
     volume = audio->volume;

@@ -1,6 +1,8 @@
 /*
     SMPEG - SDL MPEG Player Library
     Copyright (C) 1999  Loki Entertainment Software
+    
+    - Modified by Michel Darricau from eProcess <mdarricau@eprocess.fr>  for popcorn -
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -56,7 +58,8 @@ public:
     void Rewind(void);
     void ResetSynchro(double time);
      void Skip(float seconds);
-    MPEGstatus Status(void);
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name in popcorn */
+    MPEGstatus GetStatus(void);
 
     /* MPEG video actions */
     bool GetVideoInfo(MPEG_VideoInfo *info);

@@ -1,6 +1,8 @@
 /*
     SMPEG - SDL MPEG Player Library
     Copyright (C) 1999  Loki Entertainment Software
+    
+    - Modified by Michel Darricau from eProcess <mdarricau@eprocess.fr>  for popcorn -
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -247,8 +249,9 @@ MPEGaudio:: Volume(int vol)
         volume = (vol*SDL_MIX_MAXVOLUME)/100;
     }
 }
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  conflict name in popcorn */
 MPEGstatus
-MPEGaudio:: Status(void)
+MPEGaudio:: GetStatus(void)
 {
     if ( valid_stream ) {
         /* Has decoding stopped because of end of stream? */

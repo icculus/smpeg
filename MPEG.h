@@ -1,6 +1,8 @@
 /*
     SMPEG - SDL MPEG Player Library
     Copyright (C) 1999  Loki Entertainment Software
+    
+    - Modified by Michel Darricau from eProcess <mdarricau@eprocess.fr>  for popcorn -
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -50,6 +52,10 @@
 class MPEG : public MPEGerror
 {
 public:
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
+    MPEG():MPEGerror(){}
+	MPEG(bool Sdlaudio, char *addresse,char *asset,long buffersize){}
+
     MPEG(const char * name, bool sdlaudio = true);
     MPEG(int Mpeg_FD, bool sdlaudio = true);
     MPEG(void *data, int size, bool sdlaudio = true);
@@ -67,13 +73,16 @@ public:
 
     /* MPEG actions */
     void Loop(bool toggle);
-    void Play(void);
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
+    virtual void Play(void);
     void Stop(void);
     void Rewind(void);
-    void Pause(void);
-    void Seek(int bytes);
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
+    virtual void Pause(void);
+    virtual void Seek(int bytes);
     void Skip(float seconds);
-    MPEGstatus Status(void);
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
+    MPEGstatus GetStatus(void);
     void GetSystemInfo(MPEG_SystemInfo *info);
 
     /* MPEG audio actions */
