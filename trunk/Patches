@@ -1,5 +1,125 @@
 *************************************************************************
 *** Applied ***
+From: C Hanish Menon <hanish@innomedia.soft.net>
+Date: Fri, 10 Dec 1999 17:04:47 +0530
+Subject: A patch to allow playing of mpeg files _having headers wrapped around them_
+
+Hi
+
+Recently I downloaded the smpeg source and tried it out.
+
+We are also working on producing a MPEG player based on the Berkeley
+mpeg code and mpg123 or Xaudio or so. Recently I was busy with some
+other stuffs so I haven't looked into this much. We have tried to
+integrate a MMX based DCT algo into the Berkely code. I or my friend
+will get back to the list regarding this in a few days time. Till know
+we were trying it only internaly.
+
+As you people are also doing this and seem to have more info on
+this.(Like we were basing most of the mpeg stream info and all based on
+the available source code.) I am thinking of using smpeg source as the
+base if possible. However I am interested in getting some of the
+optimizations we did integrated into smpeg if possible. One of us will
+get back to the list regarding this once we take a stock of what and all
+we have done till now.
+
+
+For now when I tried the smpeg code on certain files which had RIFF
+header attached to them I found that the player didn't play them. I
+didn't have the RIFF header structure immidiately at hand so I worked
+out a _quick ugly fix_ which _never the less_ allows the player to play
+these or any other mpeg file with some header structure warped on top of
+it properly. It basically searchs the begining of the file for the id.
+
+
+
+---------
+Keep :-)
+HanishKVC
+http://hanishkvc.tripod.com/
+
+--- smpeg-0.3.1/MPEG.h	Mon Nov  1 00:23:16 1999
++++ smpeg-0.3.1.new/MPEG.h	Fri Dec 10 15:31:25 1999
+@@ -307,6 +307,8 @@
+ #include <sys/mman.h>
+ #include <fcntl.h>
+ 
++#define LENGTH_TO_CHECK_FOR_SYSTEM 0x50000	// Added by HanishKVC
++
+ class MPEGfile : public MPEGerror,
+                  public MPEGaudioaction, public MPEGvideoaction {
+ public:
+@@ -319,6 +321,11 @@
+         Init(MPEG_fp, autoclose);
+     }
+     void Init(FILE *MPEG_fp, bool autoclose, bool sdlaudio = true) {
++	// Added by HanishKVC
++	Uint8 *pAreaToCheck;
++	long int iOffsetToMatch;
++        const Uint8 PACKET_START_CODE[] = { 0x00, 0x00, 0x01, 0xba };
++	// End of HanishKVC 
+         /* Initialize everything to invalid values for cleanup */
+         mpeg_fp = MPEG_fp;
+         mpeg_area = (caddr_t)-1;
+@@ -334,6 +341,56 @@
+                 mpeg_size = statb.st_size;
+                 mpeg_area = mmap(NULL, mpeg_size, PROT_READ, MAP_SHARED,
+                                                      fileno(mpeg_fp), 0);
++		// Added by HanishKVC
++		if(memcmp(mpeg_area,PACKET_START_CODE,4) == 0)
++		{
++		  printf("DebugKVC: A Normal mpeg file\n");
++		}
++		else
++		{
++		  /*
++		  mpeg_area = mpeg_area+0x113e4;
++		  mpeg_size = mpeg_size-0x113e4;
++		  if(memcmp(mpeg_area,PACKET_START_CODE,4) == 0)
++		  {
++		    printf("DebugKVC: A RIFF format mpeg file\n");
++		  }
++		  else
++		  */
++		  printf("DebugKVC: A Not so normal mpeg file\n");
++		  iOffsetToMatch = pAreaToCheck = 0;
++		  while((pAreaToCheck = 
++			(Uint8*)memchr(mpeg_area+iOffsetToMatch,0xba,
++			LENGTH_TO_CHECK_FOR_SYSTEM-iOffsetToMatch)) != NULL)
++		  {
++		    pAreaToCheck = pAreaToCheck-3;
++		    iOffsetToMatch = pAreaToCheck-mpeg_area;
++		    printf("DebugKVC: Possible Location %x\n",iOffsetToMatch);
++		    if(memcmp(pAreaToCheck,PACKET_START_CODE,4) == 0)
++		    {
++		      printf("DebugKVC: System stream found\n");
++		      mpeg_size = mpeg_size-iOffsetToMatch;
++		      mpeg_area = pAreaToCheck;
++		      break;
++		    }
++		    else
++		    {
++		      printf("DebugKVC: Sorry spurious match\n");
++		      iOffsetToMatch = iOffsetToMatch+4; 
++		      // Actually I can skip 3 more chars as 0xba is not there 
++		      // anywhere else in the PACKET_START_CODE. I may be able
++		      // to do more optimizations to search, but as this search
++		      // occurs only once at the begining and that to in a small
++		      // data space, I think this dumb way should be sufficient.
++		    }
++		  } // of while
++		  if(pAreaToCheck == NULL)
++		  {
++		    printf("DebugKVC: Sorry no system stream\n");
++		    exit(1);
++		  }
++		}
++		// End of HanishKVC
+                 if ( mpeg_area != (caddr_t)-1 ) {
+                     mpeg = new MPEG((Uint8 *)mpeg_area, mpeg_size, 0, sdlaudio);
+                     if ( mpeg->WasError() ) {
+*************************************************************************
+*** Applied ***
 Subject: A little patch for smpeg
 Date: Tue, 12 Oct 1999 23:11:05 -0500 (CDT)
 From: Moses DeJong <dejong@cs.umn.edu>

@@ -311,6 +311,8 @@ protected:
 #include <sys/mman.h>
 #include <fcntl.h>
 
+#define LENGTH_TO_CHECK_FOR_SYSTEM 0x50000	// Added by HanishKVC
+
 class MPEGfile : public MPEGerror,
                  public MPEGaudioaction, public MPEGvideoaction {
 public:
@@ -323,6 +325,11 @@ public:
         Init(MPEG_fp, autoclose);
     }
     void Init(FILE *MPEG_fp, bool autoclose, bool sdlaudio = true) {
+	// Added by HanishKVC
+	Uint8 *mpeg_start;
+	int mpeg_offset;
+        const Uint8 PACKET_START_CODE[] = { 0x00, 0x00, 0x01, 0xba };
+	// End of HanishKVC 
         /* Initialize everything to invalid values for cleanup */
         mpeg_fp = MPEG_fp;
         mpeg_area = (caddr_t)-1;
@@ -338,12 +345,44 @@ public:
                 mpeg_size = statb.st_size;
                 mpeg_area = mmap(NULL, mpeg_size, PROT_READ, MAP_SHARED,
                                                      fileno(mpeg_fp), 0);
+		// Added by HanishKVC
+                mpeg_start = (Uint8 *)mpeg_area;
+		mpeg_offset = 0;
+		if ( memcmp(mpeg_start, PACKET_START_CODE, 4) != 0 ) {
+		  //printf("DebugKVC: A Not so normal mpeg file\n");
+		  while((mpeg_start = 
+			(Uint8*)memchr((Uint8 *)mpeg_area+mpeg_offset,0xba,
+			LENGTH_TO_CHECK_FOR_SYSTEM-mpeg_offset)) != NULL)
+		  {
+		    mpeg_start = mpeg_start-3;
+		    mpeg_offset = mpeg_start-(Uint8 *)mpeg_area;
+		    //printf("DebugKVC: Possible Location %x\n",mpeg_offset);
+		    if ( memcmp(mpeg_start, PACKET_START_CODE, 4) == 0 ) {
+		      //printf("DebugKVC: System stream found\n");
+		      break;
+		    } else {
+		      //printf("DebugKVC: Sorry spurious match\n");
+		      mpeg_offset = mpeg_offset+4; 
+		      // Actually I can skip 3 more chars as 0xba is not there 
+		      // anywhere else in the PACKET_START_CODE. I may be able
+		      // to do more optimizations to search, but as this search
+		      // occurs only once at the begining and that to in a small
+		      // data space, I think this dumb way should be sufficient.
+		    }
+		  } // of while
+		}
+		// End of HanishKVC
                 if ( mpeg_area != (caddr_t)-1 ) {
-                    mpeg = new MPEG((Uint8 *)mpeg_area, mpeg_size, 0, sdlaudio);
-                    if ( mpeg->WasError() ) {
-                        SetError(mpeg->TheError());
-                        delete mpeg;
-                        mpeg = NULL;
+		    if ( mpeg_start ) {
+                        mpeg = new MPEG(mpeg_start,
+                                        mpeg_size-mpeg_offset, 0, sdlaudio);
+                        if ( mpeg->WasError() ) {
+                            SetError(mpeg->TheError());
+                            delete mpeg;
+                            mpeg = NULL;
+                        }
+                    } else {
+                        SetError("Unable to find MPEG start code");
                     }
                 } else {
                     SetError("Memory map of MPEG failed");
