@@ -1,4 +1,6 @@
 0.4.2:
+Bruce Merry - Fri Nov 10 09:49:59 PST 2000
+ * Removed movie size limitations from glmovie, works great!
 Sam Lantinga - Fri Oct 27 15:11:33 PDT 2000
  * Fixed hang when audio data was partially corrupt in the first block
 Hiroshi Yamashita - Sat, 14 Oct 2000 23:43:33 +0900
