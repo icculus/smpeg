@@ -463,6 +463,19 @@ MPEGvideo:: ScaleDisplayXY( int w, int h )
 void
 MPEGvideo:: RenderFrame( int frame )
 {
+
+   if (_stream->need_frameadjust) {
+      _stream->_jumpFrame=0;
+      while(_stream->need_frameadjust) {
+        mpegVidRsrc(0, _stream, 0);
+#ifdef DEBUG
+        printf("Adjusting Frame %d Timecode %f\n",_stream->totNumFrames,_stream->timestamp);
+#endif
+      }
+      _stream->_jumpFrame=-1;
+      return;
+   }
+
     if( _stream->totNumFrames > frame ) {
         mpeg->rewind_stream();
 	mpeg->next_packet();
