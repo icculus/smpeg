@@ -795,6 +795,7 @@ void ResetVidStream( VidStream* vid )
   vid->_skipFrame = 0;
   vid->_skipCount = 0;
   vid->_jumpFrame = -1;
+  vid->realTimeStart = 0;
 
   /* Reset EOF_flag to 0 */
   vid->EOF_flag = FALSE;

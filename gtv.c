@@ -49,6 +49,7 @@ static void gtv_drag_data_received(GtkWidget * widget,
 
 
 static int gtv_trackbar_dragging;
+static gchar * gtv_default_directory = 0;
 
 static void gtv_fix_toggle_state( gpointer raw )
 {
@@ -140,6 +141,13 @@ static void gtv_open_ok( GtkWidget* item, gpointer raw )
 
     if( filename ) {
 	gtv_open_file( filename, raw );
+	if( strrchr( filename, '/') )
+	{
+	  if( gtv_default_directory ) free( gtv_default_directory );
+	  gtv_default_directory = (gchar *) malloc( (strlen(filename) + 1) * sizeof(gchar) );
+	  strcpy( gtv_default_directory, filename);
+	  *(strrchr( gtv_default_directory, '/' ) + 1) = 0;
+	}
     }
 
     gtv_dialog_cleanup( raw );
@@ -154,6 +162,8 @@ static void gtv_open( GtkWidget* item, gpointer raw )
 			GTK_SIGNAL_FUNC( gtv_open_ok ), raw );
     gtk_signal_connect( GTK_OBJECT( GTK_FILE_SELECTION( file_sel )->cancel_button ), "clicked",
 			GTK_SIGNAL_FUNC( gtv_dialog_cancel ), raw );
+    if( gtv_default_directory )
+      gtk_file_selection_complete( GTK_FILE_SELECTION( file_sel ), gtv_default_directory );
     gtk_file_selection_hide_fileop_buttons( GTK_FILE_SELECTION( file_sel ) );
 
     /* HACK HACK HACK */

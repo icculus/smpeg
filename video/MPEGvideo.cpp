@@ -229,6 +229,8 @@ int Play_MPEGvideo( void *udata )
 	  mpeg->playing = false;
         }
     }
+    /* Get the time the playback stopped */
+    mpeg->_stream->realTimeStart -= ReadSysClock();
 #ifdef TIME_MPEG
     stop_time = SDL_GetTicks();
     stop_frames = mpeg->_stream->totNumFrames;
@@ -271,9 +273,6 @@ MPEGvideo:: Stop(void)
         _thread = NULL;
     }
     ResetPause();
-    if ( _stream ) {
-        _stream->realTimeStart -= ReadSysClock();
-    }
 }
 
 void
@@ -287,12 +286,14 @@ MPEGvideo:: Rewind(void)
       init_stats();
 #endif
       /* Process start codes */
+      /* Vivien: seems unnecessary */
+#if 0
       if( mpegVidRsrc( 0, _stream, 1 ) == NULL )
       {
 	SetError("Not an MPEG video stream");
 	return;
       }
-      _stream->realTimeStart = 0.0;
+#endif
     }
 }
 

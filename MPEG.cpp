@@ -6,11 +6,14 @@
 #include <io.h>
 #else
 #include <unistd.h>
-#define O_BINARY 0
 #endif
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
+
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
 
 MPEG::MPEG(const char * name, bool Sdlaudio) :
   MPEGerror()
@@ -158,11 +161,11 @@ void MPEG::Loop(bool toggle) {
   system->Loop(toggle);
 }
 void MPEG::Play(void) {
-  if ( VideoEnabled() ) {
-    videoaction->Play();
-  }
   if ( AudioEnabled() ) {
     audioaction->Play();
+  }
+  if ( VideoEnabled() ) {
+    videoaction->Play();
   }
 }
 void MPEG::Stop(void) {
