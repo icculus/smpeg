@@ -1,4 +1,6 @@
 0.4.1:
+Sam Lantinga - Thu Jun 15 00:07:33 PDT 2000
+ * Added support for multiple tracks on a VCD disk
 Vivien Chappelier - Wed Jun 14 12:43:54 PDT 2000
  * Added VCD and URL support to plaympeg
 

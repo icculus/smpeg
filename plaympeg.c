@@ -374,19 +374,45 @@ int vcd_open(char * arg)
 {
   struct stat buf;
   struct cdrom_tocentry toc;
+  char *pip;
+  int track;
   int pipe_fd[2];
   int fd;
   int pid, parent;
   unsigned char * buffer;
   
+  /* Track defaults to 02, unless requested otherwise */
+  track = 0;
+  pip = strrchr(arg, ':');
+  if ( pip ) {
+    *pip = '\0';
+    track = atoi(pip+1);
+  }
+  if ( ! track ) {
+    track = 02;
+  }
 
-  if(stat(arg, &buf)) return(0);
-  if(!S_ISBLK(buf.st_mode)) return(0);
+  /* See if the CD-ROM device file exists */
+  if ( (stat(arg, &buf) < 0) || !S_ISBLK(buf.st_mode) ) {
+    if ( pip ) {
+      *pip = ':';
+    }
+    return(0);
+  }
 
-  if((fd = open(arg,O_RDONLY)) < 0) return(0);
+  fd = open(arg, O_RDONLY, 0);
+  if ( fd < 0 ) {
+    if ( pip ) {
+      *pip = ':';
+    }
+    return(0);
+  }
 
-  /* Track 02 contains MPEG data */
-  toc.cdte_track  = 2; 
+  /* Track 02 (changed to 'track') contains MPEG data */
+  if ( track < 2 ) {
+    printf("Warning: VCD data normally starts on track 2\n");
+  }
+  toc.cdte_track  = track; 
   toc.cdte_format = CDROM_LBA;
   if(ioctl(fd, CDROMREADTOCENTRY, &toc) < 0) return(0);
 
