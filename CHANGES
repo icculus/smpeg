@@ -5,6 +5,8 @@ Sam Lantinga - Mon Jan  3 20:54:32 PST 2000
  * SMPEG now handles pad packets in the initial system stream
 Jim Studt - Mon Jan  3 20:57:52 PST 2000
  * Fixed endian detection on unknown Linux systems (ARM)
+Sam Lantinga - Mon Jan  3 21:09:01 PST 2000
+ * plaympeg now hides the mouse cursor in fullscreen mode
 
 0.3.2:
 SOL -   Updated autoconf for SDL 1.0
