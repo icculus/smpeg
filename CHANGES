@@ -1,0 +1,15 @@
+
+0.2.7:
+SOL -	Added volume change API
+
+0.2.6:
+SOL -	Fixed possible crash when starting audio playback
+SOL -	Fixed SMPEG on PPC - may still be buggy, but plays most MPEGs
+
+0.2.5:
+SOL -	Added --fullscreen command line option to plaympeg
+SOL -	Added 32-bpp support, fixed fullscreen offset bug
+
+Initial Key:
+SOL - Sam Lantinga (hercules@lokigames.com)
+
