@@ -22,8 +22,8 @@
 #ifndef _MPEGVIDEO_H_
 #define _MPEGVIDEO_H_
 
-#include <SDL/SDL.h>
-#include <SDL/SDL_thread.h>
+#include "SDL.h"
+#include "SDL_thread.h"
 #include "MPEGstream.h"
 #include "MPEGaction.h"
 

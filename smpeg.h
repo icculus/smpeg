@@ -22,9 +22,9 @@
 #ifndef _SMPEG_H_
 #define _SMPEG_H_
 
-#include <SDL/SDL.h>
-#include <SDL/SDL_mutex.h>
-#include <SDL/SDL_audio.h>
+#include "SDL.h"
+#include "SDL_mutex.h"
+#include "SDL_audio.h"
 
 #ifdef __cplusplus
 extern "C" {
