@@ -33,48 +33,31 @@ typedef enum {
     MPEG_PLAYING
 } MPEGstatus;
 
-typedef struct {
-    int playing;
-    int paused;
-    int looping;
-    double play_time;
-    void (*play)(void *);
-    void (*stop)(void *);
-    void *parent;
-} MPEGaction;
+#define bool int
+#define false 0
+#define true (!false)
 
-MPEGaction *MPEGaction_create(void *parent, void (*play)(void *), void (*stop)(void *));
 
-void MPEGaction_Play(MPEGaction *self);
-void MPEGaction_Stop(MPEGaction *self);
-void MPEGaction_Loop(MPEGaction *self, int toggle);
-double MPEGaction_Time(MPEGaction *self, int toggle);
-void MPEGaction_Pause(MPEGaction *self);
-
-void MPEGaction_ResetPause(MPEGaction *self);
 
 /* For getting info about the audio portion of the stream */
-typedef struct MPEG_AudioInfo {
+struct MPEG_AudioInfo {
     int mpegversion;
     int mode;
     int frequency;
     int layer;
     int bitrate;
     int current_frame;
-} MPEG_AudioInfo;
+};
 
-/* Audio action class */
-typedef struct {
-    MPEGaction *act;
-} MPEGaudioaction;
+typedef struct MPEG_AudioInfo MPEG_AudioInfo;
 
-MPEGaudioaction *MPEGaudioaction_create(void *parent, void (*play)(void *), void (*stop)(void *));
 
-int MPEGaudioaction_GetAudioInfo(MPEGaudioaction *self, MPEG_AudioInfo *info);
 
 /* Matches the declaration of SDL_UpdateRect() */
 typedef void(*MPEG_DisplayCallback)(SDL_Surface* dst, int x, int y,
                                      unsigned int w, unsigned int h);
+
+
 
 /* For getting info about the video portion of the stream */
 typedef struct MPEG_VideoInfo {
@@ -84,16 +67,7 @@ typedef struct MPEG_VideoInfo {
     double current_fps;
 } MPEG_VideoInfo;
 
-/* Video action class */
-typedef struct {
-    MPEGaudioaction *time_source;
-    MPEGaction *act;
-} MPEGvideoaction;
 
-MPEGvideoaction *MPEGvideoaction_create(void *parent, void (*play)(void *), void (*stop)(void *));
-
-void MPEGvideoaction_SetTimeSource(MPEGvideoaction *self, MPEGaudioaction *source);
-int MPEGvideoaction_GetVideoInfo(MPEGvideoaction *self, MPEG_VideoInfo *info);
 
 /* For getting info about the system portion of the stream */
 typedef struct MPEG_SystemInfo {
@@ -102,5 +76,63 @@ typedef struct MPEG_SystemInfo {
     double total_time;
     double current_time;
 } MPEG_SystemInfo;
+
+
+
+#undef _THIS
+#define _THIS struct MPEGaction*
+typedef struct MPEGaction {
+  int playing;
+  int paused;
+  int looping;
+  double play_time;
+  void (*Loop)(_THIS, int);
+  double (*Time)(_THIS);
+  void (*Pause)(_THIS);
+  void (*Play)(_THIS);
+  void (*Stop)(_THIS);
+  void (*Rewind)(_THIS);
+  void (*ResetSynchro)(_THIS, double);
+  void (*Skip)(_THIS, float);
+  void (*ResetPause)(_THIS);
+  MPEGstatus (*GetStatus)(_THIS);
+/* MPEGaudioaction extends this with GetAudioInfo and Volume() */
+  bool (*GetAudioInfo)(_THIS, MPEG_AudioInfo *);
+  void (*Volume)(_THIS, int);
+/* MPEGvideoaction extends this with SetTimeSource(), GetVideoInfo(),
+ SetDisplay(), MoveDisplay(), ScaleDisplayXY(), SetDisplayRegion(),
+ RenderFrame(), RenderFinal(), Final(), time_source */
+//  void (*SetTimeSource)(_THIS, struct MPEGaudio *);
+  bool (*GetVideoInfo)(_THIS, MPEG_VideoInfo *info);
+  bool (*SetDisplay)(_THIS, SDL_Surface *, SDL_mutex *, MPEG_DisplayCallback);
+  void (*MoveDIsplay)(_THIS, int, int);
+  void (*ScaleDisplayXY)(_THIS, int, int);
+  void (*SetDisplayRegion)(_THIS, int, int, int, int);
+  void (*RenderFrame)(_THIS, int);
+  void (*RenderFinal)(_THIS, SDL_Surface *, int, int);
+  SMPEG_Filter * (*Final)(_THIS, SMPEG_Filter *filter);
+//  struct MPEGaudio *time_source;
+} MPEGaction;
+#undef _THIS
+
+MPEGaction* MPEGaction_create();
+void MPEGaction_destroy();
+void MPEGaction_Loop(MPEGaction *, int);
+double MPEGaction_Time(MPEGaction *);
+void MPEGaction_Pause(MPEGaction *);
+
+/*
+Pure virtuals:
+ Play
+ Stop
+ Rewind
+ ResetSynchro
+ Skip
+ GetStatus
+Virtuals:
+ Loop
+ Time
+ Pause
+*/
 
 #endif /* _MPEGACTION_H_ */

@@ -21,67 +21,119 @@
 
 #include "MPEGaction.h"
 
-MPEGaction *MPEGaction_create(void *parent, void (*play)(void *), void (*stop)(void *)) {
-    MPEGaction *ret;
+/* XXX: into a .h? */
+//#define false 0
+//#define true (!false)
+//#define bool int
 
-    ret = (MPEGaction *)malloc(sizeof(MPEGaction));
+#undef _THIS
+#define _THIS MPEGaction *self
 
-    if (ret) {
-	ret->parent = parent;
-	ret->play = play;
-        ret->stop = stop;
-	ret->playing = false;
-	ret->paused = false;
-	ret->looping = false;
-	ret->play_time = 0.0;
+void
+MPEGaction_Loop (_THIS, bool toggle)
+{
+  self->looping = toggle;
+}
+
+double
+MPEGaction_Time (_THIS)
+{
+  return self->play_time;
+}
+
+#define DEFMETH(name) MPEGaction_##name
+void DEFMETH(Play) (_THIS) { }
+void DEFMETH(Stop) (_THIS) { }
+void DEFMETH(Rewind) (_THIS) { }
+void DEFMETH(Skip) (_THIS, float seconds) { }
+
+void
+MPEGaction_Pause (_THIS)
+{
+  if (self->paused)
+    {
+      self->paused = false;
+      self->Play(self);
     }
-
-    return ret;
-}
-
-void MPEGaction_Loop(MPEGaction *self, bool toggle) {
-    self->looping = toggle;
-}
-
-double MPEGaction_Time(MPEGaction *self, bool toggle) {
-    return self->play_time;
-}
-
-void MPEGaction_Pause(MPEGaction *self) {
-    if (!self->play || !self->stop || !self->parent) return;
-
-    if ( self->paused ) {
-	self->paused = false;
-	self->play(self->parent);
-    } else {
-	self->stop(self->parent);
-	self->paused = true;
+  else
+    {
+      self->Stop(self);
+      self->paused = true;
     }
 }
 
-void MPEGaction_ResetPause(MPEGaction *self) {
-    self->paused = false;
+MPEGstatus
+MPEGaction_GetStatus (_THIS)
+{
+  return MPEG_ERROR;
 }
 
-MPEGaudioaction *MPEGaudioaction_create(void *parent, void (*play)(void *), void (*stop)(void *)) {
-    MPEGaudioaction *ret;
-
-    ret = (MPEGaudioaction *)malloc(sizeof(MPEGaudioaction));
-
-    if (ret)
-	ret->act = MPEGaction_create(parent, play, stop);
-
-    return ret;
+void
+MPEGaction_ResetPause (_THIS)
+{
+  self->paused = false;
 }
 
-bool MPEGaudioaction_GetAudioInfo(MPEGvideoaction *self, MPEG_AudioInfo *info) {
-    return true;
+MPEGaction *
+MPEGaction_init (_THIS)
+{
+  self->playing = false;
+  self->paused = false;
+  self->looping = false;
+  self->play_time = 0.0;
+  self->Loop = MPEGaction_Loop;
+  self->Time = MPEGaction_Time;
+  self->Play = MPEGaction_Play;
+  self->Stop = MPEGaction_Stop;
+  self->Rewind = MPEGaction_Rewind;
+  self->Skip = MPEGaction_Skip;
+  self->Pause = MPEGaction_Pause;
+  self->GetStatus = MPEGaction_GetStatus;
+  self->ResetPause = MPEGaction_ResetPause;
 }
 
-void MPEGvideoaction_SetTimeSource(MPEGvideoaction *self, MPEGaudioaction *source) {
-    self->time_source = source;
+MPEGaction *
+MPEGaction_new ()
+{
+  MPEGaction *self;
+
+  self = (MPEGaction*)calloc(sizeof(MPEGaction));
+  MPEGaction_init(self);
+  return self;
 }
 
-bool MPEGvideoaction_GetVideoInfo(MPEGvideoaction *self, MPEG_VideoInfo *info) {
-    return false;
+
+
+
+
+
+bool
+MPEGaudioaction_GetAudioInfo (_THIS, MPEG_AudioInfo *info)
+{
+  return (true);
 }
+
+void
+MPEGaudioaction_Volume (_THIS, int vol)
+{
+}
+
+void
+MPEGaudioaction_init (_THIS)
+{
+  MPEGaction_init(self);
+  self->GetAudioInfo = MPEGaudioaction_GetAudioInfo;
+  self->Volume = MPEGaudioaction_Volume;
+}
+
+MPEGaction *
+MPEGaudioaction_new ()
+{
+  MPEGaction *self;
+
+  self = MPEGaction_new();
+  MPEGaction_init(self);
+  MPEGaudioaction_init(self);
+  return self;
+}
+
