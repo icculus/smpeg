@@ -555,7 +555,7 @@ int main(int argc, char *argv[])
 	} else
         if ((strcmp(argv[i], "--version") == 0) ||
 	    (strcmp(argv[i], "-V") == 0)) {
-            SDL_VERSION(&sdlver);
+            sdlver = *SDL_Linked_Version();
             SMPEG_VERSION(&smpegver);
 	    printf("SDL version: %d.%d.%d\n"
                    "SMPEG version: %d.%d.%d\n",
