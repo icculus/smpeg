@@ -11,6 +11,7 @@
  */
 
 #include "gtv.h"
+#include "SDL_syswm.h"
 
 #define TIMER_TIMEOUT 100
 
@@ -67,9 +68,15 @@ static void gtv_fix_toggle_state( gpointer raw )
 	loop = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "loop" ) );
 	audio = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "audio" ) );
 
+#if 1 /* Sam 5/31/2000 - Default to doubled video and audio on */
+	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( twotimes ), TRUE );
+	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( loop ), FALSE );
+	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( audio ), TRUE );
+#else
 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( twotimes ), FALSE );
 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( loop ), FALSE );
 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( audio ), FALSE );
+#endif
     }
 
 }
@@ -156,6 +163,32 @@ static void gtv_open( GtkWidget* item, gpointer raw )
     gtk_widget_show( file_sel );
 }
 
+static void gtv_center_window(SDL_Surface *screen)
+{
+    SDL_SysWMinfo info;
+
+    SDL_VERSION(&info.version);
+    if ( SDL_GetWMInfo(&info) > 0 ) {
+        int x, y;
+        int w, h;
+#ifdef unix
+        if ( info.subsystem == SDL_SYSWM_X11 ) {
+            info.info.x11.lock_func();
+            w = DisplayWidth(info.info.x11.display,
+                             DefaultScreen(info.info.x11.display));
+            h = DisplayHeight(info.info.x11.display,
+                             DefaultScreen(info.info.x11.display));
+            x = (w - screen->w)/2;
+            y = (h - screen->h)/2;
+            XMoveWindow(info.info.x11.display, info.info.x11.wmwindow, x, y);
+            info.info.x11.unlock_func();
+        }
+#else
+#warning Need to implement these functions for other systems
+#endif // unix
+    }
+}
+
 static void gtv_open_file( gchar* name, gpointer raw )
 {
     SMPEG_Info* info = NULL;
@@ -209,7 +242,12 @@ static void gtv_open_file( gchar* name, gpointer raw )
                 video_bpp = 16;
                 break;
         }
+#ifdef linux
+	putenv("SDL_VIDEO_CENTERED=1");
+#endif
 	sdl_screen = SDL_SetVideoMode( info->width * 2, info->height * 2, video_bpp, SDL_ASYNCBLIT );
+        SDL_WM_SetCaption(name, "gtv movie");
+        gtv_center_window(sdl_screen);
 	SMPEG_setdisplay( mpeg, sdl_screen, NULL, NULL );
 	gtk_object_set_data( GTK_OBJECT( raw ), "sdl_screen", sdl_screen );
 	gtv_double( NULL, raw );
@@ -621,6 +659,13 @@ static void gtv_step( GtkWidget* item, gpointer raw )
 	SMPEG_getinfo( mpeg, info );
 
 	if( info->current_frame != next_frame ) {
+            GtkWidget *looping;
+
+            /* Sam 5/31/2000 - Only loop if the looping toggle is set */
+            looping = GTK_WIDGET(gtk_object_get_data(GTK_OBJECT(raw), "loop"));
+            if ( ! gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(looping)) ) {
+                return;
+            }
 	    gtv_rewind( raw );
 	    gtv_step( NULL, raw );
 	}
