@@ -1,4 +1,8 @@
 0.4.0:
+Sam Lantinga - Sat Jun  3 19:40:41 PDT 2000
+ * Added aggresive optimizations by default, use --enable-debug to disable
+Mo DeJong - Sat Jun  3 19:37:00 PDT 2000
+ * Replaced target check for -lm with a simple library check
 Sam Lantinga - Wed May 31 15:00:19 PDT 2000
  * Various gtv improvements - centered video, audio on by default, etc.
 Robert Dean - Wed May 31 10:13:02 PDT 2000
