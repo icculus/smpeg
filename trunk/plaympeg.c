@@ -70,7 +70,8 @@ int main(int argc, char *argv[])
     loop_play = 0;
     volume = 100;
     for ( i=1; argv[i] && (argv[i][0] == '-'); ++i ) {
-        if ( strcmp(argv[i], "--noaudio") == 0 ) {
+        if ( (strcmp(argv[i], "--noaudio") == 0) ||
+             (strcmp(argv[i], "--nosound") == 0) ) {
             use_audio = 0;
         } else
         if ( strcmp(argv[i], "--novideo") == 0 ) {
@@ -164,7 +165,7 @@ int main(int argc, char *argv[])
 	
 	
         /* Create the MPEG stream */
-        mpeg = SMPEG_new(argv[i], &info, 1);
+        mpeg = SMPEG_new(argv[i], &info, use_audio);
         if ( SMPEG_error(mpeg) ) {
             fprintf(stderr, "%s: %s\n", argv[i], SMPEG_error(mpeg));
             SMPEG_delete(mpeg);
