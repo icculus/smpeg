@@ -34,7 +34,7 @@ extern "C" {
 
 #define SMPEG_MAJOR_VERSION      0
 #define SMPEG_MINOR_VERSION      4
-#define SMPEG_PATCHLEVEL         4
+#define SMPEG_PATCHLEVEL         5
 
 typedef struct {
         Uint8 major;

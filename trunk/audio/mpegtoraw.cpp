@@ -84,6 +84,7 @@ void MPEGaudio::initialize()
   register REAL *s1,*s2;
   REAL *s3,*s4;
 
+  last_speed = 0;
   stereo = true;
   forcetomonoflag = false;
   forcetostereoflag = false;
@@ -271,6 +272,20 @@ bool MPEGaudio::loadheader()
     getbyte();                      // CRC, Not check!!
     getbyte();
   }
+
+  // Sam 7/17 - skip sequences of quickly varying frequencies
+  int speed = frequencies[version][frequency];
+  if ( speed != last_speed ) {
+    last_speed = speed;
+    if ( rawdatawriteoffset ) {
+        ++decodedframe;
+#ifndef THREADED_AUDIO
+        ++currentframe;
+#endif
+    }
+    return loadheader();
+  }
+
   return true;
 }
 
