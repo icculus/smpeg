@@ -117,7 +117,7 @@
 				DEBUGGING_SYMBOLS = NO;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
-				FRAMEWORK_SEARCH_PATHS = "\"$(HOME)/Library/Frameworks/SDL.framework\"";
+				FRAMEWORK_SEARCH_PATHS = "\"$(HOME)/Library/Frameworks/\"";
 				FRAMEWORK_VERSION = A;
 				HEADER_SEARCH_PATHS = "\"$(HOME)/Library/Frameworks/SDL.framework/Headers\"";
 				INSTALL_PATH = "$(HOME)/Library/Frameworks";
