@@ -45,7 +45,6 @@ EXTRA_DIST =		\
 	COPYING		\
 	TODO		\
 	README		\
-	README.ATI	\
 	README.SDL_mixer \
 	plaympeg.1	\
 	gtv.1		\
