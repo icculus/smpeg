@@ -89,6 +89,7 @@ METH(init) (_THIS, MPEGstream *stream, bool initSDL)
 void
 METH(destroy) (_THIS)
 {
+
 #ifdef THREADED_AUDIO
     /* Stop the decode thread */
     METH(StopDecoding)(self);
@@ -165,10 +166,10 @@ METH(StartDecoding) (_THIS)
     PROP(decoding) = true;
     /* Create the ring buffer to hold audio */
     if ( ! PROP(ring) ) {
-        PROP(ring) = MPEG_ring_new(PROP(samplesperframe)*2);
+        PROP(ring) = MPEG_ring_new(PROP(samplesperframe)*2, 16);
     }
     if ( ! PROP(decode_thread) ) {
-        PROP(decode_thread) = SDL_CreateThread(Decode_MPEGaudio, this);
+        PROP(decode_thread) = SDL_CreateThread(Decode_MPEGaudio, self);
     }
 }
 void
