@@ -1,5 +1,37 @@
 *************************************************************************
 *** Applied ***
+Date: Sat, 02 Sep 2000 17:21:49 +0200
+From: Tim Jansen <ml@tjansen.de>
+Subject: SMPEG/Splay bugfix
+
+
+Hi...
+
+I have found a small bug in smpeg/splay:
+the MPEGaudio::loadheader() method  in audio/mpegtoraw.cpp does not
+check for the reserved frequency (11). If it loads a header with the
+invalid frequency this will create an out-of-bound condition when the
+MPEGaudio::frequencies array is accessed a few lines below (and will
+probably cause a devision-by-zero for MPEG2 streams, look at the value
+following the frequencies array in mpegtables.cpp).
+Bugfix attached.
+
+bye...
+
+--- mpegtoraw.cpp.original Sat Sep  2 16:59:59 2000
++++ mpegtoraw.cpp Sat Sep  2 17:04:25 2000
+@@ -171,6 +171,8 @@
+     padding = (c & 1);
+     c >>= 1;
+     frequency = (_frequency) (c&3);
++    if (frequency == 3)
++           return false;
+     c >>= 2;
+     bitrateindex = (int) c;
+     if( bitrateindex == 15 )
+
+*************************************************************************
+*** Applied ***
 Date: Tue, 05 Sep 2000 20:19:37 +0200
 From: Vivien Chappelier <vivien.chappelier@enst-bretagne.fr>
 Subject: Re: SMPEG Status?

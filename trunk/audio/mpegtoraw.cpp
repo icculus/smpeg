@@ -171,6 +171,8 @@ bool MPEGaudio::loadheader()
     padding = (c & 1);
     c >>= 1;
     frequency = (_frequency) (c&3);
+    if (frequency == 3)
+        return false;
     c >>= 2;
     bitrateindex = (int) c;
     if( bitrateindex == 15 )

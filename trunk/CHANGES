@@ -1,4 +1,6 @@
 0.4.1:
+Tim Janson - Tue Sep  5 18:05:18 PDT 2000
+ * Fixed potential divide-by-zero with some illegal audio streams
 Sam Lantinga - Tue Sep  5 14:09:14 PDT 2000
  * Changed gtv to perform bilinear filtering instead of deblocking
 Sam Lantinga - Tue Sep  5 13:39:36 PDT 2000
