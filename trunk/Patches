@@ -1,5 +1,175 @@
 *************************************************************************
 *** Applied ***
+Date: Mon, 5 Feb 2001 23:29:43 -0500
+From: Joe Drew <hoserhead@woot.net>
+Subject: Bug#84685: [PATCH] SMPEG does not update current time when seeking by byte offsets
+
+retitle 84685 [PATCH] SMPEG does not update current time when seeking by byte offsets
+thanks
+
+I've taken the liberty of fixing this problem. Please update smpeg
+soon - my mpg321 package is much less useful without this patch!
+
+I think upstream will accept it; if not as it is, in the same vein of thought.
+
+Thanks!
+
+diff -ru smpeg-0.4.2.orig/MPEG.cpp smpeg-0.4.2/MPEG.cpp
+--- smpeg-0.4.2.orig/MPEG.cpp	Fri Dec  1 18:58:20 2000
++++ smpeg-0.4.2/MPEG.cpp	Mon Feb  5 19:38:48 2001
+@@ -421,13 +421,18 @@
+       videostream->next_packet();
+ 
+   /* And forget what we previouly buffered */
++  /* {video, audio}action is the same object as video, but under a different
++     interface (through polymorphism.) We need to use {video,audio} here
++     instead. -JD */
+   if ( audioaction ) {
+     audioaction->Rewind();
+     audioaction->ResetSynchro(audiostream->time());
++    audio->setPlayTime(system->TimeElapsed(position));
+   }
+   if ( videoaction ) {
+     videoaction->Rewind();
+     videoaction->ResetSynchro(videostream->time());
++    video->setPlayTime(system->TimeElapsed(position));
+   }
+ 
+   return(true);
+diff -ru smpeg-0.4.2.orig/MPEGaudio.h smpeg-0.4.2/MPEGaudio.h
+--- smpeg-0.4.2.orig/MPEGaudio.h	Thu Oct  5 15:51:43 2000
++++ smpeg-0.4.2/MPEGaudio.h	Mon Feb  5 19:16:11 2001
+@@ -148,7 +148,7 @@
+ 
+ /* The actual MPEG audio class */
+ class MPEGaudio : public MPEGerror, public MPEGaudioaction {
+-
++    friend class MPEG;
+     friend void Play_MPEGaudioSDL(void *udata, Uint8 *stream, int len);
+     friend int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len);
+ #ifdef THREADED_AUDIO
+@@ -359,6 +359,9 @@
+   /********************/
+   /* Timestamp sync   */
+   /********************/
++
++  void setPlayTime (double time);
++
+ public:
+ #define N_TIMESTAMPS 5
+ 
+diff -ru smpeg-0.4.2.orig/MPEGsystem.cpp smpeg-0.4.2/MPEGsystem.cpp
+--- smpeg-0.4.2.orig/MPEGsystem.cpp	Mon Dec  4 15:25:36 2000
++++ smpeg-0.4.2/MPEGsystem.cpp	Mon Feb  5 19:33:03 2001
+@@ -1054,11 +1054,24 @@
+ 
+ double MPEGsystem::TotalTime()
+ {
++    return TimeElapsed(0);
++}
++
++/* I don't think special calculation is needed for video,
++   but it's definitely needed for audio. This should work for
++   both. - JD */
++double MPEGsystem::TimeElapsed(int atByte)
++{
+   off_t size, pos;
+   off_t file_ptr;
+   Uint8 * buffer, * p;
+   double time;
+ 
++  if (atByte < 0)
++  {
++      return -1;
++  }
++  
+   /* Lock to avoid concurrent access to the stream */
+   SDL_mutexP(system_mutex);
+ 
+@@ -1141,7 +1154,8 @@
+     audio_header(p, &framesize, &frametime);
+     totalsize = TotalSize();
+     if(framesize)
+-      time = frametime * totalsize / framesize;
++      //is there a better way to do this?
++      time = (frametime * (atByte ? atByte:totalsize)) / framesize;
+     else
+       time = 0;
+   }
+diff -ru smpeg-0.4.2.orig/MPEGsystem.h smpeg-0.4.2/MPEGsystem.h
+--- smpeg-0.4.2.orig/MPEGsystem.h	Mon Dec  4 14:41:58 2000
++++ smpeg-0.4.2/MPEGsystem.h	Mon Feb  5 19:31:09 2001
+@@ -35,6 +35,7 @@
+     bool Seek(int length);
+     Uint32 TotalSize();
+     double TotalTime();
++    double TimeElapsed(int atByte);
+ 
+     /* Skip "seconds" seconds */
+     void Skip(double seconds);
+diff -ru smpeg-0.4.2.orig/MPEGvideo.h smpeg-0.4.2/MPEGvideo.h
+--- smpeg-0.4.2.orig/MPEGvideo.h	Tue Sep  5 17:11:32 2000
++++ smpeg-0.4.2/MPEGvideo.h	Mon Feb  5 19:35:39 2001
+@@ -42,6 +42,11 @@
+     /* Thread to play the video asynchronously */
+     friend int Play_MPEGvideo(void *udata);
+ 
++    /* For when seek() is used - to update current "play time"
++       The same thing is in MPEGaudio. Ugly but I couldn't get
++       friend <functionname> to work! */
++    friend class MPEG;
++
+     /* Various mpeg_play functions that need our data */
+     friend VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first );
+     friend int get_more_data( VidStream* vid_stream );
+@@ -101,6 +106,11 @@
+     SDL_mutex* _filter_mutex; // make sure the filter is not changed while being used
+ 
+     void RewindStream(void);
++private:
++    /* This is needed, I think, because of the way inheritance
++       and 'friend' works. play_time is in MPEGaction.h, and that's
++       two levels of inheritance above us */
++    void setPlayTime(double time);
+ };
+ 
+ #endif /* _MPEGVIDEO_H_ */
+diff -ru smpeg-0.4.2.orig/audio/MPEGaudio.cpp smpeg-0.4.2/audio/MPEGaudio.cpp
+--- smpeg-0.4.2.orig/audio/MPEGaudio.cpp	Thu Oct  5 15:31:05 2000
++++ smpeg-0.4.2/audio/MPEGaudio.cpp	Mon Feb  5 18:17:56 2001
+@@ -183,6 +183,12 @@
+     }
+     return now;
+ }
++
++void MPEGaudio:: setPlayTime(double time)
++{
++    play_time = time;
++}
++
+ void
+ MPEGaudio:: Play(void)
+ {
+diff -ru smpeg-0.4.2.orig/video/MPEGvideo.cpp smpeg-0.4.2/video/MPEGvideo.cpp
+--- smpeg-0.4.2.orig/video/MPEGvideo.cpp	Fri Dec  1 21:33:11 2000
++++ smpeg-0.4.2/video/MPEGvideo.cpp	Mon Feb  5 18:18:12 2001
+@@ -592,4 +592,10 @@
+     MoveDisplay(saved_x, saved_y);
+ }
+ 
++void 
++MPEGvideo:: setPlayTime(double time)
++{
++    play_time = time;
++}
++
+ /* EOF */
+
+
+
+
+*************************************************************************
+*** Applied ***
 Date: Thu, 21 Dec 2000 02:07:07 -0800 (PST)
 From: Stephane Peter <megastep@lokigames.com>
 Subject: plaympeg patch

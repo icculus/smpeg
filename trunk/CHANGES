@@ -1,4 +1,6 @@
 0.4.3:
+Joe Drew - Mon, 5 Feb 2001 23:29:43 -0500
+ * Fixed updating current time when seeking by byte offsets
 Matt Carlson - Fri Feb  2 18:13:08 PST 2001
  * Fixed memory leak when used with OpenAL
 Sam Lantinga - Mon Jan  8 07:49:20 PST 2001

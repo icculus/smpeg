@@ -35,6 +35,7 @@ public:
     bool Seek(int length);
     Uint32 TotalSize();
     double TotalTime();
+    double TimeElapsed(int atByte);
 
     /* Skip "seconds" seconds */
     void Skip(double seconds);

@@ -183,6 +183,12 @@ MPEGaudio:: Time(void)
     }
     return now;
 }
+
+void MPEGaudio:: setPlayTime(double time)
+{
+    play_time = time;
+}
+
 void
 MPEGaudio:: Play(void)
 {
