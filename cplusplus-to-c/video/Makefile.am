@@ -3,21 +3,21 @@ noinst_LTLIBRARIES = libvideo.la
 
 libvideo_la_SOURCES =		\
 	MPEGvideo.c		\
-	decoders.cpp		\
+	decoders.c		\
 	decoders.h		\
 	dither.h		\
-	floatdct.cpp		\
-	gdith.cpp		\
-	jrevdct.cpp		\
-	motionvector.cpp	\
-	parseblock.cpp		\
+	floatdct.c		\
+	gdith.c		\
+	jrevdct.c		\
+	motionvector.c	\
+	parseblock.c		\
 	proto.h			\
-	readfile.cpp		\
-	util.cpp		\
+	readfile.c		\
+	util.c		\
 	util.h			\
-	video.cpp		\
+	video.c		\
 	video.h			\
-	vhar128.cpp		\
+	vhar128.c		\
 	vhar128.h		\
 	mmxflags_asm.S		\
 	mmxidct_asm.S
@@ -26,11 +26,11 @@ EXTRA_DIST =			\
 	README			\
 	COPYRIGHT
 
-#16bit_mmx.o: 16bit_mmx.cpp
+##16bit_mmx.o: 16bit_mmx.c
+##	$(CXX) -c -o $@ $^ $(CXXFLAGS)
+#16bit_mmx.lo: 16bit_mmx.c
 #	$(CXX) -c -o $@ $^ $(CXXFLAGS)
-16bit_mmx.lo: 16bit_mmx.cpp
-	$(CXX) -c -o $@ $^ $(CXXFLAGS)
-#32bit_mmx.o: 32bit_mmx.cpp
+##32bit_mmx.o: 32bit_mmx.c
+##	$(CXX) -c -o $@ $^ $(CXXFLAGS)
+#32bit_mmx.lo: 32bit_mmx.c
 #	$(CXX) -c -o $@ $^ $(CXXFLAGS)
-32bit_mmx.lo: 32bit_mmx.cpp
-	$(CXX) -c -o $@ $^ $(CXXFLAGS)

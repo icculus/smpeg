@@ -150,7 +150,7 @@ extern const int scan[][8];
 
 /* Structure with reconstructed pixel values. */
 
-typedef struct pict_image {
+struct pict_image {
 #ifdef USE_ATI
   struct vhar128_image *image;
 #else
@@ -162,11 +162,13 @@ typedef struct pict_image {
   unsigned short int *mb_qscale;         /* macroblock info    */
   int locked;                            /* Lock flag.         */
   TimeStamp show_time;                   /* Presentation time. */
-} PictImage;
+};
+
+typedef struct pict_image PictImage;
 
 /* Group of pictures structure. */
 
-typedef struct GoP {
+struct GoP {
   BOOLEAN drop_flag;                     /* Flag indicating dropped frame. */
   unsigned int tc_hours;                 /* Hour component of time code.   */
   unsigned int tc_minutes;               /* Minute component of time code. */
@@ -177,11 +179,13 @@ typedef struct GoP {
   BOOLEAN broken_link;                   /* B frame unable to be decoded.  */
   char *ext_data;                        /* Extension data.                */
   char *user_data;                       /* User data.                     */
-} GoP;
+};
+
+typedef struct GoP GoP;
 
 /* Picture structure. */
 
-typedef struct pict {
+struct pict {
   unsigned int temp_ref;                 /* Temporal reference.             */
   unsigned int code_type;                /* Frame type: P, B, I             */
   unsigned int vbv_delay;                /* Buffer delay.                   */
@@ -196,19 +200,23 @@ typedef struct pict {
   char *extra_info;                      /* Extra bit picture info.         */
   char *ext_data;                        /* Extension data.                 */
   char *user_data;                       /* User data.                      */
-} Pict;
+};
+
+typedef struct pict Pict;
 
 /* Slice structure. */
 
-typedef struct slice {
+struct slice {
   unsigned int vert_pos;                 /* Vertical position of slice. */
   unsigned int quant_scale;              /* Quantization scale.         */
   char *extra_info;                      /* Extra bit slice info.       */
-} Slice;
+};
+
+typedef struct slice Slice;
 
 /* Macroblock structure. */
 
-typedef struct macroblock {
+struct macroblock {
   int mb_address;                        /* Macroblock address.              */
   int past_mb_addr;                      /* Previous mblock address.         */
   int motion_h_forw_code;                /* Forw. horiz. motion vector code. */
@@ -228,11 +236,13 @@ typedef struct macroblock {
   int recon_down_for_prev;               /* Past down forw. vector.          */
   int recon_right_back_prev;             /* Past right back vector.          */
   int recon_down_back_prev;              /* Past down back vector.           */
-} Macroblock;
+};
+
+typedef struct macroblock Macroblock;
 
 /* Block structure. */
 
-typedef struct block {
+struct block {
 #ifdef USE_ATI
   long int dct_recon[6][130];            /* Reconstructed dct runs & levels */
 #else
@@ -241,11 +251,13 @@ typedef struct block {
   short int dct_dc_y_past;               /* Past lum. dc dct coefficient.   */
   short int dct_dc_cr_past;              /* Past cr dc dct coefficient.     */
   short int dct_dc_cb_past;              /* Past cb dc dct coefficient.     */
-} Block;
+};
+
+typedef struct block Block;
 
 /* Video stream structure. */
 
-typedef struct vid_stream {
+struct vid_stream {
   unsigned int h_size;                         /* Horiz. size in pixels.     */
   unsigned int v_size;                         /* Vert. size in pixels.      */
   unsigned int mb_height;                      /* Vert. size in mblocks.     */
@@ -328,7 +340,9 @@ typedef struct vid_stream {
   unsigned int ati_handle;
 #endif
 
-} VidStream;   
+};
+
+typedef struct vid_stream VidStream;   
 
 /* Declaration of global display pointer. */
 
