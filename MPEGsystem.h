@@ -41,9 +41,6 @@ protected:
     /* The system thread which fills the FIFO */
     static int SystemThread(void * udata);
 
-    /* The handler for I/O signals */
-    static void Handler_IO(int signal);
-
     /* Insert a stream in the list */
     void add_stream(MPEGstream * stream);
 

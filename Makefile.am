@@ -45,7 +45,8 @@ EXTRA_DIST =		\
 	README		\
 	README.SDL_mixer \
 	plaympeg.1	\
-	gtv.1
+	gtv.1		\
+	VisualC.zip
 
 # Sample MPEG players
 if HAVE_GTK

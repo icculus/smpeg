@@ -56,13 +56,13 @@ public:
     bool next_packet(bool recurse = true);
 
     /* Mark a position in the data stream */
-    MPEGstream_marker const * new_marker(int offset);
+    MPEGstream_marker *new_marker(int offset);
 
     /* Jump to the marked position */
     bool seek_marker(MPEGstream_marker const * marker);
 
     /* Jump to last successfully marked position */
-    void delete_marker(MPEGstream_marker const * marker);
+    void delete_marker(MPEGstream_marker * marker);
 
     /* Copy data from the stream to a local buffer */
     Uint32 copy_data(Uint8 *area, Sint32 size, bool short_read = false);

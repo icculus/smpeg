@@ -163,7 +163,7 @@ MPEGstream:: next_packet(bool recurse)
   return(true);
 }
 
-MPEGstream_marker const *
+MPEGstream_marker *
 MPEGstream:: new_marker(int offset)
 {
     MPEGstream_marker * marker;
@@ -220,7 +220,7 @@ MPEGstream:: seek_marker(MPEGstream_marker const * marker)
 }
 
 void
-MPEGstream:: delete_marker(MPEGstream_marker const * marker)
+MPEGstream:: delete_marker(MPEGstream_marker *marker)
 {
     marker->marked_buffer->Unlock();
     delete marker;
@@ -244,7 +244,7 @@ MPEGstream:: copy_data(Uint8 *area, Sint32 size, bool short_read)
 	SDL_mutexP(mutex);
 
         /* Copy as much as we need */
-        if ( size <= (Uint32)(stop-data) ) {
+        if ( size <= (Sint32)(stop-data) ) {
             len = size;
         } else {
             len = (stop-data);

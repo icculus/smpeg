@@ -86,88 +86,88 @@ typedef void(*SMPEG_DisplayCallback)(SDL_Surface* dst, int x, int y,
    subsystem. If not, you will have to use the SMPEG_playaudio() function below
    to extract the decoded data.
  */
-extern SMPEG* SMPEG_new(const char *file, SMPEG_Info* info, int sdl_audio);
+extern DECLSPEC SMPEG* SMPEG_new(const char *file, SMPEG_Info* info, int sdl_audio);
 
 /* The same as above for a file descriptor */
-extern SMPEG* SMPEG_new_descr(int file, SMPEG_Info* info, int sdl_audio);
+extern DECLSPEC SMPEG* SMPEG_new_descr(int file, SMPEG_Info* info, int sdl_audio);
 
 /* Get current information about an SMPEG object */
-extern void SMPEG_getinfo( SMPEG* mpeg, SMPEG_Info* info );
+extern DECLSPEC void SMPEG_getinfo( SMPEG* mpeg, SMPEG_Info* info );
 
 /* Enable or disable audio playback in MPEG stream */
-extern void SMPEG_enableaudio( SMPEG* mpeg, int enable );
+extern DECLSPEC void SMPEG_enableaudio( SMPEG* mpeg, int enable );
 
 /* Enable or disable video playback in MPEG stream */
-extern void SMPEG_enablevideo( SMPEG* mpeg, int enable );
+extern DECLSPEC void SMPEG_enablevideo( SMPEG* mpeg, int enable );
 
 /* Delete an SMPEG object */
-extern void SMPEG_delete( SMPEG* mpeg );
+extern DECLSPEC void SMPEG_delete( SMPEG* mpeg );
 
 /* Get the current status of an SMPEG object */
-extern SMPEGstatus SMPEG_status( SMPEG* mpeg );
+extern DECLSPEC SMPEGstatus SMPEG_status( SMPEG* mpeg );
 
 /* Set the audio volume of an MPEG stream, in the range 0-100 */
-extern void SMPEG_setvolume( SMPEG* mpeg, int volume );
+extern DECLSPEC void SMPEG_setvolume( SMPEG* mpeg, int volume );
 
 /* Set the destination surface for MPEG video playback
    'surfLock' is a mutex used to synchronize access to 'dst', and can be NULL.
    'callback' is a function called when an area of 'dst' needs to be updated.
    If 'callback' is NULL, the default function (SDL_UpdateRect) will be used.
 */
-extern void SMPEG_setdisplay(SMPEG* mpeg, SDL_Surface* dst, SDL_mutex* surfLock,
+extern DECLSPEC void SMPEG_setdisplay(SMPEG* mpeg, SDL_Surface* dst, SDL_mutex* surfLock,
                                             SMPEG_DisplayCallback callback);
 
 /* Set or clear looping play on an SMPEG object */
-extern void SMPEG_loop( SMPEG* mpeg, int repeat );
+extern DECLSPEC void SMPEG_loop( SMPEG* mpeg, int repeat );
 
 /* Scale pixel display on an SMPEG object */
-extern void SMPEG_scale( SMPEG* mpeg, int scale );
+extern DECLSPEC void SMPEG_scale( SMPEG* mpeg, int scale );
 /* */
 #define SMPEG_double(mpeg, on) \
 	SMPEG_scale(mpeg, (on) ? 2 : 1)
 
 /* Move the video display area within the destination surface */
-extern void SMPEG_move( SMPEG* mpeg, int x, int y );
+extern DECLSPEC void SMPEG_move( SMPEG* mpeg, int x, int y );
 
 /* Play an SMPEG object */
-extern void SMPEG_play( SMPEG* mpeg );
+extern DECLSPEC void SMPEG_play( SMPEG* mpeg );
 
 /* Pause/Resume playback of an SMPEG object */
-extern void SMPEG_pause( SMPEG* mpeg );
+extern DECLSPEC void SMPEG_pause( SMPEG* mpeg );
 
 /* Stop playback of an SMPEG object */
-extern void SMPEG_stop( SMPEG* mpeg );
+extern DECLSPEC void SMPEG_stop( SMPEG* mpeg );
 
 /* Rewind the play position of an SMPEG object to the beginning of the MPEG */
-extern void SMPEG_rewind( SMPEG* mpeg );
+extern DECLSPEC void SMPEG_rewind( SMPEG* mpeg );
 
 /* Skip 'seconds' seconds of the MPEG stream */
-void SMPEG_skip( SMPEG* mpeg, float seconds );
+void DECLSPEC SMPEG_skip( SMPEG* mpeg, float seconds );
 
 /* Render a particular frame in the MPEG video
    API CHANGE: This function no longer takes a target surface and position.
                Use SMPEG_setdisplay() and SMPEG_move() to set this information.
 */
-extern void SMPEG_renderFrame( SMPEG* mpeg, int framenum );
+extern DECLSPEC void SMPEG_renderFrame( SMPEG* mpeg, int framenum );
 
 /* Render the last frame of an MPEG video */
-extern void SMPEG_renderFinal( SMPEG* mpeg, SDL_Surface* dst, int x, int y );
+extern DECLSPEC void SMPEG_renderFinal( SMPEG* mpeg, SDL_Surface* dst, int x, int y );
 
 /* Return NULL if there is no error in the MPEG stream, or an error message
    if there was a fatal error in the MPEG stream for the SMPEG object.
 */
-extern char *SMPEG_error( SMPEG* mpeg );
+extern DECLSPEC char *SMPEG_error( SMPEG* mpeg );
 
 /* Exported callback function for SDL audio playback.
    The data parameter must be a pointer to the SMPEG object, casted to void *.
 */
-extern void SMPEG_playAudio( void *mpeg, Uint8 *stream, int len );
+extern DECLSPEC void SMPEG_playAudio( void *mpeg, Uint8 *stream, int len );
 
 /* Get the best SDL audio spec for the audio stream */
-extern int SMPEG_wantedSpec( SMPEG *mpeg, SDL_AudioSpec *wanted );
+extern DECLSPEC int SMPEG_wantedSpec( SMPEG *mpeg, SDL_AudioSpec *wanted );
 
 /* Inform SMPEG of the actual SDL audio spec used for sound playback */
-extern void SMPEG_actualSpec( SMPEG *mpeg, SDL_AudioSpec *spec );
+extern DECLSPEC void SMPEG_actualSpec( SMPEG *mpeg, SDL_AudioSpec *spec );
 
 #ifdef __cplusplus
 };
