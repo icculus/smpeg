@@ -79,12 +79,6 @@ public:
     /* Check for unused buffers and free them */
     void garbage_collect(void);
 
-    /* Set the looping flag */
-    void loop(bool toggle);
-
-    /* Check if the stream is looping */
-    bool is_looping() const;
-
     /* Enable or disable the stream */
     void enable(bool toggle);
 
@@ -105,7 +99,6 @@ protected:
     MPEGlist * br;
     bool cleareof;
     bool enabled;
-    bool looping;
 
     SDL_mutex * mutex;
 

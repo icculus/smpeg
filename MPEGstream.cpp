@@ -38,7 +38,6 @@ MPEGstream::MPEGstream(MPEGsystem * System, Uint8 Streamid)
   pos = 0;
   
   preread_size = 0;
-  looping = false;
   enabled = true;
   mutex = SDL_CreateMutex();
 }
@@ -82,7 +81,6 @@ MPEGstream::reset_stream()
   data = 0;
   stop = 0;
   pos = 0;
-  looping = false;
   preread_size = 0;
   SDL_mutexV(mutex);
 }
@@ -134,24 +132,9 @@ MPEGstream:: next_packet(bool recurse, bool update_timestamp)
   next_system_buffer();
   if(eof())
   {
-    bool system_eof;
-
-    if(looping)
-    {
-      do {
-        cleareof = true;
-        system_eof = next_system_buffer();
-      } while(eof() && !system_eof);
-    }
-    else
-    {
-      system_eof = true;
-    }
-    if ( system_eof ) {
-      /* Report eof */
-      SDL_mutexV(mutex);
-      return(false);
-    }
+    /* Report eof */
+    SDL_mutexV(mutex);
+    return(false);
   }
 
   /* Lock the buffer */
@@ -350,16 +333,6 @@ void MPEGstream::garbage_collect(void)
   br->Unlock();
 
   SDL_mutexV(mutex);
-}
-
-void MPEGstream::loop(bool toggle)
-{
-  looping = toggle;
-}
-
-bool MPEGstream::is_looping() const
-{
-  return(looping);
 }
 
 void MPEGstream::enable(bool toggle)

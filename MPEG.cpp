@@ -200,7 +200,6 @@ void MPEG::EnableVideo(bool enabled) {
 /* MPEG actions */
 void MPEG::Loop(bool toggle) {
   loop = toggle;
-  system->Loop(toggle);
 }
 void MPEG::Play(void) {
   if ( AudioEnabled() ) {
@@ -409,10 +408,10 @@ bool MPEG::seekIntoStream(int position)
   if(!system->Seek(position)) return(false);
 
   /* Seek first aligned data */
-  if(audiostream)
+  if(audiostream && audioaction_enabled)
     while(audiostream->time() == -1)
       audiostream->next_packet();
-  if(videostream)
+  if(videostream && videoaction_enabled)
     while(videostream->time() == -1)
       videostream->next_packet();
 

@@ -412,7 +412,6 @@ MPEGsystem::MPEGsystem(SDL_RWops *mpeg_source)
   read_total = 0;
   packet_total = 0;
   endofstream = errorstream = false;
-  looping = false;
   frametime = 0.0;
   stream_timestamp = 0.0;
 
@@ -1218,6 +1217,7 @@ bool MPEGsystem::Seek(int length)
   errorstream = false;
   timestamp = 0.0;
   skip_timestamp = -1;
+  reset_all_streams();
 
   SDL_mutexV(system_mutex);
 
@@ -1225,12 +1225,6 @@ bool MPEGsystem::Seek(int length)
   Start();
 
   return(true);
-}
-
-void MPEGsystem::Loop(bool toggle)
-{
-    looping = toggle;
-    loop_all_streams(looping);
 }
 
 void MPEGsystem::RequestBuffer()
@@ -1281,14 +1275,15 @@ void MPEGsystem::Stop()
 
 bool MPEGsystem::Wait()
 {
+#ifdef USE_SYSTEM_THREAD
   if ( ! errorstream ) {
     while(SDL_SemValue(request_wait) != 0)
-#ifdef USE_SYSTEM_THREAD
       SDL_Delay(1);
+  }
 #else
+  while(SDL_SemValue(request_wait) != 0)
       if ( ! SystemLoop(this) ) break;
 #endif
-  }
   return(!errorstream);
 }
 
@@ -1371,9 +1366,6 @@ void MPEGsystem::add_stream(MPEGstream * stream)
   /* Write the stream */
   stream_list[i] = stream;
 
-  /* Set the looping flag for that stream */
-  stream->loop(looping);
-  
   /* Put the end marker (null) */
   stream_list[i+1] = 0;
 }
@@ -1417,15 +1409,6 @@ void MPEGsystem::end_all_streams()
   /* We use a null buffer as the end of stream marker */
   for(i = 0; stream_list[i]; i++)
     stream_list[i]->insert_packet(0, 0);
-}
-
-void MPEGsystem::loop_all_streams(bool toggle)
-{
-  register int i;
-
-  /* Set loop flag on all streams */
-  for(i = 0; stream_list[i]; i++)
-    stream_list[i]->loop(toggle);
 }
 
 bool MPEGsystem::seek_first_header()

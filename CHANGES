@@ -1,4 +1,6 @@
 0.4.4:
+Sam Lantinga - Fri Apr 27 15:54:30 PDT 2001
+ * Reworked the looping code - it should work better now
 Sam Lantinga - Fri Apr 27 13:30:27 PDT 2001
  * Fixed memory leak when sound was disabled
 Sam Lantinga - Fri Apr 27 10:32:04 PDT 2001

@@ -1078,28 +1078,20 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
     /* Check for end of file */
     if(vid_stream->EOF_flag)
     {
-        /* Display last frame if not looping */
+        /* Set ended flag first so that ExecuteDisplay may check it. */
 
-	if(!vid_stream->_smpeg->mpeg->is_looping())
-	{
+        vid_stream->film_has_ended = TRUE;
 
-	  /* Set ended flag first so that ExecuteDisplay may check it. */
-
-	  vid_stream->film_has_ended = TRUE;
-
-	  if( vid_stream->future != NULL )
-	  {
+        if( vid_stream->future != NULL )
+        {
             vid_stream->current = vid_stream->future;
             vid_stream->_smpeg->ExecuteDisplay( vid_stream );
-	  }
+        }
 
 #ifdef ANALYSIS
-	  PrintAllStats(vid_stream);
+        PrintAllStats(vid_stream);
 #endif
-	  goto done;
-	}
-	else
-	  vid_stream->EOF_flag = 0;
+        goto done;
     }
 
     /*
