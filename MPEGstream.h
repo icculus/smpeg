@@ -28,6 +28,7 @@
 #define AUDIO_STREAMID  0xc0
 #define VIDEO_STREAMID  0xe0
 #define SYSTEM_STREAMID 0xbb
+#define PAD_STREAMID    0xbe
 
 class MPEGstream : public MPEGerror {
 public:
