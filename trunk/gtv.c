@@ -737,8 +737,6 @@ static void gtv_seek( GtkAdjustment* adjust, gpointer raw )
       SMPEG_getinfo( mpeg, info );
       
       SMPEG_seek(mpeg, (int)((info->total_size*adjust->value)/100));
-
-      gtv_step( NULL, raw );
     }
 }
 

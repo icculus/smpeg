@@ -28,7 +28,7 @@ public:
     void Rewind();
     void Loop(bool toggle);
     bool Eof() const;
-    double Seek(int length);
+    bool Seek(int length);
     Uint32 TotalSize();
 
     /* Skip "seconds" seconds */
@@ -94,7 +94,6 @@ protected:
 
 #ifdef USE_SYSTEM_TIMESTAMP
     /* Current timestamp for this stream */
-    double start_timestamp;
     double timestamp;
     double timedrift;
     double skip_timestamp;

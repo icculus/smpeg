@@ -1,4 +1,6 @@
 0.4.0:
+Vivien Chappelier - Mon Jun  5 18:47:47 PDT 2000
+ * Fixed audio synchronization when seeking in an MPEG stream
 Sam Lantinga - Sat Jun  3 20:13:42 PDT 2000
  * Ported (easily) to BeOS
 Sam Lantinga - Sat Jun  3 19:40:41 PDT 2000

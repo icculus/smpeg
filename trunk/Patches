@@ -1,5 +1,216 @@
 *************************************************************************
 *** Applied ***
+Date: Tue, 06 Jun 2000 03:13:46 +0200
+From: Vivien Chappelier <vivien.chappelier@enst-bretagne.fr>
+Subject: Re: Buffering problems
+
+
+Sam Lantinga wrote:
+> Sweet!  I think we're ready to release SMPEG 0.4.0 just as soon as the
+> sync on skip is fixed.
+
+Hi!
+
+I've managed to find some time today to fix this bug :-)
+I reinitialized times according to the scr instead of pts...
+
+for the Patches file :
+        - changed seeking in MPEG.cpp to set video and audio decoder
+times according to the first presentation timestamp in their respective stream
+                * fixes slight delay between audio&video after a seek
+        - removed call to gtv_step in gtv_seek
+        that was meant in first place to see where we are in the stream
+while seeking, but isn't needed, and actually didn't work :-)
+
+What are you planning to do after 0.4.0?
+I would be eager to help developping the ATI acceleration as I own an
+ATI Rage128 myself :-)
+
+see ya,
+Vivien.
+
+diff -Naur smpeg/MPEG.cpp smpeg.patched/MPEG.cpp
+--- smpeg/MPEG.cpp	Sun Jun  4 21:16:54 2000
++++ smpeg.patched/MPEG.cpp	Tue Jun  6 02:36:25 2000
+@@ -350,22 +350,24 @@
+   Stop();
+ 
+   /* Go to the desired position into file */
+-  if((time = system->Seek(position)) < 0) return(false);
++  if(!system->Seek(position)) return(false);
+ 
+-  /* Skip the first empty buffer made when creating a mpegstream */
+-  /* which would otherwise be interpreted as end of file */
+-
+-  if(audiostream) audiostream->next_packet();
+-  if(videostream) videostream->next_packet();
++  /* Seek first aligned data */
++  if(audiostream)
++    while(audiostream->time() == -1)
++      audiostream->next_packet();
++  if(videostream)
++    while(videostream->time() == -1)
++      videostream->next_packet();
+ 
+   /* And forget what we previouly buffered */
+   if ( audioaction ) {
+     audioaction->Rewind();
+-    audioaction->ResetSynchro(time);
++    audioaction->ResetSynchro(audiostream->time());
+   }
+   if ( videoaction ) {
+     videoaction->Rewind();
+-    videoaction->ResetSynchro(time);
++    videoaction->ResetSynchro(videostream->time());
+   }
+ 
+   return(true);
+diff -Naur smpeg/MPEGlist.cpp smpeg.patched/MPEGlist.cpp
+--- smpeg/MPEGlist.cpp	Thu May 11 06:49:13 2000
++++ smpeg.patched/MPEGlist.cpp	Tue Jun  6 02:17:42 2000
+@@ -7,6 +7,7 @@
+   lock = 0;
+   next = 0;
+   prev = 0;
++  TimeStamp = -1;
+ }
+ 
+ MPEGlist::~MPEGlist()
+diff -Naur smpeg/MPEGstream.cpp smpeg.patched/MPEGstream.cpp
+--- smpeg/MPEGstream.cpp	Fri Jun  2 14:18:56 2000
++++ smpeg.patched/MPEGstream.cpp	Mon Jun  5 18:33:34 2000
+@@ -361,3 +361,8 @@
+ {
+   enabled = toggle;
+ }
++
++double MPEGstream::time()
++{
++  return(br->TimeStamp);
++}
+diff -Naur smpeg/MPEGstream.h smpeg.patched/MPEGstream.h
+--- smpeg/MPEGstream.h	Fri May 26 20:04:53 2000
++++ smpeg.patched/MPEGstream.h	Mon Jun  5 18:28:02 2000
+@@ -88,6 +88,9 @@
+     /* Enable or disable the stream */
+     void enable(bool toggle);
+ 
++    /* Get stream time */
++    double time();
++
+     Uint32 pos;
+ 
+     Uint8 streamid;
+diff -Naur smpeg/MPEGsystem.cpp smpeg.patched/MPEGsystem.cpp
+--- smpeg/MPEGsystem.cpp	Sun Jun  4 21:16:54 2000
++++ smpeg.patched/MPEGsystem.cpp	Tue Jun  6 02:29:12 2000
+@@ -400,7 +400,6 @@
+   timestamp = 0.0;
+   timedrift = 0.0;
+   skip_timestamp = -1;
+-  start_timestamp = -1;
+   system_thread_running = false;
+   system_thread = 0;
+ 
+@@ -551,7 +550,6 @@
+   {
+       pointer += header_size;
+       stream_list[0]->pos += header_size;
+-      if(start_timestamp == -1) start_timestamp = timestamp;
+ #ifdef DEBUG_SYSTEM
+       fprintf(stderr, "MPEG packet header time: %lf\n", timestamp);
+ #endif
+@@ -870,7 +868,7 @@
+   Seek(0);
+ }
+ 
+-double MPEGsystem::Seek(int length)
++bool MPEGsystem::Seek(int length)
+ {
+   request = 0;
+ 
+@@ -889,7 +887,7 @@
+       errorstream = true;
+       SetError(strerror(errno));
+     }
+-    return(-1);
++    return(false);
+   }
+ 
+   /* Reinitialize the read buffer */
+@@ -901,7 +899,6 @@
+   endofstream = false;
+   errorstream = false;
+   timestamp = 0.0;
+-  start_timestamp = -1;
+   skip_timestamp = -1;
+ 
+   /* Get the next header */
+@@ -924,16 +921,9 @@
+ 
+   /* Wait for prebuffering */
+   while(request > 0 && !Eof())
+-  {
+-    if(timestamp > 0 && start_timestamp < 0)
+-      start_timestamp = timestamp;
+-
+     SDL_Delay(1);
+-  }
+-
+-  if(start_timestamp < 0) start_timestamp = 0.0;
+ 
+-  return(start_timestamp);
++  return(true);
+ }
+ 
+ void MPEGsystem::Loop(bool toggle)
+diff -Naur smpeg/MPEGsystem.h smpeg.patched/MPEGsystem.h
+--- smpeg/MPEGsystem.h	Fri May 26 20:04:54 2000
++++ smpeg.patched/MPEGsystem.h	Tue Jun  6 02:30:57 2000
+@@ -28,7 +28,7 @@
+     void Rewind();
+     void Loop(bool toggle);
+     bool Eof() const;
+-    double Seek(int length);
++    bool Seek(int length);
+     Uint32 TotalSize();
+ 
+     /* Skip "seconds" seconds */
+@@ -94,7 +94,6 @@
+ 
+ #ifdef USE_SYSTEM_TIMESTAMP
+     /* Current timestamp for this stream */
+-    double start_timestamp;
+     double timestamp;
+     double timedrift;
+     double skip_timestamp;
+diff -Naur smpeg/gtv.c smpeg.patched/gtv.c
+--- smpeg/gtv.c	Sun Jun  4 21:16:56 2000
++++ smpeg.patched/gtv.c	Mon Jun  5 18:20:56 2000
+@@ -737,8 +737,6 @@
+       SMPEG_getinfo( mpeg, info );
+       
+       SMPEG_seek(mpeg, (int)((info->total_size*adjust->value)/100));
+-
+-      gtv_step( NULL, raw );
+     }
+ }
+ 
+diff -Naur smpeg/video/video.cpp smpeg.patched/video/video.cpp
+--- smpeg/video/video.cpp	Sun Jun  4 21:16:57 2000
++++ smpeg.patched/video/video.cpp	Tue Jun  6 02:37:08 2000
+@@ -1098,6 +1098,9 @@
+         {
+             status = SKIP_PICTURE;
+         }
++	
++	if( !vid_stream->current )
++	    status = SKIP_PICTURE;
+ 
+         if( status == SKIP_PICTURE )
+         {
+*************************************************************************
+*** Applied ***
 Date: Sun, 04 Jun 2000 16:42:54 +0200
 From: Vivien Chappelier <vivien.chappelier@enst-bretagne.fr>
 Subject: Re: Buffering problems

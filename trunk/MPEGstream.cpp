@@ -361,3 +361,8 @@ void MPEGstream::enable(bool toggle)
 {
   enabled = toggle;
 }
+
+double MPEGstream::time()
+{
+  return(br->TimeStamp);
+}

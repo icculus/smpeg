@@ -400,7 +400,6 @@ MPEGsystem::MPEGsystem(int Mpeg_FD)
   timestamp = 0.0;
   timedrift = 0.0;
   skip_timestamp = -1;
-  start_timestamp = -1;
   system_thread_running = false;
   system_thread = 0;
 
@@ -551,7 +550,6 @@ Uint8 MPEGsystem::FillBuffer()
   {
       pointer += header_size;
       stream_list[0]->pos += header_size;
-      if(start_timestamp == -1) start_timestamp = timestamp;
 #ifdef DEBUG_SYSTEM
       fprintf(stderr, "MPEG packet header time: %lf\n", timestamp);
 #endif
@@ -870,7 +868,7 @@ void MPEGsystem::Rewind()
   Seek(0);
 }
 
-double MPEGsystem::Seek(int length)
+bool MPEGsystem::Seek(int length)
 {
   request = 0;
 
@@ -889,7 +887,7 @@ double MPEGsystem::Seek(int length)
       errorstream = true;
       SetError(strerror(errno));
     }
-    return(-1);
+    return(false);
   }
 
   /* Reinitialize the read buffer */
@@ -901,7 +899,6 @@ double MPEGsystem::Seek(int length)
   endofstream = false;
   errorstream = false;
   timestamp = 0.0;
-  start_timestamp = -1;
   skip_timestamp = -1;
 
   /* Get the next header */
@@ -924,16 +921,9 @@ double MPEGsystem::Seek(int length)
 
   /* Wait for prebuffering */
   while(request > 0 && !Eof())
-  {
-    if(timestamp > 0 && start_timestamp < 0)
-      start_timestamp = timestamp;
-
     SDL_Delay(1);
-  }
 
-  if(start_timestamp < 0) start_timestamp = 0.0;
-
-  return(start_timestamp);
+  return(true);
 }
 
 void MPEGsystem::Loop(bool toggle)

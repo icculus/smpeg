@@ -350,22 +350,24 @@ bool MPEG::seekIntoStream(int position)
   Stop();
 
   /* Go to the desired position into file */
-  if((time = system->Seek(position)) < 0) return(false);
+  if(!system->Seek(position)) return(false);
 
-  /* Skip the first empty buffer made when creating a mpegstream */
-  /* which would otherwise be interpreted as end of file */
-
-  if(audiostream) audiostream->next_packet();
-  if(videostream) videostream->next_packet();
+  /* Seek first aligned data */
+  if(audiostream)
+    while(audiostream->time() == -1)
+      audiostream->next_packet();
+  if(videostream)
+    while(videostream->time() == -1)
+      videostream->next_packet();
 
   /* And forget what we previouly buffered */
   if ( audioaction ) {
     audioaction->Rewind();
-    audioaction->ResetSynchro(time);
+    audioaction->ResetSynchro(audiostream->time());
   }
   if ( videoaction ) {
     videoaction->Rewind();
-    videoaction->ResetSynchro(time);
+    videoaction->ResetSynchro(videostream->time());
   }
 
   return(true);
