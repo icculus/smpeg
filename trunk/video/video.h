@@ -146,9 +146,6 @@ typedef Uint8 UINT8;
 #define IS_2x2_DITHER(a) ((a) == Twox2_DITHER || (a) == FULL_COLOR2_DITHER || (a) == GRAY2_DITHER || (a) == (GRAY2562_DITHER))
 #endif
 
-/* External declaration of row,col to zig zag conversion matrix. */
-extern const int zigzag_direct[64];
-
 /* Brown - changed to const int because it is a help variable */
 extern const int scan[][8];
 

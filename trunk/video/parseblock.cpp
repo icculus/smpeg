@@ -50,10 +50,18 @@
 
 #define NO_SANITY_CHECKS
 #include <assert.h>
+#include <stdlib.h>
 #include "util.h"
 #include "video.h"
 #include "proto.h"
 #include "decoders.h"
+#ifdef USE_MMX
+extern "C" {
+extern unsigned int cpu_flags(void);
+extern void IDCT_mmx(DCTBLOCK data);
+};
+#define mmx_ok()	(cpu_flags() & 0x800000)
+#endif
 
 
 /*
@@ -72,6 +80,70 @@ extern int dcprec;
 
 #define Sign(num) ((num > 0) ? 1 : ((num == 0) ? 0 : -1))
 
+
+#ifdef USE_MMX
+static const int zigzag_direct_nommx[64] = {
+  0, 1, 8, 16, 9, 2, 3, 10, 17, 24, 32, 25, 18, 11, 4, 5, 12,
+  19, 26, 33, 40, 48, 41, 34, 27, 20, 13, 6, 7, 14, 21, 28, 35,
+  42, 49, 56, 57, 50, 43, 36, 29, 22, 15, 23, 30, 37, 44, 51,
+  58, 59, 52, 45, 38, 31, 39, 46, 53, 60, 61, 54, 47, 55, 62, 63};
+
+
+static const int zigzag_direct_mmx[64] = {
+
+    0*8+0/* 0*/, 1*8+0/* 1*/, 0*8+1/* 8*/, 0*8+2/*16*/, 1*8+1/* 9*/, 2*8+0/* 2*/, 3*8+0/* 3*/, 2*8+1/*10*/,
+    1*8+2/*17*/, 0*8+3/*24*/, 0*8+4/*32*/, 1*8+3/*25*/, 2*8+2/*18*/, 3*8+1/*11*/, 4*8+0/* 4*/, 5*8+0/* 5*/,
+    4*8+1/*12*/, 5*8+2/*19*/, 2*8+3/*26*/, 1*8+4/*33*/, 0*8+5/*40*/, 0*8+6/*48*/, 1*8+5/*41*/, 2*8+4/*34*/,
+    3*8+3/*27*/, 4*8+2/*20*/, 5*8+1/*13*/, 6*8+0/* 6*/, 7*8+0/* 7*/, 6*8+1/*14*/, 5*8+2/*21*/, 4*8+3/*28*/,
+    3*8+4/*35*/, 2*8+5/*42*/, 1*8+6/*49*/, 0*8+7/*56*/, 1*8+7/*57*/, 2*8+6/*50*/, 3*8+5/*43*/, 4*8+4/*36*/,
+    5*8+3/*29*/, 6*8+2/*22*/, 7*8+1/*15*/, 7*8+2/*23*/, 6*8+3/*30*/, 5*8+4/*37*/, 4*8+5/*44*/, 3*8+6/*51*/,
+    2*8+7/*58*/, 3*8+7/*59*/, 4*8+6/*52*/, 5*8+5/*45*/, 6*8+4/*38*/, 7*8+3/*31*/, 7*8+4/*39*/, 6*8+5/*46*/,
+    7*8+6/*53*/, 4*8+7/*60*/, 5*8+7/*61*/, 6*8+6/*54*/, 7*8+5/*47*/, 7*8+6/*55*/, 6*8+7/*62*/, 7*8+7/*63*/
+};
+
+static int mmx;
+static int zigzag_direct[256];
+
+void InitIDCT(void)
+{
+  int i;
+  char *use_mmx;
+
+  use_mmx = getenv("SMPEG_USE_MMX");
+  if ( use_mmx ) {
+    mmx = atoi(use_mmx);
+  } else {
+    mmx = mmx_ok();
+  }
+  if (mmx) {
+printf("Using MMX IDCT algorithm!\n");
+    for(i=0;i<64;i++) {
+      zigzag_direct[i]=zigzag_direct_mmx[i];
+    }
+  } else {
+    for(i=0;i<64;i++) {
+      zigzag_direct[i]=zigzag_direct_nommx[i];
+    }  
+  }
+  while ( i < 256 )
+    zigzag_direct[i++] = 0;
+}
+
+#else
+/* Array mapping zigzag to array pointer offset. */
+const int zigzag_direct[64] =
+{
+  0, 1, 8, 16, 9, 2, 3, 10, 17, 24, 32, 25, 18, 11, 4, 5, 12,
+  19, 26, 33, 40, 48, 41, 34, 27, 20, 13, 6, 7, 14, 21, 28, 35,
+  42, 49, 56, 57, 50, 43, 36, 29, 22, 15, 23, 30, 37, 44, 51,
+  58, 59, 52, 45, 38, 31, 39, 46, 53, 60, 61, 54, 47, 55, 62, 63
+};
+
+void InitIDCT(void)
+{
+  return;
+}
+#endif
 
 /*
  *--------------------------------------------------------------
@@ -260,6 +332,11 @@ void ParseReconBlock( int n, VidStream* vid_stream )
       }
       
       *reconptr = coeff;
+#ifdef USE_MMX
+      if ( mmx ) {
+        *reconptr <<= 4;
+      }
+#endif
       i = 0; 
       pos = 0;
       coeffCount = (coeff != 0);
@@ -276,17 +353,8 @@ void ParseReconBlock( int n, VidStream* vid_stream )
           if (run >= END_OF_BLOCK) break;
 
           i = i + run + 1;
-#if 0
-          assert(i < 64);
-#else
-          if (i >= 64) {
-#ifdef VERBOSE_WARNING
-            fprintf(stderr, "Bad matrix decoding information\n");
-#endif
-	       	break;
-          }
-#endif
-          pos = zigzag_direct[i];
+
+          pos = zigzag_direct[i&0x3f];
 
           /* quantizes and oddifies each coefficient */
           if (level < 0) {
@@ -298,6 +366,10 @@ void ParseReconBlock( int n, VidStream* vid_stream )
                      ((int) (*(iqmatrixptr+pos)))) >> 4; 
             coeff -= (1 - (coeff & 1));
           }
+#ifdef USE_MMX
+          if ( mmx )
+            coeff *= 16;
+#endif
 #ifdef QUANT_CHECK
           printf ("coeff: %d\n", coeff);
 #endif
@@ -329,7 +401,7 @@ void ParseReconBlock( int n, VidStream* vid_stream )
       DECODE_DCT_COEFF_FIRST(run, level);
       i = run;
 
-      pos = zigzag_direct[i];
+      pos = zigzag_direct[i&0x3f];
 
         /* quantizes and oddifies each coefficient */
       if (level < 0) {
@@ -341,6 +413,10 @@ void ParseReconBlock( int n, VidStream* vid_stream )
                  ((int) (*(niqmatrixptr+pos)))) >> 4; 
 	coeff = (coeff-1) | 1; /* equivalent to: if ((coeff&1)==0) coeff = coeff - 1; */
       }
+#ifdef USE_MMX
+      if ( mmx )
+        coeff *= 16;
+#endif
 
       reconptr[pos] = coeff;
       if (coeff) {
@@ -358,17 +434,9 @@ void ParseReconBlock( int n, VidStream* vid_stream )
           }
 
           i = i+run+1;
-#if 0
-          assert(i < 64);
-#else
-          if (i >= 64) {
-#ifdef VERBOSE_WARNING
-            fprintf(stderr, "Bad matrix decoding information\n");
-#endif
-	       	break;
-          }
-#endif
-          pos = zigzag_direct[i];
+
+          pos = zigzag_direct[i&0x3f];
+
           if (level < 0) {
             coeff = (((level<<1) - 1) * qscale * 
                      ((int) (niqmatrixptr[pos]))) / 16; 
@@ -378,6 +446,10 @@ void ParseReconBlock( int n, VidStream* vid_stream )
                      ((int) (*(niqmatrixptr+pos)))) >> 4; 
             coeff = (coeff-1) | 1; /* equivalent to: if ((coeff&1)==0) coeff = coeff - 1; */
           }
+#ifdef USE_MMX
+          if ( mmx )
+            coeff *= 16;
+#endif
           reconptr[pos] = coeff;
           coeffCount++;
         } /* end while */
@@ -401,7 +473,14 @@ void ParseReconBlock( int n, VidStream* vid_stream )
     {
         if( coeffCount == 1 )
         {
+#ifdef USE_MMX
+          if ( mmx )
+            IDCT_mmx(reconptr);
+          else
+            j_rev_dct_sparse (reconptr, pos);
+#else
           j_rev_dct_sparse (reconptr, pos);
+#endif
         }
         else
         {
@@ -411,14 +490,22 @@ void ParseReconBlock( int n, VidStream* vid_stream )
             float_idct(reconptr);
           }
           else
-          {
 #endif
+#ifdef USE_MMX
+          if ( mmx )
+            IDCT_mmx(reconptr);
+          else
             j_rev_dct(reconptr);
-#ifdef FLOATDCT
-          }
+#else
+            j_rev_dct(reconptr);
 #endif
         }
     }
+#ifdef USE_MMX
+    if ( mmx ) {
+      __asm__ ("emms");
+    }
+#endif
 }
     
 #undef DCT_recon 

@@ -60,6 +60,7 @@ void PrintAllStats P((VidStream *vid_stream ));
 double ReadSysClock P((void ));
 void PrintTimeInfo P(( VidStream *vid_stream ));
 void InitCrop P((void ));
+void InitIDCT P((void ));
 VidStream *NewVidStream P((unsigned int buffer_len ));
 void ResetVidStream P((VidStream *vid ));
 void DestroyVidStream P((VidStream *astream ));
