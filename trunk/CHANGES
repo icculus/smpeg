@@ -1,4 +1,6 @@
 current:
+Ryan C. Gordon - Wed Dec 18 16:47:52 EST 2002
+ * Apple Project Builder support by Eric Wing.
 Ryan C. Gordon - Fri Dec  6 14:32:29 EST 2002
  * Fixed for newer automakes.
 Ryan C. Gordon - Wed Dec  4 18:00:33 EST 2002
