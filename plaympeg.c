@@ -734,6 +734,7 @@ int main(int argc, char *argv[])
                                 	width, height, SDL_GetError());
                 continue;
             }
+            SDL_WM_SetCaption(argv[i], "plaympeg");
             if ( screen->flags & SDL_FULLSCREEN ) {
                 SDL_ShowCursor(0);
             }
