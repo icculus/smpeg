@@ -536,6 +536,9 @@ MPEGsystem::~MPEGsystem()
     delete *list;
 
   free(stream_list);
+
+  /* Delete the read buffer */
+  delete[] read_buffer;
 }
 
 MPEGstream ** MPEGsystem::GetStreamList()
