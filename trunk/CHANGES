@@ -1,4 +1,6 @@
 0.4.1:
+Sam Lantinga - Wed Jun 21 14:58:24 PDT 2000
+ * The MMX idct code resulted in much less quality, so disabled by default
 Sam Lantinga - Thu Jun 15 00:07:33 PDT 2000
  * Added support for multiple tracks on a VCD disk
 Vivien Chappelier - Wed Jun 14 12:43:54 PDT 2000
