@@ -282,7 +282,7 @@ MPEGvideo:: Play(void)
 			Stop();
 		}
         playing = true;
-#ifdef PROFILE_VIDEO	/* Profiling doesn't work well with threads */
+#ifdef DISABLE_VIDEO_CALLBACK_THREAD
 		Play_MPEGvideo(this);
 #else
         _thread = SDL_CreateThread( Play_MPEGvideo, this );
@@ -297,10 +297,12 @@ void
 MPEGvideo:: Stop(void)
 {
     if ( _thread ) {
-        playing = false;
         SDL_WaitThread(_thread, NULL);
         _thread = NULL;
     }
+    
+    playing = false;
+    
     ResetPause();
 }
 
