@@ -173,7 +173,6 @@ int main(int argc, char *argv[])
 
     /* Play the mpeg files! */
     for ( ; argv[i]; ++i ) {
-#if 0
 	/* Initialize SDL */
 	if ( !video_inited && use_video ) {
 	  if ( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
@@ -196,16 +195,11 @@ int main(int argc, char *argv[])
 	  else
 	    audio_inited = 1;
 	}
-#endif
-        if ( SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO) < 0 ) {
-	    fprintf(stderr, "Warning: Couldn't init SDL: %s\n", SDL_GetError());
-            exit(1);
-        }
 	
         /* Create the MPEG stream */
 #ifdef NET_SUPPORT
         /* Check if source is a file or an ip address */
-        if(strchr(argv[i], ':') != NULL)
+        if((access(argv[i], F_OK) < 0) && (strchr(argv[i], ':') != NULL))
 	{
 	  char * address;
 	  int port;

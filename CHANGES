@@ -1,4 +1,6 @@
 0.4.0:
+Sam Lantinga, Ryan Gordon - Mon Apr 24 14:12:59 PDT 2000
+ * plaympeg can now play files containing colons
 Sam Lantinga - Tue Apr 18 17:12:16 PDT 2000
  * Adjusted the audio startup timing based on experimentation
 Hiroshi Yamashita - Tue Apr 18 15:48:14 PDT 2000
