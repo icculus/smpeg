@@ -151,7 +151,7 @@ MPEG::~MPEG()
   if(audio) delete audio;
   if(system) delete system;
   
-  SDL_RWclose(source);
+  if(source) SDL_RWclose(source);
   if ( mpeg_mem )
     delete[] mpeg_mem;
 }

@@ -1,4 +1,6 @@
 0.4.4:
+Mo DeJong - Mon Apr 16 12:26:04 PDT 2001
+ * Fixed crash when the MPEG file can't be opened
 Joe Drew - Mon Apr 16 12:04:36 PDT 2001
  * Fixed crash in gtv when seeking without a file loaded
 
