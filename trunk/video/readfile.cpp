@@ -121,6 +121,10 @@ get_more_data( VidStream* vid_stream )
   
   num_read = vid_stream->_smpeg->mpeg->copy_data(mark, request);
 
+  vid_stream->timestamp = vid_stream->_smpeg->mpeg->timestamp;
+  vid_stream->timestamp_mark = (unsigned int *)mark;
+  vid_stream->timestamp_used = false;
+
   /* Paulo Villegas - 26/1/1993: Correction for 4-byte alignment */
   {
     int num_read_rounded;

@@ -36,6 +36,7 @@ static void gtv_pause( GtkWidget*, gpointer );
 static void gtv_stop( GtkWidget*, gpointer );
 static void gtv_step( GtkWidget*, gpointer );
 static void gtv_to_end( GtkWidget*, gpointer );
+static void gtv_seek( GtkAdjustment*, gpointer );
 
 static void gtv_fix_toggle_state( gpointer raw )
 {
@@ -144,6 +145,8 @@ static void gtv_open( GtkWidget* item, gpointer raw )
     gtk_widget_show( file_sel );
 }
 
+static float mpeg_size; /* FIXME: put this somewhere else */
+
 static void gtv_open_file( gchar* name, gpointer raw )
 {
     SMPEG_Info* info = NULL;
@@ -170,6 +173,13 @@ static void gtv_open_file( gchar* name, gpointer raw )
 	SMPEG_delete( mpeg );
 	gtk_object_set_data( GTK_OBJECT( raw ), "mpeg", NULL );
 	return;
+    }
+    /* Get the file size */
+    mpeg_size = 0.0;
+    { struct stat sb;
+      if ( stat(name, &sb) == 0 ) {
+        mpeg_size = (float)sb.st_size;
+      }
     }
 
     gtk_object_set_data( GTK_OBJECT( raw ), "mpeg", mpeg );
@@ -647,6 +657,19 @@ static void gtv_to_end( GtkWidget* item, gpointer raw )
 
 }
 
+static void gtv_seek( GtkAdjustment* adjust, gpointer raw )
+{
+    SMPEG* mpeg = NULL;
+
+    assert( raw );
+
+    mpeg = (SMPEG*) gtk_object_get_data( GTK_OBJECT( raw ), "mpeg" );
+
+    if( mpeg && mpeg_size ) {
+        SMPEG_seek(mpeg, (int)((mpeg_size*adjust->value)/100));
+    }
+}
+
 static void gtv_set_frame( gpointer raw, int value )
 {
     GtkWidget* frame = NULL;
@@ -715,14 +738,13 @@ static void gtv_quit( GtkWidget* item, gpointer raw )
 
 static void gtv_connect( gpointer raw, gchar* name, gchar* signal, GtkSignalFunc func )
 {
-    GtkWidget* item = NULL;
+    GtkObject* item = NULL;
 
     assert( raw );
 
-    item = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), name ) );
+    item = GTK_OBJECT( gtk_object_get_data( GTK_OBJECT( raw ), name ) );
     assert( item );
-    gtk_signal_connect( GTK_OBJECT( item ), signal,
-			func, raw );
+    gtk_signal_connect(item, signal, func, raw );
 }
 
 int main( int argc, char* argv[] )
@@ -762,6 +784,7 @@ int main( int argc, char* argv[] )
     gtv_connect( window, "twotimes", "toggled", GTK_SIGNAL_FUNC( gtv_double ) );
     gtv_connect( window, "loop", "toggled", GTK_SIGNAL_FUNC( gtv_loop ) );
     gtv_connect( window, "audio", "toggled", GTK_SIGNAL_FUNC( gtv_audio ) );
+    gtv_connect( window, "seek", "value_changed", GTK_SIGNAL_FUNC( gtv_seek ) );
 
     /*    gtk_idle_add_priority( G_PRIORITY_LOW, gtv_timer, window );*/
     gtk_timeout_add( 1000, gtv_timer, window );
@@ -798,6 +821,8 @@ static GtkWidget* create_gtv_window( void )
   GtkAccelGroup *help_menu_accels;
   GtkWidget *about;
   GtkWidget *table1;
+  GtkObject *seek;
+  GtkWidget *scale;
   GtkWidget *play;
   GtkWidget *pause;
   GtkWidget *stop;
@@ -928,7 +953,7 @@ static GtkWidget* create_gtv_window( void )
                               GDK_F1, 0,
                               GTK_ACCEL_VISIBLE);
 
-  table1 = gtk_table_new (3, 5, FALSE);
+  table1 = gtk_table_new (4, 5, FALSE);
   gtk_widget_ref (table1);
   gtk_object_set_data_full (GTK_OBJECT (gtv_window), "table1", table1,
                             (GtkDestroyNotify) gtk_widget_unref);
@@ -937,6 +962,16 @@ static GtkWidget* create_gtv_window( void )
   gtk_container_set_border_width (GTK_CONTAINER (table1), 5);
   gtk_table_set_row_spacings (GTK_TABLE (table1), 5);
   gtk_table_set_col_spacings (GTK_TABLE (table1), 5);
+
+  seek = gtk_adjustment_new(0.0, 0.0, 100.0, 1.0, 0.0, 0.0);
+  gtk_object_set_data_full (GTK_OBJECT (gtv_window), "seek", seek,
+                            (GtkDestroyNotify) (0));
+  scale = gtk_hscale_new(GTK_ADJUSTMENT(seek));
+  gtk_range_set_update_policy (GTK_RANGE (scale), GTK_UPDATE_DELAYED);
+  gtk_widget_show (scale);
+  gtk_table_attach (GTK_TABLE (table1), scale, 0, 5, 3, 4,
+                    (GtkAttachOptions) (GTK_FILL),
+                    (GtkAttachOptions) (0), 0, 0);
 
   play = gtk_button_new_with_label ("  Play  ");
   gtk_widget_ref (play);

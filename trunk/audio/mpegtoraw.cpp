@@ -265,13 +265,21 @@ bool MPEGaudio::loadheader()
 }
 
 
-bool MPEGaudio::run( int frames )
+bool MPEGaudio::run( int frames, double *timestamp = NULL)
 {
+    double last_timestamp = -1;
+    int totFrames = frames;
     for( ; frames; frames-- )
     {
         if( loadheader() == false ) {
 	  return false;	  
         }
+
+        if (frames == totFrames  && timestamp != NULL)
+            if (last_timestamp != mpeg->timestamp)
+                last_timestamp = *timestamp = mpeg->timestamp;
+            else
+                *timestamp = -1;
 
         if     ( layer == 3 ) extractlayer3();
         else if( layer == 2 ) extractlayer2();
@@ -304,13 +312,14 @@ bool MPEGaudio::run( int frames )
 int Decode_MPEGaudio(void *udata)
 {
     MPEGaudio *audio = (MPEGaudio *)udata;
+    double timestamp;
 
     while ( audio->decoding && ! audio->mpeg->eof() ) {
         audio->rawdata = (Sint16 *)audio->ring->NextWriteBuffer();
         if ( audio->rawdata ) {
             audio->rawdatawriteoffset = 0;
-            audio->run(1);
-            audio->ring->WriteDone(audio->rawdatawriteoffset*2);
+            audio->run(1, &timestamp);
+            audio->ring->WriteDone(audio->rawdatawriteoffset*2, timestamp);
         }
     }
     audio->decoding = false;
@@ -362,6 +371,26 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
     assert(audio->ring);
     do {
         copylen = audio->ring->NextReadBuffer(&rbuf);
+        double timestamp = audio->ring->ReadTimeStamp();
+	if (timestamp >= 0){
+	    double timeshift = fabs(audio->play_time - timestamp);
+	    double correction = 0;
+
+	    if (timeshift > 0.3)
+	        correction = timeshift;
+            else
+	        correction = timeshift/1000;
+
+	    if (audio->play_time < timestamp)
+                audio->play_time += correction;
+            else
+                audio->play_time -= correction;
+#if 0
+	    fprintf(stderr, "%.3f\t%.4f\r",
+	                     audio->play_time - timestamp,
+	                     correction);
+#endif
+	}
         if ( copylen > len ) {
             SDL_MixAudio(stream, rbuf, len, volume);
             audio->ring->ReadSome(len);

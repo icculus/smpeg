@@ -1,5 +1,938 @@
 *************************************************************************
 *** Applied ***
+Date: Sun, 07 May 2000 21:51:14 +0200
+From: Vivien Chappelier <vivien.chappelier@enst-bretagne.fr>
+To: Sam Lantinga <hercules@lokigames.com>
+CC: Manuel Estrada <ranty@soon.com>,
+    Damien Chavarria <damien.chavarria@enst-bretagne.fr>
+Subject: SMPEG skipping, synchronization timestamps, and more
+
+Hi
+
+        I've just finished integrating the synchronization patch from Manuel
+and the skipping patch of Damien into one, and corrected a few things.
+Manuel's patch didn't work for audio or video only streams so I fixed
+it. I also fixed the problem with quitting that Rene H. Larsen raised. 
+        It is a patch against the latest CVS version.
+
+see ya,
+Vivien.
+
+
+diff -Naur smpeg/MPEG.cpp smpeg-seek-timestamp/MPEG.cpp
+--- smpeg/MPEG.cpp	Tue May  2 09:11:18 2000
++++ smpeg-seek-timestamp/MPEG.cpp	Sun May  7 19:50:30 2000
+@@ -101,8 +101,10 @@
+ 
+ MPEG::~MPEG()
+ {
+-  if(audio) delete audio;
++  Stop();
++
+   if(video) delete video;
++  if(audio) delete audio;
+ 
+   if(system) delete system;
+ 
+@@ -175,23 +177,7 @@
+ }
+ 
+ void MPEG::Rewind(void) {
+-  Stop();
+-
+-  /* Go to the beginning of the file */
+-  system->Rewind();
+-
+-  /* Skip the first empty buffer made when creating a mpegstream */
+-  /* which would otherwise be interpreted as end of file */
+-  if(audiostream) audiostream->next_packet();
+-  if(videostream) videostream->next_packet();
+-
+-  if ( AudioEnabled() ) {
+-    audioaction->Rewind();
+-  }
+-
+-  if ( VideoEnabled() ) {
+-    videoaction->Rewind();
+-  }
++  seekIntoStream(0);
+ }
+ 
+ void MPEG::Pause(void) {
+@@ -257,6 +243,7 @@
+   return(status);
+ }
+ 
++
+ /* MPEG audio actions */
+ bool MPEG::GetAudioInfo(MPEG_AudioInfo *info) {
+   if ( AudioEnabled() ) {
+@@ -328,16 +315,64 @@
+ 
+   if( audiostream ) audiostream->enable(true);
+ }
+-
++  
+ void MPEG::Skip(float seconds)
+ {
++  if(system->get_stream(SYSTEM_STREAMID))
++  {
++    system->Skip(seconds);
++  }
++  else
++  {
++    /* No system information in MPEG */
++    if( VideoEnabled() ) videoaction->Skip(seconds);
++    if( AudioEnabled() ) audioaction->Skip(seconds);
++  }
++}
++
++void MPEG::Seek(int position)
++{
++  int were_playing = 0;
++  
++  /* get info wether we need to restart playing at the end */
++  if( Status() == MPEG_PLAYING )
++    were_playing = 1;
++
++  seekIntoStream(position);
++
++  /* If we were playing and not rewind then play again */
++  if (were_playing)
++    Play();
++}
++
++void MPEG::seekIntoStream(int position)
++{
++  double time;
++
++  /* First we stop everything */
++  Stop();
++
++  /* Go to the desired position into file */
++  time = system->Seek(position);
++
++  /* Skip the first empty buffer made when creating a mpegstream */
++  /* which would otherwise be interpreted as end of file */
++
++  if(audiostream) audiostream->next_packet();
++  if(videostream) videostream->next_packet();
++
++  /* And forget what we previouly buffered */
++
+   if ( AudioEnabled() ) {
+-    audioaction->Skip(seconds);
++    audioaction->Rewind();
++    audioaction->ResetSynchro(time);
+   }
+ 
+   if ( VideoEnabled() ) {
+-    videoaction->Skip(seconds);
++    videoaction->Rewind();
++    videoaction->ResetSynchro(time);
+   }
++
+ }
+ 
+ void MPEG::parse_stream_list()
+diff -Naur smpeg/MPEG.h smpeg-seek-timestamp/MPEG.h
+--- smpeg/MPEG.h	Tue May  2 09:11:18 2000
++++ smpeg-seek-timestamp/MPEG.h	Sun May  7 15:49:10 2000
+@@ -68,6 +68,7 @@
+     void Stop(void);
+     void Rewind(void);
+     void Pause(void);
++    void Seek(int bytes);
+     void Skip(float seconds);
+     MPEGstatus Status(void);
+ 
+@@ -113,6 +114,7 @@
+     bool pause;
+ 
+     void parse_stream_list();
++    void seekIntoStream(int position);
+ };
+ 
+ #endif /* _MPEG_H_ */
+diff -Naur smpeg/MPEGaction.h smpeg-seek-timestamp/MPEGaction.h
+--- smpeg/MPEGaction.h	Tue May  2 09:11:18 2000
++++ smpeg-seek-timestamp/MPEGaction.h	Sun May  7 16:30:45 2000
+@@ -47,6 +47,7 @@
+     virtual void Play(void) = 0;
+     virtual void Stop(void) = 0;
+     virtual void Rewind(void) = 0;
++    virtual void ResetSynchro(double time) = 0;
+     virtual void Skip(float seconds) = 0;
+     virtual void Pause(void) {  /* A toggle action */
+         if ( paused ) {
+diff -Naur smpeg/MPEGaudio.h smpeg-seek-timestamp/MPEGaudio.h
+--- smpeg/MPEGaudio.h	Thu Apr  6 01:53:17 2000
++++ smpeg-seek-timestamp/MPEGaudio.h	Sun May  7 16:31:27 2000
+@@ -167,6 +167,7 @@
+     void Play(void);
+     void Stop(void);
+     void Rewind(void);
++    void ResetSynchro(double time);
+     void Skip(float seconds);
+     void Volume(int vol);
+     MPEGstatus Status(void);
+@@ -246,7 +247,7 @@
+   /*******************/
+ public:
+   void initialize();
+-  bool run(int frames);
++  bool run(int frames, double *timestamp = NULL);
+   void clearbuffer(void);
+ 
+   /*****************************/
+diff -Naur smpeg/MPEGlist.h smpeg-seek-timestamp/MPEGlist.h
+--- smpeg/MPEGlist.h	Thu Apr  6 01:53:17 2000
++++ smpeg-seek-timestamp/MPEGlist.h	Sun May  7 14:56:53 2000
+@@ -33,6 +33,8 @@
+ 
+   inline Uint32 IsLocked() { return(lock); };
+ 
++  double TimeStamp;
++
+ private:
+   class MPEGlist * next;
+   class MPEGlist * prev;
+diff -Naur smpeg/MPEGring.cpp smpeg-seek-timestamp/MPEGring.cpp
+--- smpeg/MPEGring.cpp	Tue May  2 09:11:18 2000
++++ smpeg-seek-timestamp/MPEGring.cpp	Sun May  7 14:56:53 2000
+@@ -36,9 +36,10 @@
+     ring = this;
+ 
+     tSize = (size + sizeof(Uint32)) * count;
+-    if( tSize )
++    if( tSize ){
+         ring->begin = (Uint8 *) malloc( tSize );
+-    else
++        ring->timestamps = (double *) malloc( sizeof(double)*count);
++    }else
+         ring->begin = 0;
+ 
+     if( ring->begin && count )
+@@ -46,6 +47,8 @@
+         ring->end   = ring->begin + tSize;
+         ring->read  = ring->begin;
+         ring->write = ring->begin;
++        ring->timestamp_read  = timestamps;
++        ring->timestamp_write = timestamps;
+         ring->bufSize  = size;
+         
+         ring->readwait = SDL_CreateSemaphore(0);
+@@ -103,7 +106,9 @@
+         /* Free data buffer */
+         if ( ring->begin ) {
+             free( ring->begin );
++            free( ring->timestamps );
+             ring->begin = 0;
++            ring->timestamps = 0;
+         }
+     }
+ }
+@@ -137,16 +142,18 @@
+ */
+ 
+ void
+-MPEG_ring:: WriteDone( Uint32 len )
++MPEG_ring:: WriteDone( Uint32 len, double timestamp=-1 )
+ {
+     if ( ring->active ) {
+         assert(len <= ring->bufSize);
+         *((Uint32*) ring->write) = len;
+ 
+         ring->write += ring->bufSize + sizeof(Uint32);
++        *(ring->timestamp_write++) = timestamp;
+         if( ring->write >= ring->end )
+         {
+             ring->write = ring->begin;
++            ring->timestamp_write = ring->timestamps;
+         }
+ //printf("Finished write buffer, making available for reads (%d+1 available for reads)\n", SDL_SemValue(ring->readwait));
+         SDL_SemPost(ring->readwait);
+@@ -184,7 +191,11 @@
+   MPRing_nextReadBuffer(), and want to update it so the rest of the data
+   is returned with the next call to MPRing_nextReadBuffer().
+ */
+-
++double
++MPEG_ring:: ReadTimeStamp(void)
++{
++    return *ring->timestamp_read;
++}
+ void
+ MPEG_ring:: ReadSome( Uint32 used )
+ {
+@@ -199,6 +210,7 @@
+         memcpy(data, data+used, newlen);
+         *((Uint32*) ring->read) = newlen;
+ //printf("Reusing read buffer (%d+1 available)\n", SDL_SemValue(ring->readwait));
++        *ring->timestamp_read = -1;
+         SDL_SemPost(ring->readwait);
+     }
+ }
+@@ -214,9 +226,11 @@
+ {
+     if ( ring->active ) {
+         ring->read += ring->bufSize + sizeof(Uint32);
++        ring->timestamp_read++;
+         if( ring->read >= ring->end )
+         {
+             ring->read = ring->begin;
++            ring->timestamp_read = ring->timestamps;
+         }
+ //printf("Finished read buffer, making available for writes (%d+1 available for writes)\n", SDL_SemValue(ring->writewait));
+         SDL_SemPost(ring->writewait);
+diff -Naur smpeg/MPEGring.h smpeg-seek-timestamp/MPEGring.h
+--- smpeg/MPEGring.h	Tue May  2 09:11:18 2000
++++ smpeg-seek-timestamp/MPEGring.h	Sun May  7 14:56:53 2000
+@@ -54,11 +54,14 @@
+     Uint8 *NextWriteBuffer( void );
+ 
+     /* Release a buffer, written to in the ring */
+-    void WriteDone( Uint32 len );
++    void WriteDone( Uint32 len, double timestamp=-1 );
+ 
+     /* Reserve a buffer for reading in the ring */
+     Uint32 NextReadBuffer( Uint8** buffer );
+ 
++    /* Read the timestamp of the current buffer */
++    double ReadTimeStamp(void);
++
+     /* Release a buffer having read some of it */
+     void ReadSome( Uint32 used );
+ 
+@@ -74,6 +77,10 @@
+     /* private */
+     Uint8 *begin;
+     Uint8 *end;
++
++    double *timestamps;
++    double *timestamp_read;
++    double *timestamp_write;
+ 
+     Uint8 *read;
+     Uint8 *write;
+diff -Naur smpeg/MPEGstream.cpp smpeg-seek-timestamp/MPEGstream.cpp
+--- smpeg/MPEGstream.cpp	Tue Apr 11 19:27:19 2000
++++ smpeg-seek-timestamp/MPEGstream.cpp	Sun May  7 14:56:53 2000
+@@ -114,7 +114,7 @@
+     system->RequestBuffer();
+     while(!br->Next() && timeout--)
+       SDL_Delay(1);
+-    if(!timeout) return(false);
++    if(timeout<=0) return(false);
+     SDL_mutexP(mutex);
+   }
+ 
+@@ -157,6 +157,7 @@
+   /* Update stream datas */
+   data = (Uint8 *) br->Buffer();
+   stop = data + br->Size();
++  timestamp = br->TimeStamp;
+ 
+   SDL_mutexV(mutex);
+ 
+@@ -286,7 +287,7 @@
+   return(!br->Size());
+ }
+ 
+-void MPEGstream::insert_packet(Uint8 * Data, Uint32 Size)
++void MPEGstream::insert_packet(Uint8 * Data, Uint32 Size, double timestamp=-1)
+ {
+   MPEGlist * newbr;
+ 
+@@ -304,6 +305,7 @@
+   newbr = newbr->Alloc(Size);
+ 
+   memcpy(newbr->Buffer(), Data, Size);
++  newbr->TimeStamp = timestamp;
+ 
+   SDL_mutexV(mutex);
+   garbage_collect();
+diff -Naur smpeg/MPEGstream.h smpeg-seek-timestamp/MPEGstream.h
+--- smpeg/MPEGstream.h	Tue Apr 11 19:27:19 2000
++++ smpeg-seek-timestamp/MPEGstream.h	Sun May  7 14:56:53 2000
+@@ -74,7 +74,7 @@
+     bool eof(void) const;
+ 
+     /* Insert a new packet at the end of the stream */
+-    void insert_packet(Uint8 * data, Uint32 size);
++    void insert_packet(Uint8 * data, Uint32 size, double timestamp=-1);
+ 
+     /* Check for unused buffers and free them */
+     void garbage_collect(void);
+@@ -102,6 +102,8 @@
+     bool looping;
+ 
+     SDL_mutex * mutex;
++public:
++    double timestamp;
+ };
+ 
+ #endif /* _MPEGSTREAM_H_ */
+diff -Naur smpeg/MPEGsystem.cpp smpeg-seek-timestamp/MPEGsystem.cpp
+--- smpeg/MPEGsystem.cpp	Tue May  2 09:11:18 2000
++++ smpeg-seek-timestamp/MPEGsystem.cpp	Sun May  7 18:23:21 2000
+@@ -39,11 +39,8 @@
+ 
+ /* The size is arbitrary but should be sufficient to contain */
+ /* two MPEG packets and reduce disk (or network) access.     */
+-#if 0 // Hiroshi Yamashita notes that the original size was too large
+-#define MPEG_BUFFER_SIZE (64 * 1024)
+-#else
+-#define MPEG_BUFFER_SIZE (16 * 1024)
+-#endif
++// Hiroshi Yamashita notes that the original size was too large
++#define MPEG_BUFFER_SIZE (16 * 1024) 
+ 
+ /* The granularity (2^LG2_GRANULARITY) determine what length of read data */
+ /* will be a multiple of, e.g. setting LG2_GRANULARITY to 12 will make    */
+@@ -105,6 +102,7 @@
+ #ifdef USE_SYSTEM_TIMESTAMP
+   timestamp = 0.0;
+   timedrift = 0.0;
++  skip_timestamp = 0.0;
+ #endif
+ 
+   /* Search the MPEG for the first header */
+@@ -406,6 +404,19 @@
+ 
+   assert(packet_size <= MPEG_BUFFER_SIZE);
+ 
++  if(skip_timestamp > timestamp){
++    int cur_seconds=int(timestamp)%60;
++
++    if (cur_seconds%5==0){
++      fprintf(stderr, "Skiping to %02d:%02d (%02d:%02d)\r",
++              int(skip_timestamp)/60, int(skip_timestamp)%60,
++              int(timestamp)/60, cur_seconds);
++    }
++    pointer += packet_size;
++    /* since we skip data, request more */
++    RequestBuffer();
++    return (1);
++  }
+   switch(stream_id)
+   {
+     case 0:
+@@ -473,11 +484,17 @@
+       }
+ 
+       /* Insert the new data at the end of the stream */
+-      stream->insert_packet(pointer, packet_size);
++      stream->insert_packet(pointer, packet_size, timestamp);
+       pointer += packet_size;
+     return(stream_id);
+   }
+ }
++void MPEGsystem::Skip(double time)
++{
++  if (skip_timestamp < timestamp)
++    skip_timestamp = timestamp;
++  skip_timestamp += time;
++}
+ 
+ Uint32 MPEGsystem::Tell()
+ {
+@@ -487,6 +504,11 @@
+ 
+ void MPEGsystem::Rewind()
+ {
++  Seek(0);
++}
++
++double MPEGsystem::Seek(int length)
++{
+   request = 0;
+ 
+   /* Force the system thread to die */
+@@ -496,15 +518,15 @@
+   /* Reset the streams */
+   reset_all_streams();
+ 
+-  /* Get back to the beginning of the stream */
+-  if(lseek(mpeg_fd, 0, SEEK_SET) == (long) -1)
++  /* Get into the stream */
++  if(lseek(mpeg_fd, length, SEEK_SET) == (off_t) -1)
+   {
+     if(errno != ESPIPE)
+     {
+       errorstream = true;
+       SetError(strerror(errno));
+     }
+-    return;
++    return (0);
+   }
+ 
+   /* Reinitialize the read buffer */
+@@ -520,7 +542,7 @@
+   {
+     errorstream = true;
+     SetError("Could not find the beginning of MPEG data\n");
+-    return;
++    return (0);
+   }
+ 
+   request = PRE_BUFFERED_MAX;
+@@ -536,6 +558,10 @@
+   while(request > 0 && !Eof())
+     SDL_Delay(1);
+ 
++  /* Get current play time */
++  FillBuffer();
++
++  return(timestamp);
+ }
+ 
+ void MPEGsystem::Loop(bool toggle)
+@@ -608,7 +634,7 @@
+     if(system->request > 0)
+     {
+       /* Read the buffer */
+-      system->FillBuffer();
++      while (system->FillBuffer()==1) {};
+       delay >>= 1;
+     }
+     else
+diff -Naur smpeg/MPEGsystem.h smpeg-seek-timestamp/MPEGsystem.h
+--- smpeg/MPEGsystem.h	Tue Apr 11 19:27:19 2000
++++ smpeg-seek-timestamp/MPEGsystem.h	Sun May  7 18:29:21 2000
+@@ -2,6 +2,7 @@
+ 
+ #ifndef _MPEGSYSTEM_H_
+ #define _MPEGSYSTEM_H_
++#define USE_SYSTEM_TIMESTAMP
+ 
+ #include "SDL.h"
+ #include "SDL_thread.h"
+@@ -27,20 +28,13 @@
+     void Rewind();
+     void Loop(bool toggle);
+     bool Eof() const;
++    double Seek(int length);
++    /* Skip "seconds" seconds */
++    void Skip(double seconds);
+ 
+     /* Create all the streams present in the MPEG */
+     MPEGstream ** GetStreamList();
+ 
+-protected:
+-    /* Fill a buffer */
+-    Uint8 FillBuffer();
+-
+-    /* Read a new packet */
+-    void Read();
+-
+-    /* The system thread which fills the FIFO */
+-    static int SystemThread(void * udata);
+-
+     /* Insert a stream in the list */
+     void add_stream(MPEGstream * stream);
+ 
+@@ -62,6 +56,16 @@
+     /* Seek the next header */
+     bool seek_next_header();
+ 
++protected:
++    /* Fill a buffer */
++    Uint8 FillBuffer();
++
++    /* Read a new packet */
++    void Read();
++
++    /* The system thread which fills the FIFO */
++    static int SystemThread(void * udata);
++
+     int mpeg_fd;
+ 
+     SDL_Thread * system_thread;
+@@ -84,6 +88,7 @@
+     /* Current timestamp for this stream */
+     double timestamp;
+     double timedrift;
++    double skip_timestamp;
+ #endif
+ };
+ #endif
+diff -Naur smpeg/MPEGvideo.h smpeg-seek-timestamp/MPEGvideo.h
+--- smpeg/MPEGvideo.h	Tue May  2 09:11:18 2000
++++ smpeg-seek-timestamp/MPEGvideo.h	Sun May  7 16:31:01 2000
+@@ -57,6 +57,7 @@
+     void Play(void);
+     void Stop(void);
+     void Rewind(void);
++    void ResetSynchro(double time);
+     void Skip(float seconds);
+     MPEGstatus Status(void);
+ 
+diff -Naur smpeg/audio/MPEGaudio.cpp smpeg-seek-timestamp/audio/MPEGaudio.cpp
+--- smpeg/audio/MPEGaudio.cpp	Tue May  2 09:11:19 2000
++++ smpeg-seek-timestamp/audio/MPEGaudio.cpp	Sun May  7 19:51:00 2000
+@@ -72,6 +72,7 @@
+ {
+     /* Remove ourselves from the mixer hooks */
+     Stop();
++
+ #ifdef THREADED_AUDIO
+     /* Stop the decode thread */
+     StopDecoding();
+@@ -147,6 +148,9 @@
+ MPEGaudio:: StopDecoding(void)
+ {
+     decoding = false;
++    if ( ring ) {
++      ring->ReleaseThreads();
++    }
+     if ( decode_thread ) {
+         SDL_WaitThread(decode_thread, NULL);
+         decode_thread = NULL;
+@@ -167,7 +171,7 @@
+     if ( frag_time ) {
+         now = (play_time + (double)(SDL_GetTicks() - frag_time)/1000.0);
+     } else {
+-        now = 0.0;
++        now = play_time;
+     }
+     return now;
+ }
+@@ -206,12 +210,18 @@
+     currentframe = 0;
+     frags_playing = 0;
+     frag_time = 0;
+-    play_time = 0.0;
+ }
+ void
++MPEGaudio:: ResetSynchro(double time)
++{
++    play_time = time;
++}
++
++void
+ MPEGaudio:: Skip(float seconds)
+ {
+-  printf("Audio: Skipping %f seconds...\n", seconds);  
++  /* Called only when there is no timestamp info in the MPEG */
++  printf("Audio: Skipping %f seconds...\n", seconds);
+   while(seconds > 0)
+   {
+     seconds -= (double) samplesperframe / ((double) frequencies[version][frequency]*(1+inputstereo));
+@@ -219,6 +229,7 @@
+     if(!loadheader()) break;
+   }
+ }
++
+ void
+ MPEGaudio:: Volume(int vol)
+ {
+diff -Naur smpeg/audio/mpegtoraw.cpp smpeg-seek-timestamp/audio/mpegtoraw.cpp
+--- smpeg/audio/mpegtoraw.cpp	Tue May  2 09:11:19 2000
++++ smpeg-seek-timestamp/audio/mpegtoraw.cpp	Sun May  7 19:49:42 2000
+@@ -265,14 +265,22 @@
+ }
+ 
+ 
+-bool MPEGaudio::run( int frames )
++bool MPEGaudio::run( int frames, double *timestamp = NULL)
+ {
++    double last_timestamp = -1;
++    int totFrames = frames;
+     for( ; frames; frames-- )
+     {
+         if( loadheader() == false ) {
+ 	  return false;	  
+         }
+ 
++        if (frames == totFrames  && timestamp != NULL)
++            if (last_timestamp != mpeg->timestamp)
++                last_timestamp = *timestamp = mpeg->timestamp;
++            else
++                *timestamp = -1;
++
+         if     ( layer == 3 ) extractlayer3();
+         else if( layer == 2 ) extractlayer2();
+         else if( layer == 1 ) extractlayer1();
+@@ -304,13 +312,14 @@
+ int Decode_MPEGaudio(void *udata)
+ {
+     MPEGaudio *audio = (MPEGaudio *)udata;
++    double timestamp;
+ 
+     while ( audio->decoding && ! audio->mpeg->eof() ) {
+         audio->rawdata = (Sint16 *)audio->ring->NextWriteBuffer();
+         if ( audio->rawdata ) {
+             audio->rawdatawriteoffset = 0;
+-            audio->run(1);
+-            audio->ring->WriteDone(audio->rawdatawriteoffset*2);
++            audio->run(1, &timestamp);
++            audio->ring->WriteDone(audio->rawdatawriteoffset*2, timestamp);
+         }
+     }
+     audio->decoding = false;
+@@ -362,6 +371,26 @@
+     assert(audio->ring);
+     do {
+         copylen = audio->ring->NextReadBuffer(&rbuf);
++        double timestamp = audio->ring->ReadTimeStamp();
++	if (timestamp >= 0){
++	    double timeshift = fabs(audio->play_time - timestamp);
++	    double correction = 0;
++
++	    if (timeshift > 0.3)
++	        correction = timeshift;
++            else
++	        correction = timeshift/1000;
++
++	    if (audio->play_time < timestamp)
++                audio->play_time += correction;
++            else
++                audio->play_time -= correction;
++#if 0
++	    fprintf(stderr, "%.3f\t%.4f\r",
++	                     audio->play_time - timestamp,
++	                     correction);
++#endif
++	}
+         if ( copylen > len ) {
+             SDL_MixAudio(stream, rbuf, len, volume);
+             audio->ring->ReadSome(len);
+diff -Naur smpeg/plaympeg.c smpeg-seek-timestamp/plaympeg.c
+--- smpeg/plaympeg.c	Tue May  2 09:11:19 2000
++++ smpeg-seek-timestamp/plaympeg.c	Sun May  7 19:50:45 2000
+@@ -52,7 +52,8 @@
+ "	--loop or -l	     Play MPEG over and over\n"
+ "	--volume N or -v N   Set audio volume to N (0-100)\n"
+ "	--scale wxh or -s wxh  Play MPEG at given resolution\n"
+-"       --skip N or -S N     Skip N seconds\n"
++"       --seek N             Skip N bytes\n"
++"       --skip N             Skip N seconds\n"
+ "	--help or -h\n"
+ "	--version or -V\n"
+ "Specifying - as filename will use stdin for input\n", argv0);
+@@ -83,6 +84,7 @@
+     int loop_play;
+     int i, done, pause;
+     int volume;
++    int seek;
+     float skip;
+     SDL_Surface *screen;
+     SMPEG *mpeg;
+@@ -100,7 +102,8 @@
+     scale_height = 0;
+     loop_play = 0;
+     volume = 100;
+-    skip = 0;
++    seek = 0;
++    skip = 0.0;
+     for ( i=1; argv[i] && (argv[i][0] == '-') && (argv[i][1] != 0); ++i ) {
+         if ( (strcmp(argv[i], "--noaudio") == 0) ||
+              (strcmp(argv[i], "--nosound") == 0) ) {
+@@ -118,10 +121,16 @@
+         if ((strcmp(argv[i], "--loop") == 0) || (strcmp(argv[i], "-l") == 0)) {
+             loop_play = 1;
+         } else
+-        if ((strcmp(argv[i], "--skip") == 0)||(strcmp(argv[i], "-S") == 0)) {
++	if ((strcmp(argv[i], "--seek") == 0)) {
+             ++i;
+             if ( argv[i] ) {
+-                skip = (float)atof(argv[i]);
++                seek = atoi(argv[i]);
++            }
++        } else
++	if ((strcmp(argv[i], "--skip") == 0)) {
++            ++i;
++            if ( argv[i] ) {
++                skip = (float) atof(argv[i]);
+             }
+         } else
+         if ((strcmp(argv[i], "--volume") == 0)||(strcmp(argv[i], "-v") == 0)) {
+@@ -352,10 +361,12 @@
+         if ( loop_play ) {
+             SMPEG_loop(mpeg, 1);
+         }
+-	
+-	/* Skip to starting position */
+-	if(skip) SMPEG_skip(mpeg, skip);
+ 
++	/* Seek starting position */
++	if(seek) SMPEG_seek(mpeg, seek);
++	/* Skip seconds to starting position */
++	if(skip) SMPEG_skip(mpeg, skip);
++	
+         /* Play it, and wait for playback to complete */
+         SMPEG_play(mpeg);
+         done = 0;
+@@ -432,11 +443,11 @@
+ 			} else if ( event.key.keysym.sym == SDLK_RIGHT ) {
+ 			  // Forward
+ 			  if ( event.key.keysym.mod & KMOD_SHIFT ) {
+-
++			    SMPEG_skip(mpeg, 100);
+ 			  } else if ( event.key.keysym.mod & KMOD_CTRL ) {
+-
++			    SMPEG_skip(mpeg, 50);
+ 			  } else {
+-			    
++			    SMPEG_skip(mpeg, 5);
+ 			  }
+                         } else if ( event.key.keysym.sym == SDLK_LEFT ) {
+ 			  // Reverse
+@@ -466,6 +477,7 @@
+             }
+             SDL_Delay(1000/2);
+         }
++
+         SMPEG_delete(mpeg);
+     }
+     SDL_Quit();
+diff -Naur smpeg/smpeg.cpp smpeg-seek-timestamp/smpeg.cpp
+--- smpeg/smpeg.cpp	Tue May  2 09:11:19 2000
++++ smpeg-seek-timestamp/smpeg.cpp	Sun May  7 15:33:15 2000
+@@ -210,7 +210,13 @@
+ /* Skip 'seconds' seconds of the MPEG */
+ void SMPEG_skip( SMPEG* mpeg, float seconds )
+ {
+-    mpeg->obj->Skip(seconds);
++  mpeg->obj->Skip(seconds);
++}
++
++/* Seek 'bytes' bytes of the MPEG */
++void SMPEG_seek( SMPEG* mpeg, int bytes )
++{
++  mpeg->obj->Seek(bytes);
+ }
+ 
+ /* Render a particular frame in the MPEG video */
+diff -Naur smpeg/smpeg.h smpeg-seek-timestamp/smpeg.h
+--- smpeg/smpeg.h	Tue May  2 09:11:19 2000
++++ smpeg-seek-timestamp/smpeg.h	Sun May  7 15:34:18 2000
+@@ -142,8 +142,11 @@
+ /* Rewind the play position of an SMPEG object to the beginning of the MPEG */
+ extern DECLSPEC void SMPEG_rewind( SMPEG* mpeg );
+ 
+-/* Skip 'seconds' seconds of the MPEG stream */
+-void DECLSPEC SMPEG_skip( SMPEG* mpeg, float seconds );
++/* Skip 'seconds' seconds of the MPEG */
++void SMPEG_skip( SMPEG* mpeg, float seconds );
++
++/* Seek 'bytes' bytes in the MPEG stream */
++void SMPEG_seek( SMPEG* mpeg, int bytes );
+ 
+ /* Render a particular frame in the MPEG video
+    API CHANGE: This function no longer takes a target surface and position.
+diff -Naur smpeg/video/MPEGvideo.cpp smpeg-seek-timestamp/video/MPEGvideo.cpp
+--- smpeg/video/MPEGvideo.cpp	Tue May  2 09:11:19 2000
++++ smpeg-seek-timestamp/video/MPEGvideo.cpp	Sun May  7 19:04:09 2000
+@@ -296,12 +296,23 @@
+     }
+     play_time = 0.0;
+ }
++
++void
++MPEGvideo:: ResetSynchro(double time)
++{
++  _stream->_jumpFrame = -1;
++  _stream->realTimeStart = 0.0;
++  play_time = time;
++}
++
+ void
+ MPEGvideo::Skip(float seconds)
+ {
+   int frame;
+ 
+-  printf("Video: Skipping %f seconds... please wait\n", seconds);  
++  /* Called only when there is no timestamp info in the MPEG */
++  /* This is quite slow however */
++  printf("Video: Skipping %f seconds...\n", seconds);  
+   frame = (int) (_fps * seconds);
+ 
+   if( _stream )
+@@ -312,11 +323,10 @@
+     {
+       mpegVidRsrc( 0, _stream, 0 );
+     }
+-    _stream->_jumpFrame = -1;
+-    _stream->realTimeStart = 0.0;
+-    play_time = 0.0;
++    ResetSynchro(0);
+   }
+ }
++
+ MPEGstatus
+ MPEGvideo:: Status(void)
+ {
+diff -Naur smpeg/video/gdith.cpp smpeg-seek-timestamp/video/gdith.cpp
+--- smpeg/video/gdith.cpp	Tue May  2 09:11:19 2000
++++ smpeg-seek-timestamp/video/gdith.cpp	Sun May  7 19:24:06 2000
+@@ -139,6 +139,7 @@
+     } else {
+         now = ReadSysClock() - vid_stream->realTimeStart;
+     }
++
+     return now;
+ }
+ 
+@@ -170,7 +171,13 @@
+     }
+ 
+     /* Update the current play time */
+-    mpeg->play_time += vid_stream->_oneFrameTime;
++    if(vid_stream->timestamp == -1) vid_stream->timestamp_used = true;
++    if(vid_stream->timestamp_mark < vid_stream->buffer 
++       && !vid_stream->timestamp_used){
++       mpeg->play_time = vid_stream->timestamp;
++       vid_stream->timestamp_used = true;
++    } else
++       mpeg->play_time += vid_stream->_oneFrameTime;
+ 
+     /* If we are looking for a particular frame... */
+     if( vid_stream->_jumpFrame > -1 )
+@@ -196,9 +203,8 @@
+ 
+         /* Calculate the frame time relative to real time */
+         time_behind = CurrentTime(vid_stream) - mpeg->Time();
+-
+ #ifdef DEBUG_MPEG_SCHEDULING
+-//printf("Frame %d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, mpeg->Time(), CurrentTime(vid_stream), time_behind);
++printf("Frame %d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, mpeg->Time(), CurrentTime(vid_stream), time_behind);
+ #endif
+ 
+         /* Allow up to MAX_FUDGE_TIME of delay in output */
+diff -Naur smpeg/video/readfile.cpp smpeg-seek-timestamp/video/readfile.cpp
+--- smpeg/video/readfile.cpp	Tue Dec 21 18:17:35 1999
++++ smpeg-seek-timestamp/video/readfile.cpp	Sun May  7 19:21:35 2000
+@@ -121,6 +121,10 @@
+   
+   num_read = vid_stream->_smpeg->mpeg->copy_data(mark, request);
+ 
++  vid_stream->timestamp = vid_stream->_smpeg->mpeg->timestamp;
++  vid_stream->timestamp_mark = (unsigned int *)mark;
++  vid_stream->timestamp_used = false;
++
+   /* Paulo Villegas - 26/1/1993: Correction for 4-byte alignment */
+   {
+     int num_read_rounded;
+diff -Naur smpeg/video/video.h smpeg-seek-timestamp/video/video.h
+--- smpeg/video/video.h	Tue May  2 09:11:20 2000
++++ smpeg-seek-timestamp/video/video.h	Sun May  7 14:56:53 2000
+@@ -304,6 +304,12 @@
+   int timestamp_index;
+ #endif
+ /* SL - end of added variables */
++/* begining of added variables for system stream based sync */
++  double timestamp;
++  unsigned int *timestamp_mark;
++  bool timestamp_used;
++/* begining of added variables */
++
+ 
+ } VidStream;   
+ 
+*************************************************************************
+*** Applied ***
 Date: Tue, 18 Apr 2000 22:27:25 +0900
 From: Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
 Subject: Re: layer2audio fix.

@@ -47,6 +47,7 @@ public:
     virtual void Play(void) = 0;
     virtual void Stop(void) = 0;
     virtual void Rewind(void) = 0;
+    virtual void ResetSynchro(double time) = 0;
     virtual void Skip(float seconds) = 0;
     virtual void Pause(void) {  /* A toggle action */
         if ( paused ) {

@@ -74,7 +74,7 @@ public:
     bool eof(void) const;
 
     /* Insert a new packet at the end of the stream */
-    void insert_packet(Uint8 * data, Uint32 size);
+    void insert_packet(Uint8 * data, Uint32 size, double timestamp=-1);
 
     /* Check for unused buffers and free them */
     void garbage_collect(void);
@@ -102,6 +102,8 @@ protected:
     bool looping;
 
     SDL_mutex * mutex;
+public:
+    double timestamp;
 };
 
 #endif /* _MPEGSTREAM_H_ */
