@@ -288,7 +288,7 @@ typedef struct vid_stream {
   PictImage *ring[RING_BUF_SIZE];              /* Ring buffer of frames.     */
 
 /* KR - beginning of added variables */
-  int rate_deal;
+  double rate_deal;
   int _skipFrame;
   double _skipCount;
   int _jumpFrame;

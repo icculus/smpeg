@@ -165,9 +165,13 @@ MPEGvideo::MPEGvideo(MPEGstream *stream)
 	  case 1: _fps = 23.97; break;
 	  case 2: _fps = 24.00; break;
 	  case 3: _fps = 25.00; break;
-	  case 4: _fps = 29.90; break;
+	  case 4: _fps = 29.97; break;
 	  case 5: _fps = 30.00; break;
-	  default: _fps = 0.00; break;
+	  case 6: _fps = 50.00; break;
+	  case 7: _fps = 59.94; break;
+	  case 8: _fps = 60.00; break;
+	  case 9: _fps = 15.00; break;
+	  default: _fps = 30.00; break;
 	}
     } else {
         _w = 0;
