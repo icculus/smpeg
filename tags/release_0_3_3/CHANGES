@@ -1,0 +1,57 @@
+
+0.3.3:
+Sam Lantinga - Mon Jan 17 19:52:32 PST 2000
+ * Updated for the new SDL mixer library release (1.0.3)
+Sam Lantinga - Tue Jan 11 16:17:50 PST 2000
+ * Fixed so SMPEG compiles on stock RedHat 5.2 systems
+Stephane Peter, Sam Lantinga - Thu Jan  10 15:22:33 PST 2000
+ * Fixed playing mono MP3 files on stereo audio output
+Sam Lantinga - Thu Jan  6 13:02:32 PST 2000
+ * SMPEG now detects MP3 files again (broken by RIFF searching code)
+ * gtv is now included by default when building an RPM
+Sam Lantinga - Mon Jan  3 20:54:32 PST 2000
+ * Changelog entries are now Y2K safe. ;-)
+ * SMPEG now handles pad packets in the initial system stream
+Jim Studt - Mon Jan  3 20:57:52 PST 2000
+ * Fixed endian detection on unknown Linux systems (ARM)
+Sam Lantinga - Mon Jan  3 21:09:01 PST 2000
+ * plaympeg now hides the mouse cursor in fullscreen mode
+
+0.3.2:
+SOL -   Updated autoconf for SDL 1.0
+SOL -   Fixed audio decoding thread - releases waiting audio threads
+SOL -	Fixed audio playback of MPEG videos when using external mixer
+KVC -	Handle RIFF encoded MPEG streams
+SOL -	Handle system streams that encode packets without a header
+Stefan Gybas - Contributed a man page for gtv.
+
+0.3.1:
+SOL -   Fixed endlessly looping "mpegVidRsrc ParseMacroBlock" problem
+SOL -   Changed parseblock assertion so it doesn't halt playback
+SOL -   Fixed crashing bug in ParseReconBlock() with corrupt videos
+SOL -   Fixed audio synchronization problem with looping movies
+
+0.3.0:
+SOL -	Added audio synchronization support.
+SOL -	Added autoconf support.
+MKV -	Added GTk mpeg player.
+MKV -	Added OpenGL mpeg player.
+SP  -	Exported the audio mixing function for flexible audio setup.
+Mo DeJong - plaympeg now prints out usage if given no arguments.
+Stefan Gybas - Contributed a man page for plaympeg.
+
+0.2.7:
+SOL -	Added volume change API
+
+0.2.6:
+SOL -	Fixed possible crash when starting audio playback.
+SOL -	Fixed SMPEG on PPC - may still be buggy, but plays most MPEGs.
+
+0.2.5:
+SOL -	Added --fullscreen command line option to plaympeg.
+SOL -	Added 32-bpp support, fixed fullscreen offset bug.
+
+Initial Key:
+SOL - Sam Lantinga (hercules@lokigames.com)
+MKV - Michael Vance (briareos@lokigames.com)
+SP  - Stephane Peter (megastep@lokigames.com)
