@@ -1,5 +1,146 @@
 *************************************************************************
 *** Applied ***
+Date: Wed, 13 Dec 2000 03:01:58 +0100 (CET)
+From: Vivien Chappelier <vivien.chappelier@enst-bretagne.fr>
+Subject: Re: [Fwd: v0.4.2 Re: SMPEG 0.4.1 system streams]
+
+Fixed:
+        - MPEGSystem::TotalTime() hanging on small files
+        - system header decoding (caused misdetection of system streams)
+and added few goodies of my own:
+        - fixed padding stream (0xbe) and user stream (0xb2) not being
+recognized by the system decoder
+        - fixed plaympeg requiring a mouse (useful for console playback)
+        - added bilinear filter toggling with the 'f' key in plaympeg
+
+see ya,
+Vivien.
+
+diff -Naur smpeg/MPEGsystem.cpp smpeg.patched/MPEGsystem.cpp
+--- smpeg/MPEGsystem.cpp	Tue Dec  5 11:19:44 2000
++++ smpeg.patched/MPEGsystem.cpp	Wed Dec 13 01:21:11 2000
+@@ -25,22 +25,22 @@
+ Uint8 const END_MASK[]          = { 0xff, 0xff, 0xff, 0xff };
+ Uint8 const END2_CODE[]         = { 0x00, 0x00, 0x01, 0xb7 };
+ Uint8 const END2_MASK[]         = { 0xff, 0xff, 0xff, 0xff };
+-Uint8 const VIDEO_CODE[]        = { 0x00, 0x00, 0x01, 0xb3 };
+-Uint8 const VIDEO_MASK[]        = { 0xff, 0xff, 0xff, 0xff };
+-Uint8 const AUDIO_CODE[]        = { 0xff, 0xf0, 0x00, 0x00 };
+-Uint8 const AUDIO_MASK[]        = { 0xff, 0xf0, 0x00, 0x00 };
+ Uint8 const VIDEOSTREAM_CODE[]  = { 0x00, 0x00, 0x01, 0xe0 };
+ Uint8 const VIDEOSTREAM_MASK[]  = { 0xff, 0xff, 0xff, 0xe0 };
+ Uint8 const AUDIOSTREAM_CODE[]  = { 0x00, 0x00, 0x01, 0xc0 };
+ Uint8 const AUDIOSTREAM_MASK[]  = { 0xff, 0xff, 0xff, 0xc0 };
+-Uint8 const PAD_CODE[]          = { 0x00, 0x00, 0x01, 0xbe };
+-Uint8 const PAD_MASK[]          = { 0xff, 0xff, 0xff, 0xff };
++Uint8 const PADSTREAM_CODE[]    = { 0x00, 0x00, 0x01, 0xbe };
++Uint8 const PADSTREAM_MASK[]    = { 0xff, 0xff, 0xff, 0xff };
+ Uint8 const SYSTEMSTREAM_CODE[] = { 0x00, 0x00, 0x01, 0xbb };
+ Uint8 const SYSTEMSTREAM_MASK[] = { 0xff, 0xff, 0xff, 0xff };
++Uint8 const USERSTREAM_CODE[]   = { 0x00, 0x00, 0x01, 0xb2 };
++Uint8 const USERSTREAM_MASK[]   = { 0xff, 0xff, 0xff, 0xff };
++Uint8 const VIDEO_CODE[]        = { 0x00, 0x00, 0x01, 0xb3 };
++Uint8 const VIDEO_MASK[]        = { 0xff, 0xff, 0xff, 0xff };
++Uint8 const AUDIO_CODE[]        = { 0xff, 0xf0, 0x00, 0x00 };
++Uint8 const AUDIO_MASK[]        = { 0xff, 0xf0, 0x00, 0x00 };
+ Uint8 const GOP_CODE[]          = { 0x00, 0x00, 0x01, 0xb8 };
+ Uint8 const GOP_MASK[]          = { 0xff, 0xff, 0xff, 0xff };
+-Uint8 const USER_CODE[]         = { 0x00, 0x00, 0x01, 0xb2 };
+-Uint8 const USER_MASK[]         = { 0xff, 0xff, 0xff, 0xff };
+ Uint8 const PICTURE_CODE[]      = { 0x00, 0x00, 0x01, 0x00 };
+ Uint8 const PICTURE_MASK[]      = { 0xff, 0xff, 0xff, 0xff };
+ Uint8 const SLICE_CODE[]        = { 0x00, 0x00, 0x01, 0x01 };
+@@ -296,8 +296,10 @@
+   if((header_size += 4) >= size) return(0); 
+ 
+   if(!Match4(pointer, SYSTEMSTREAM_CODE, SYSTEMSTREAM_MASK) &&
+-     !Match4(pointer, AUDIOSTREAM_CODE, AUDIOSTREAM_MASK) &&
+-     !Match4(pointer, VIDEOSTREAM_CODE, VIDEOSTREAM_MASK))
++     !Match4(pointer, AUDIOSTREAM_CODE, AUDIOSTREAM_MASK)   &&
++     !Match4(pointer, VIDEOSTREAM_CODE, VIDEOSTREAM_MASK)   &&
++     !Match4(pointer, PADSTREAM_CODE, PADSTREAM_MASK)       &&
++     !Match4(pointer, USERSTREAM_CODE, USERSTREAM_MASK))
+     return(0); /* Unknown encapsulated stream */
+ 
+   /* Parse the stream packet */
+@@ -731,6 +734,9 @@
+      Match4(pointer, END2_CODE, END2_MASK))
+   {
+     /* End codes belong to video stream */
++#ifdef DEBUG_SYSTEM
++    fprintf(stderr, "[%d] MPEG end code\n", read_total - read_size + (pointer - read_buffer));
++#endif
+     stream_id = exist_stream(VIDEO_STREAMID, 0xF0);
+     packet_size = 4;
+   }
+@@ -907,10 +913,10 @@
+       while (pointer[0] & 0x80 )
+       {
+ 	/* If the stream doesn't already exist */
+-	if(!get_stream(pointer[1]))
++	if(!get_stream(pointer[0]))
+ 	{
+ 	  /* Create a new stream and add it to the list */
+-	  add_stream(new MPEGstream(this, pointer[1]));
++	  add_stream(new MPEGstream(this, pointer[0]));
+ 	}
+ 	pointer += 3;
+ 	stream_list[0]->pos += 3;
+@@ -1151,6 +1157,7 @@
+     {
+     /* Otherwise search the stream backwards for a valid header */
+       file_ptr -= MPEG_BUFFER_SIZE;
++      if(file_ptr < -TotalSize()) file_ptr = -TotalSize();
+       
+       if(data_reader.fromData == true) {
+ 	      data_reader.offset = data_reader.size - file_ptr;
+diff -Naur smpeg/plaympeg.c smpeg.patched/plaympeg.c
+--- smpeg/plaympeg.c	Mon Oct  9 22:25:50 2000
++++ smpeg.patched/plaympeg.c	Tue Dec 12 22:11:43 2000
+@@ -572,6 +572,9 @@
+         exit(0);
+     }
+ 
++    /* Plaympeg doesn't need a mouse */
++    setenv("SDL_NOMOUSE","1",0);
++
+     /* Play the mpeg files! */
+     for ( ; argv[i]; ++i ) {
+ 	/* Initialize SDL */
+@@ -833,6 +836,19 @@
+                         } else if ( event.key.keysym.sym == SDLK_KP_PLUS ) {
+ 			  // Scale plus
+ 			  scalesize++;
++			} else if ( event.key.keysym.sym == SDLK_f ) {
++			  // Toggle filtering on/off
++			  if ( bilinear_filtering ) {
++			    SMPEG_Filter *filter = SMPEGfilter_null();
++			    filter = SMPEG_filter( mpeg, filter );
++			    filter->destroy(filter);
++			    bilinear_filtering = 0;
++			  } else {
++			    SMPEG_Filter *filter = SMPEGfilter_bilinear();
++			    filter = SMPEG_filter( mpeg, filter );
++			    filter->destroy(filter);
++			    bilinear_filtering = 1;
++			  }
+ 			}
+                         break;
+                     case SDL_QUIT:
+diff -Naur smpeg/video/video.cpp smpeg.patched/video/video.cpp
+--- smpeg/video/video.cpp	Wed Oct  4 19:38:03 2000
++++ smpeg.patched/video/video.cpp	Wed Dec 13 00:20:20 2000
+@@ -1264,7 +1264,7 @@
+         }
+ #ifdef VERBOSE_DEBUG
+         else
+-            printf("Unknown data - not slice start code!\n");
++            fprintf(stderr, "Unknown data [%x] - not slice start code!\n", data);
+ #endif
+         break;
+     }
+*************************************************************************
+*** Applied ***
 Date: Mon, 11 Dec 2000 16:33:18 +0200
 From: Maxim Sobolev <sobomax@FreeBSD.org>
 Subject: Re: Announcing SMPEG 04.2

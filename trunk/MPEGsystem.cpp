@@ -25,22 +25,22 @@ Uint8 const END_CODE[]          = { 0x00, 0x00, 0x01, 0xb9 };
 Uint8 const END_MASK[]          = { 0xff, 0xff, 0xff, 0xff };
 Uint8 const END2_CODE[]         = { 0x00, 0x00, 0x01, 0xb7 };
 Uint8 const END2_MASK[]         = { 0xff, 0xff, 0xff, 0xff };
-Uint8 const VIDEO_CODE[]        = { 0x00, 0x00, 0x01, 0xb3 };
-Uint8 const VIDEO_MASK[]        = { 0xff, 0xff, 0xff, 0xff };
-Uint8 const AUDIO_CODE[]        = { 0xff, 0xf0, 0x00, 0x00 };
-Uint8 const AUDIO_MASK[]        = { 0xff, 0xf0, 0x00, 0x00 };
 Uint8 const VIDEOSTREAM_CODE[]  = { 0x00, 0x00, 0x01, 0xe0 };
 Uint8 const VIDEOSTREAM_MASK[]  = { 0xff, 0xff, 0xff, 0xe0 };
 Uint8 const AUDIOSTREAM_CODE[]  = { 0x00, 0x00, 0x01, 0xc0 };
 Uint8 const AUDIOSTREAM_MASK[]  = { 0xff, 0xff, 0xff, 0xc0 };
-Uint8 const PAD_CODE[]          = { 0x00, 0x00, 0x01, 0xbe };
-Uint8 const PAD_MASK[]          = { 0xff, 0xff, 0xff, 0xff };
+Uint8 const PADSTREAM_CODE[]    = { 0x00, 0x00, 0x01, 0xbe };
+Uint8 const PADSTREAM_MASK[]    = { 0xff, 0xff, 0xff, 0xff };
 Uint8 const SYSTEMSTREAM_CODE[] = { 0x00, 0x00, 0x01, 0xbb };
 Uint8 const SYSTEMSTREAM_MASK[] = { 0xff, 0xff, 0xff, 0xff };
+Uint8 const USERSTREAM_CODE[]   = { 0x00, 0x00, 0x01, 0xb2 };
+Uint8 const USERSTREAM_MASK[]   = { 0xff, 0xff, 0xff, 0xff };
+Uint8 const VIDEO_CODE[]        = { 0x00, 0x00, 0x01, 0xb3 };
+Uint8 const VIDEO_MASK[]        = { 0xff, 0xff, 0xff, 0xff };
+Uint8 const AUDIO_CODE[]        = { 0xff, 0xf0, 0x00, 0x00 };
+Uint8 const AUDIO_MASK[]        = { 0xff, 0xf0, 0x00, 0x00 };
 Uint8 const GOP_CODE[]          = { 0x00, 0x00, 0x01, 0xb8 };
 Uint8 const GOP_MASK[]          = { 0xff, 0xff, 0xff, 0xff };
-Uint8 const USER_CODE[]         = { 0x00, 0x00, 0x01, 0xb2 };
-Uint8 const USER_MASK[]         = { 0xff, 0xff, 0xff, 0xff };
 Uint8 const PICTURE_CODE[]      = { 0x00, 0x00, 0x01, 0x00 };
 Uint8 const PICTURE_MASK[]      = { 0xff, 0xff, 0xff, 0xff };
 Uint8 const SLICE_CODE[]        = { 0x00, 0x00, 0x01, 0x01 };
@@ -296,8 +296,10 @@ static inline Uint32 stream_header(Uint8 * pointer, Uint32 size, Uint32 * _packe
   if((header_size += 4) >= size) return(0); 
 
   if(!Match4(pointer, SYSTEMSTREAM_CODE, SYSTEMSTREAM_MASK) &&
-     !Match4(pointer, AUDIOSTREAM_CODE, AUDIOSTREAM_MASK) &&
-     !Match4(pointer, VIDEOSTREAM_CODE, VIDEOSTREAM_MASK))
+     !Match4(pointer, AUDIOSTREAM_CODE, AUDIOSTREAM_MASK)   &&
+     !Match4(pointer, VIDEOSTREAM_CODE, VIDEOSTREAM_MASK)   &&
+     !Match4(pointer, PADSTREAM_CODE, PADSTREAM_MASK)       &&
+     !Match4(pointer, USERSTREAM_CODE, USERSTREAM_MASK))
     return(0); /* Unknown encapsulated stream */
 
   /* Parse the stream packet */
@@ -731,6 +733,9 @@ header_size, packet_size, stream_id, stream_timestamp);
      Match4(pointer, END2_CODE, END2_MASK))
   {
     /* End codes belong to video stream */
+#ifdef DEBUG_SYSTEM
+    fprintf(stderr, "[%d] MPEG end code\n", read_total - read_size + (pointer - read_buffer));
+#endif
     stream_id = exist_stream(VIDEO_STREAMID, 0xF0);
     packet_size = 4;
   }
@@ -907,10 +912,10 @@ header_size, packet_size, stream_id, stream_timestamp);
       while (pointer[0] & 0x80 )
       {
 	/* If the stream doesn't already exist */
-	if(!get_stream(pointer[1]))
+	if(!get_stream(pointer[0]))
 	{
 	  /* Create a new stream and add it to the list */
-	  add_stream(new MPEGstream(this, pointer[1]));
+	  add_stream(new MPEGstream(this, pointer[0]));
 	}
 	pointer += 3;
 	stream_list[0]->pos += 3;
@@ -1151,6 +1156,7 @@ double MPEGsystem::TotalTime()
     {
     /* Otherwise search the stream backwards for a valid header */
       file_ptr -= MPEG_BUFFER_SIZE;
+      if(file_ptr < -TotalSize()) file_ptr = -TotalSize();
       
       if(data_reader.fromData == true) {
 	      data_reader.offset = data_reader.size - file_ptr;

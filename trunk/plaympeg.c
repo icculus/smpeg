@@ -572,6 +572,9 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
+    /* Plaympeg doesn't need a mouse */
+    setenv("SDL_NOMOUSE","1",0);
+
     /* Play the mpeg files! */
     for ( ; argv[i]; ++i ) {
 	/* Initialize SDL */
@@ -833,6 +836,19 @@ int main(int argc, char *argv[])
                         } else if ( event.key.keysym.sym == SDLK_KP_PLUS ) {
 			  // Scale plus
 			  scalesize++;
+			} else if ( event.key.keysym.sym == SDLK_f ) {
+			  // Toggle filtering on/off
+			  if ( bilinear_filtering ) {
+			    SMPEG_Filter *filter = SMPEGfilter_null();
+			    filter = SMPEG_filter( mpeg, filter );
+			    filter->destroy(filter);
+			    bilinear_filtering = 0;
+			  } else {
+			    SMPEG_Filter *filter = SMPEGfilter_bilinear();
+			    filter = SMPEG_filter( mpeg, filter );
+			    filter->destroy(filter);
+			    bilinear_filtering = 1;
+			  }
 			}
                         break;
                     case SDL_QUIT:

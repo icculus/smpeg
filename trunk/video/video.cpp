@@ -1264,7 +1264,7 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
         }
 #ifdef VERBOSE_DEBUG
         else
-            printf("Unknown data - not slice start code!\n");
+            fprintf(stderr, "Unknown data [%x] - not slice start code!\n", data);
 #endif
         break;
     }
