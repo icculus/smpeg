@@ -320,13 +320,14 @@ METH(run) ( _THIS, int frames, double *timestamp)
 	  return false;	  
         }
 
-        if (frames == totFrames  && timestamp != NULL)
+        if (frames == totFrames  && timestamp != NULL) {
             if (last_timestamp != PROP(mpeg->timestamp)){
 		if (PROP(mpeg->timestamp_pos) <= PROP(_buffer_pos))
 		    last_timestamp = *timestamp = PROP(mpeg->timestamp);
 	    }
             else
                 *timestamp = -1;
+        }
 
         if     ( PROP(layer) == 3 ) METH(extractlayer3)(self);
         else if( PROP(layer) == 2 ) METH(extractlayer2)(self);

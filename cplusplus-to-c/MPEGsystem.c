@@ -1029,7 +1029,7 @@ METH(TotalTime) (_THIS)
 {
     off_t size, pos;
     off_t file_ptr;
-    Uint8 * buffer, * p;
+    Uint8 * buffer, * p = 0;
     double time;
 
     /* Lock to avoid concurrent access to the stream */
@@ -1171,7 +1171,7 @@ METH(TimeElapsedAudio) (_THIS, int atByte)
 {
     off_t size, pos;
     off_t file_ptr;
-    Uint8 * buffer, * p;
+    Uint8 * buffer, * p = 0;
     double time;
 
     if (atByte < 0)

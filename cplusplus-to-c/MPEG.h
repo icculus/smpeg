@@ -91,7 +91,7 @@ void METH(parse_stream_list) (_THIS);
 bool METH(seekIntoStream) (_THIS, int position);
 
 MPEG * METH(init) (_THIS);
-MPEG * METH(init_file) (_THIS, const char *path, bool SDLaudio);
+MPEG * METH(init_name) (_THIS, const char *path, bool SDLaudio);
 MPEG * METH(init_descr) (_THIS, int Mpeg_FD, bool SDLaudio);
 MPEG * METH(init_data) (_THIS, void *data, int size, bool SDLaudio);
 MPEG * METH(init_rwops) (_THIS, SDL_RWops *mpeg_source, bool SDLaudio);
@@ -104,6 +104,10 @@ bool METH(AudioEnabled) (_THIS);
 void METH(EnableAudio) (_THIS, bool enabled);
 bool METH(VideoEnabled) (_THIS);
 void METH(EnableVideo) (_THIS, bool enabled);
+
+/* Dethreaded video. */
+void METH(run) (_THIS);
+int METH(frametime) (_THIS);
 
 void METH(Loop) (_THIS, bool toggle);
 void METH(Play) (_THIS);

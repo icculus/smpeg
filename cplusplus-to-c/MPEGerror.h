@@ -65,12 +65,13 @@ protected:
 
 
 #define MAKE_OBJECT(objtype) objtype failsafe; \
+ do { \
   if (!self) { \
     self = (objtype *)malloc(sizeof(objtype)); \
     if (!self) self = &failsafe; \
     memset(self, 0, sizeof(*self)); \
   } \
-  0
+ } while (0)
 
 struct MPEGerror {
     char errbuf[512];
@@ -91,7 +92,9 @@ typedef int bool;
 
 #undef _THIS
 #define _THIS MPEGerror *self
+#undef METH
 #define METH(method) MPEGerror_##method
+
 MPEGerror * METH(init) (_THIS);
 void METH(destroy) (_THIS);
 void METH(SetError) (_THIS, char *fmt, ...);

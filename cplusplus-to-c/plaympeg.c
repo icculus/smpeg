@@ -483,7 +483,7 @@ int main(int argc, char *argv[])
     Uint32 seek;
     float skip;
     int bilinear_filtering;
-    SDL_Surface *screen;
+    SDL_Surface *screen = 0;
     SMPEG *mpeg;
     SMPEG_Info info;
     char *basefile;
@@ -881,7 +881,7 @@ int main(int argc, char *argv[])
 #ifndef THREADED_VIDEO
 /* Dethreaded video.  Call SMPEG_run() and delay 10ms. */
             SMPEG_run(mpeg);
-            SDL_Delay(10);
+            SDL_Delay(SMPEG_frametime(mpeg));
 #else /* THREADED_VIDEO */
             SDL_Delay(1000/2);
 #endif /* THREADED_VIDEO */

@@ -149,6 +149,10 @@ extern DECLSPEC void SMPEG_move( SMPEG* mpeg, int x, int y );
 /* Set the region of the video to be shown */
 extern DECLSPEC void SMPEG_setdisplayregion(SMPEG* mpeg, int x, int y, int w, int h);
 
+/* Dethreaded video. */
+extern DECLSPEC void SMPEG_run (SMPEG* mpeg);
+extern DECLSPEC int SMPEG_frametime (SMPEG* mpeg);
+
 /* Play an SMPEG object */
 extern DECLSPEC void SMPEG_play( SMPEG* mpeg );
 

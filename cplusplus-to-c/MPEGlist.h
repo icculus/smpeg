@@ -26,7 +26,7 @@ typedef struct MPEGlist MPEGlist;
 
 MPEGlist* METH(init) (_THIS);
 void METH(destroy) (_THIS);
-void METH(destroy) (_THIS);
+void METH(delete) (_THIS);
 MPEGlist* METH(Alloc) (_THIS, Uint32);
 void METH(Lock) (_THIS);
 void METH(Unlock) (_THIS);

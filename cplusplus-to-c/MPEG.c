@@ -40,7 +40,7 @@ METH(init_name) (_THIS, const char *name, bool SDLaudio)
   if (!source) {
     METH(InitErrorState) (self);
     MPEGerror_SetError(self->error, SDL_GetError());
-    return;
+    return self;
   }
   METH(Init) (self, source, SDLaudio);
   return self;
@@ -62,14 +62,14 @@ METH(init_descr)(_THIS, int Mpeg_FD, bool SDLaudio) //: MPEGerror()
   if (!file) {
     METH(InitErrorState)(self);
     MPEGerror_SetError(self->error, strerror(errno));
-    return;
+    return self;
   }
 
   source = SDL_RWFromFP(file,false);
   if (!source) {
     METH(InitErrorState)(self);
     MPEGerror_SetError(self->error, SDL_GetError());
-    return;
+    return self;
   }
   METH(Init) (self, source, SDLaudio);
   return self;
@@ -91,9 +91,10 @@ METH(init_data) (_THIS, void *data, int size, bool SDLaudio) //: MPEGerror()
   if (!source) {
     METH(InitErrorState)(self);
     MPEGerror_SetError(self->error, SDL_GetError());
-    return;
+    return self;
   }
   METH(Init) (self, source, SDLaudio);
+  return self;
 }
 
 MPEG*
@@ -263,6 +264,17 @@ METH(run) (_THIS)
 {
 #ifndef THREADED_VIDEO
   MPEGvideo_run(self->video);
+#endif /* THREADED_VIDEO */
+}
+
+/* Dethreaded video.  Recommended delay between frames. */
+int
+METH(frametime) (_THIS)
+{
+#ifndef THREADED_VIDEO
+  return self->video->frametime;
+#else
+  return 10;
 #endif /* THREADED_VIDEO */
 }
 

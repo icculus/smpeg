@@ -91,9 +91,7 @@ protected:
     VidStream* _stream;
     SDL_Surface* _dst;
     SDL_mutex* _mutex;
-#ifdef THREADED_VIDEO
     SDL_Thread* _thread;
-#endif /* THREADED_VIDEO */
 
     MPEG_DisplayCallback _callback;
 
@@ -158,7 +156,11 @@ struct MPEGvideo {
     VidStream* _stream;
     SDL_Surface* _dst;
     SDL_mutex* _mutex;
+#ifndef THREADED_VIDEO
+    int frametime;
+#else /* THREADED_VIDEO */
     SDL_Thread* _thread;
+#endif /* THREADED_VIDEO */
 
     MPEG_DisplayCallback _callback;
 

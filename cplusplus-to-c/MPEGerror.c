@@ -21,6 +21,8 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "MPEGerror.h"
 
@@ -65,6 +67,7 @@ protected:
 /* Error methods. */
 #undef _THIS
 #define _THIS MPEGerror *self
+#undef METH
 #define METH(method) MPEGerror_##method
 
 

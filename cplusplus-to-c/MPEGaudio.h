@@ -644,7 +644,7 @@ int Play_MPEGaudio(struct MPEGaudio *audio, Uint8 *stream, int len);
 int Decode_MPEGaudio(void *udata);
 #endif
 
-_THIS METH(new) (struct MPEGstream *stream, bool initSDL);
+_THIS METH(init) (_THIS, struct MPEGstream *stream, bool initSDL);
 void METH(destroy) (_THIS);
 
 /* MPEG actions */
@@ -653,6 +653,7 @@ double METH(Time) (_THIS);
 void METH(Play) (_THIS);
 void METH(Stop) (_THIS);
 void METH(Rewind) (_THIS);
+void METH(Pause) (_THIS);
 void METH(ResetSynchro) (_THIS, double time);
 void METH(Skip) (_THIS, float seconds);
 void METH(Volume) (_THIS, int vol);

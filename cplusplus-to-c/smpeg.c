@@ -300,6 +300,11 @@ void SMPEG_run (SMPEG* mpeg)
   MPEG_run(mpeg->obj);
 }
 
+int SMPEG_frametime (SMPEG *mpeg)
+{
+  return MPEG_frametime(mpeg->obj);
+}
+
 /* Play an SMPEG object */
 void SMPEG_play( SMPEG* mpeg )
 {
@@ -377,7 +382,7 @@ void SMPEG_playAudioSDL( void* mpeg, Uint8 *stream, int len)
 {
 //    MPEGaudio *audio = ((SMPEG *)mpeg)->obj->GetAudio();
     MPEGaudio *audio;
-    MPEG_GetAudio(((SMPEG *)mpeg)->obj);
+    audio = MPEG_GetAudio(((SMPEG *)mpeg)->obj);
     Play_MPEGaudio(audio, stream, len);
 }
 

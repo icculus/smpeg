@@ -1,10 +1,13 @@
+/*
+Doubly-linked list.
+*/
+
+#include <stdlib.h>
+#include <string.h>
+
 #include "MPEGlist.h"
 #include "MPEGerror.h"
 
-
-/*
-2LL
-*/
 
 #undef _THIS
 #define _THIS MPEGlist *self

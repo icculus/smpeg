@@ -152,11 +152,11 @@ GLenum glmovie_init( GLuint width, GLuint height )
     /* Initial black texels. */
     GLubyte* pixels;
     /* Absolute offsets from within tiled frame. */
-    GLuint offset_x = 0;
-    GLuint offset_y = 0;
+//    GLuint offset_x = 0;
+//    GLuint offset_y = 0;
     GLuint skip_rows = 0;
     GLuint skip_pixels = 0;
-    GLuint i, j, current;
+    GLuint i, j, current = 0;
 
     /* Save original movie dimensions. */
     movie_width = width;

@@ -2449,6 +2449,7 @@ static void ReconPMBlock( VidStream* vid_stream, int bnum,
   int illegalBlock = 0;
   int row_start, row_end, rfirst, rlast, col_start, col_end, cfirst, clast;
 #endif
+  rlast = clast = 0;
 
   /* Calculate macroblock row and column from address. */
 
@@ -2934,6 +2935,7 @@ static void ReconBMBlock( VidStream* vid_stream, int bnum,
   int maxx, maxy, cc;
   int row_start, row_end, rlast, rfirst, col_start, col_end, clast, cfirst;
 #endif
+  rlast = clast = 0;
 
   /* Calculate macroblock row and column from address. */
 

@@ -188,11 +188,17 @@ METH(init) (_THIS, struct MPEGstream *stream)
 	  case 9: self->_fps = 15.00f; break;
 	  default: self->_fps = 30.00f; break;
 	}
+#ifndef THREADED_VIDEO
+        self->frametime = (int)(1000.0 / self->_fps) - 10; /* uh... I dunno...  -PH */
+#endif /* THREADED_VIDEO */
     } else {
         self->_w = 0;
         self->_h = 0;
 	self->_fps = 0.00;
         MPEGerror_SetError(self->error, "Not a valid MPEG video stream");
+#ifndef THREADED_VIDEO
+        self->frametime = 0;
+#endif /* THREADED_VIDEO */
     }
     /* Rewind back to the old position */
     MPEGstream_seek_marker(self->mpeg, marker);
