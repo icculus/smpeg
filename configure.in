@@ -217,6 +217,9 @@ if test x$enable_opengl_player = xyes; then
         *-*-beos*)
             SYS_GL_LIBS="-lGL"
             ;;
+        *-*-darwin*)
+            SYS_GL_LIBS=""
+            ;;
         *)
             AC_PATH_X
             AC_PATH_XTRA
