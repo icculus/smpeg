@@ -212,6 +212,7 @@ private:
   /* MPEG header variables */
   /*************************/
 private:
+  int last_speed;
   int layer,protection,bitrateindex,padding,extendedmode;
   enum _mpegversion  {mpeg1,mpeg2}                               version;
   enum _mode    {fullstereo,joint,dual,single}                   mode;
