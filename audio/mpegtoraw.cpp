@@ -335,10 +335,13 @@ int Decode_MPEGaudio(void *udata)
 
         if ( audio->rawdata ) {
             audio->rawdatawriteoffset = 0;
-            audio->run(1, &timestamp);
-
-	    if((Uint32)audio->rawdatawriteoffset*2 <= audio->ring->BufferSize())
-	      audio->ring->WriteDone(audio->rawdatawriteoffset*2, timestamp);
+            /* Sam 10/5/2000 - Added while to prevent empty buffer in ring */
+            while ( audio->run(1, &timestamp) &&
+                    (audio->rawdatawriteoffset == 0) ) {
+                /* Keep looping */ ;
+            }
+            if((Uint32)audio->rawdatawriteoffset*2 <= audio->ring->BufferSize())
+              audio->ring->WriteDone(audio->rawdatawriteoffset*2, timestamp);
         }
     }
 
