@@ -7,6 +7,8 @@ Ryan C. Gordon - Sun Jun 02 20:10:42 EST 2002
  * ./configure.in tweaked to not complain with newer autoconf.
 Ryan C. Gordon - Sun Jun 02 20:10:42 EST 2002
  * Newer ltconfig and hacks for libtool and .S files.
+Adam Procter - Sat Jun  8 05:41:30 EDT 2002
+ * Fixed potential deadlock in MPEGaudio.cpp
 
 0.4.5:
 Sam Lantinga - Tue Jul 17 12:27:20 PDT 2001
