@@ -30,13 +30,13 @@ struct _SMPEG {
 };
 
 /* Create a new SMPEG object from an MPEG file.
-   If 'dst' is NULL, then video will not be played.  'surfLock' is a mutex
-   used to synchronize access to 'dst'.  'callback' is a function called 
-   when an area of 'dst' needs to be updated.  If 'callback' is NULL, the
-   default update function (SDL_UpdateRect) will be used.
    On return, if 'info' is not NULL, it will be filled with information 
    about the MPEG object.
-   This function returns a new SMPEG object, or NULL if there was an error.
+   This function returns a new SMPEG object.  Use SMPEG_error() to find out
+   whether or not there was a problem building the MPEG stream.
+   The sdl_audio parameter indicates if SMPEG should initialize the SDL audio
+   subsystem. If not, you will have to use the SMPEG_playaudio() function below
+   to extract the decoded data.
  */
 SMPEG* SMPEG_new(const char *file, SMPEG_Info* info, int sdl_audio)
 {
