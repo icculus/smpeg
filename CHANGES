@@ -1,3 +1,10 @@
+current:
+Ryan C. Gordon - Sun Jun 02 20:10:42 EST 2002
+ * ./autogen.sh accepts aclocal commandlines via the ACLOCAL_FLAGS envr var.
+ * ./autogen.sh is now flagged as executable in CVS.
+ * ./configure.in tweaked to not complain with newer autoconf.
+ * Newer ltconfig and hacks for libtool and .S files.
+
 0.4.5:
 Sam Lantinga - Tue Jul 17 12:27:20 PDT 2001
  * Skip MPEG audio frames with wildly varying frequencies
