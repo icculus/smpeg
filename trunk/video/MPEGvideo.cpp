@@ -208,7 +208,6 @@ int Play_MPEGvideo( void *udata )
             if( mpeg->_stream->loopFlag ) {
                 /* Rewind and start playback over */
                 mpeg->RewindStream();
-                //mpeg->_stream->realTimeStart = ReadSysClock();
             } else {
                 mpeg->playing = false;
             }
