@@ -16,7 +16,7 @@ MPEGlist::~MPEGlist()
   if(prev) prev->next = next;
   if(data)
   {
-    delete data;
+    delete[] data;
     data = 0;
   }
 }

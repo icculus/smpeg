@@ -1165,7 +1165,7 @@ double MPEGsystem::TimeElapsedAudio(int atByte)
       time = -1;
   }
 
-  delete buffer;
+  delete[] buffer;
 
   /* Get back to saved position */
   if((pos = SDL_RWseek(source, pos, SEEK_SET)) < 0)
