@@ -507,13 +507,12 @@ MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
 	MPEGstream_marker * marker, * oldmarker;
 
 	marker = 0;
-        mpeg->rewind_stream();
-	mpeg->next_packet();
         start_code = mpeg->copy_byte();
         start_code <<= 8;
         start_code |= mpeg->copy_byte();
         start_code <<= 8;
         start_code |= mpeg->copy_byte();
+
         while ( ! mpeg->eof() ) {
             start_code <<= 8;
             start_code |= mpeg->copy_byte();
@@ -524,6 +523,7 @@ MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
        		  mpeg->garbage_collect();
             }
         }
+
         /* Set the stream to the last spot marked */
         if ( ! mpeg->seek_marker( marker ) ) {
             mpeg->rewind_stream();
@@ -536,7 +536,9 @@ MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
 
         /* Process all frames without displaying any */
         _stream->_skipFrame = 1;
+
         RenderFrame( INT_MAX );
+
 	mpeg->garbage_collect();
     }
 

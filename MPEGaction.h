@@ -121,4 +121,13 @@ protected:
     MPEGaudioaction *time_source;
 };
 
+
+/* For getting info about the system portion of the stream */
+typedef struct MPEG_SystemInfo {
+    int total_size;
+    int current_offset;
+    double total_time;
+    double current_time;
+} MPEG_SystemInfo;
+
 #endif /* _MPEGACTION_H_ */

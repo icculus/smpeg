@@ -69,12 +69,33 @@ SMPEG* SMPEG_new_descr(int file, SMPEG_Info* info, int sdl_audio)
     return(mpeg);
 }
 
+/*
+   The same as above but for a raw chunk of data.  SMPEG makes a copy of the
+   data, so the application is free to delete after a successful call to this
+   function.
+ */
+SMPEG* SMPEG_new_data(void *data, int size, SMPEG_Info* info, int sdl_audio)
+{
+    SMPEG *mpeg;
+
+    /* Create a new SMPEG object! */
+    mpeg = new SMPEG;
+    mpeg->obj = new MPEG(data, size, sdl_audio ? true : false);
+
+    /* Find out the details of the stream, if requested */
+    SMPEG_getinfo(mpeg, info);
+
+    /* We're done! */
+    return(mpeg);
+}
+
 /* Get current information about an SMPEG object */
 void SMPEG_getinfo( SMPEG* mpeg, SMPEG_Info* info )
 {
     if ( info ) {
         MPEG_AudioInfo ainfo;
         MPEG_VideoInfo vinfo;
+        MPEG_SystemInfo sinfo;
 
         memset(info, 0, (sizeof *info));
         if ( mpeg->obj ) {
@@ -100,8 +121,11 @@ void SMPEG_getinfo( SMPEG* mpeg, SMPEG_Info* info )
             }
 	    if(mpeg->obj->system != NULL)
 	    {
-		info->total_size = mpeg->obj->TotalSize();
-		info->current_offset = mpeg->obj->Tell();
+	        mpeg->obj->GetSystemInfo(&sinfo);
+		info->total_size = sinfo.total_size;
+		info->current_offset = sinfo.current_offset;
+		info->total_time = sinfo.total_time;
+		info->current_time = sinfo.current_time;
 	    }
 	    else
 	    {
