@@ -1,0 +1,29 @@
+Subject: A little patch for smpeg
+Date: Tue, 12 Oct 1999 23:11:05 -0500 (CDT)
+From: Moses DeJong <dejong@cs.umn.edu>
+To: smpeg@lokigames.com
+
+
+When run with no arguments, smpeg really should print the usage
+message out. Here is a quick little patch to 0.2.7 to do just that.
+
+
+--- copy_plaympeg.c     Tue Oct 12 20:30:27 1999
++++ plaympeg.c  Tue Oct 12 20:33:21 1999
+@@ -99,6 +99,11 @@
+             fprintf(stderr, "Warning: Unknown option: %s\n", argv[i]);
+         }
+     }
++    /* If there were no arguments just print the usage */
++    if (argc == 1) {
++        usage(argv[0]);
++        exit(0);
++     }
+
+     /* Play the mpeg files! */
+     for ( ; argv[i]; ++i ) {
+
+Thanks
+Mo DeJong
+
+
