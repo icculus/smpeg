@@ -164,23 +164,27 @@ public:
     virtual ~MPEGaudio();
 
     /* MPEG actions */
+    double Time(void);
     void Play(void);
     void Stop(void);
     void Rewind(void);
     void Volume(int vol);
     MPEGstatus Status(void);
 
-	/* Returns the desired SDL audio spec for this stream */
-	bool WantedSpec(SDL_AudioSpec *wanted);
+    /* Returns the desired SDL audio spec for this stream */
+    bool WantedSpec(SDL_AudioSpec *wanted);
 
-	/* Inform SMPEG of the actual audio format if configuring SDL
-	   outside of this class */
-	void ActualSpec(const SDL_AudioSpec *actual);
+    /* Inform SMPEG of the actual audio format if configuring SDL
+       outside of this class */
+    void ActualSpec(const SDL_AudioSpec *actual);
 
 protected:
+    bool sdl_audio;
     MPEGstream *mpeg;
     int valid_stream;
-	bool sdl_audio;
+    double rate_in_s;
+    Uint32 frags_playing;
+    Uint32 frag_time;
 #ifdef THREADED_AUDIO
     SDL_Thread *decode_thread;
 #endif
@@ -354,13 +358,13 @@ private:
   REAL layer3twopow2(int scale,int preflag,int pretab_offset,int l);
   REAL layer3twopow2_1(int a,int b,int c);
   void layer3dequantizesample(int ch,int gr,int   in[SBLIMIT][SSLIMIT],
-			                    REAL out[SBLIMIT][SSLIMIT]);
+                                REAL out[SBLIMIT][SSLIMIT]);
   void layer3fixtostereo(int gr,REAL  in[2][SBLIMIT][SSLIMIT]);
   void layer3reorderandantialias(int ch,int gr,REAL  in[SBLIMIT][SSLIMIT],
-				               REAL out[SBLIMIT][SSLIMIT]);
+                               REAL out[SBLIMIT][SSLIMIT]);
 
   void layer3hybrid(int ch,int gr,REAL in[SBLIMIT][SSLIMIT],
-		                  REAL out[SSLIMIT][SBLIMIT]);
+                          REAL out[SSLIMIT][SBLIMIT]);
   
   void huffmandecoder_1(const HUFFMANCODETABLE *h,int *x,int *y);
   void huffmandecoder_2(const HUFFMANCODETABLE *h,int *x,int *y,int *v,int *w);

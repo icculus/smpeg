@@ -1,21 +1,24 @@
 
 0.3.0:
-SOL -	Added autoconf support
-MKV -	Added GTk mpeg player
-MKV -	Added OpenGL mpeg player
-SP  -	Exported the audio mixing function for flexible audio setup
-Mo DeJong - plaympeg now prints out usage if given no arguments
+SOL -	Added audio synchronization support.
+SOL -	Added autoconf support.
+MKV -	Added GTk mpeg player.
+MKV -	Added OpenGL mpeg player.
+SP  -	Exported the audio mixing function for flexible audio setup.
+Niels Larsen - Synchronize the video with audio, when possible.
+Mo DeJong - plaympeg now prints out usage if given no arguments.
+Stefan Gybas - Contributed a man page for plaympeg.
 
 0.2.7:
 SOL -	Added volume change API
 
 0.2.6:
-SOL -	Fixed possible crash when starting audio playback
-SOL -	Fixed SMPEG on PPC - may still be buggy, but plays most MPEGs
+SOL -	Fixed possible crash when starting audio playback.
+SOL -	Fixed SMPEG on PPC - may still be buggy, but plays most MPEGs.
 
 0.2.5:
-SOL -	Added --fullscreen command line option to plaympeg
-SOL -	Added 32-bpp support, fixed fullscreen offset bug
+SOL -	Added --fullscreen command line option to plaympeg.
+SOL -	Added 32-bpp support, fixed fullscreen offset bug.
 
 Initial Key:
 SOL - Sam Lantinga (hercules@lokigames.com)

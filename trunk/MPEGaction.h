@@ -40,6 +40,9 @@ public:
     virtual void Loop(bool toggle) {
         looping = toggle;
     }
+    virtual double Time(void) {  /* Returns the time in seconds since start */
+        return play_time;
+    }
     virtual void Play(void) = 0;
     virtual void Stop(void) = 0;
     virtual void Rewind(void) = 0;
@@ -58,6 +61,7 @@ protected:
     bool playing;
     bool paused;
     bool looping;
+    double play_time;
 
     void ResetPause(void) {
         paused = false;
@@ -93,6 +97,9 @@ typedef struct MPEG_VideoInfo {
 /* Video action class */
 class MPEGvideoaction : public MPEGaction {
 public:
+    virtual void SetTimeSource(MPEGaudioaction *source) {
+        time_source = source;
+    }
     virtual bool GetVideoInfo(MPEG_VideoInfo *info) {
         return(false);
     }
@@ -102,6 +109,8 @@ public:
     virtual void DoubleDisplay(bool toggle) = 0;
     virtual void RenderFrame(int frame, SDL_Surface *dst, int x, int y) = 0;
     virtual void RenderFinal(SDL_Surface *dst, int x, int y) = 0;
+protected:
+    MPEGaudioaction *time_source;
 };
 
 #endif /* _MPEGACTION_H_ */

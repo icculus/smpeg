@@ -131,6 +131,7 @@ MPEGvideo:: MPEGvideo(MPEGstream *stream)
 
     /* Set the MPEG data stream */
     mpeg = stream;
+    time_source = NULL;
 
     /* Set default playback variables */
     _thread = NULL;
@@ -190,7 +191,6 @@ int Play_MPEGvideo( void *udata )
 
     /* Get the time the playback started */
     mpeg->_stream->realTimeStart = ReadSysClock();
-    mpeg->_stream->_nowFrameTime = mpeg->_stream->realTimeStart;
 
     while( mpeg->playing )
     {
@@ -208,7 +208,6 @@ int Play_MPEGvideo( void *udata )
                 /* Rewind and start playback over */
                 mpeg->RewindStream();
                 mpeg->_stream->realTimeStart = ReadSysClock();
-                mpeg->_stream->_nowFrameTime = mpeg->_stream->realTimeStart;
             } else {
                 mpeg->playing = false;
             }
@@ -222,6 +221,9 @@ MPEGvideo:: Play(void)
 {
     ResetPause();
     if ( _stream ) {
+		if ( playing ) {
+			Stop();
+		}
         playing = true;
 #ifdef PROFILE_VIDEO	/* Profiling doesn't work well with threads */
 		Play_MPEGvideo(this);
@@ -252,6 +254,8 @@ MPEGvideo:: RewindStream(void)
     ResetVidStream( _stream );
 
     mpeg->reset_stream();
+
+    play_time = 0.0;
 
 #ifdef ANALYSIS 
     init_stats();

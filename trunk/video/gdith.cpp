@@ -243,7 +243,9 @@ void ConvertColor( unsigned int l, unsigned int cr, unsigned int cb,
 #ifdef CALCULATE_FPS
 static inline void TimestampFPS( VidStream* vid_stream )
 {
-    vid_stream->frame_time[vid_stream->timestamp_index] = ReadSysClock();
+    MPEGvideo* mpeg = (MPEGvideo*) vid_stream->_smpeg;
+
+    vid_stream->frame_time[vid_stream->timestamp_index] = mpeg->Time();
     ++vid_stream->timestamp_index;
     if ( vid_stream->timestamp_index == FPS_WINDOW ) {
         vid_stream->timestamp_index = 0;
@@ -267,6 +269,7 @@ static inline void TimestampFPS( VidStream* vid_stream )
 #define MAX_FUDGE_TIME  (MAX_FRAME_SKIP*vid_stream->_oneFrameTime)
 #endif /* TIGHT_MPEG_SCHEDULING */
 #endif /* LOOSE_MPEG_SCHEDULING */
+#define FUDGE_TIME	(((MAX_FRAME_SKIP+1)/2)*vid_stream->_oneFrameTime)
 
 /* This results in smoother framerate, but more dropped frames on
    systems that can play most of the video fine, but have problems
@@ -278,21 +281,25 @@ static inline void TimestampFPS( VidStream* vid_stream )
 /* Define this to debug the frame scheduler */
 //#define DEBUG_MPEG_SCHEDULING
 
+inline double CurrentTime( VidStream* vid_stream )
+{
+    MPEGvideo* mpeg = (MPEGvideo*) vid_stream->_smpeg;
+    double now;
+
+    if ( mpeg->TimeSource() ) {
+	now = mpeg->TimeSource()->Time();
+    } else {
+        now = ReadSysClock() - vid_stream->realTimeStart;
+    }
+    return now;
+}
 
 int timeSync( VidStream* vid_stream )
 {
-    vid_stream->totNumFrames++;
+    MPEGvideo* mpeg = (MPEGvideo*) vid_stream->_smpeg;
 
-    /* If we are looking for a particular frame... */
-    if( vid_stream->_jumpFrame > -1 )
-    {
-        if ( vid_stream->totNumFrames != vid_stream->_jumpFrame ) {
-            vid_stream->_skipFrame = 1;
-        } else {
-            vid_stream->_skipFrame = 0;
-        }
-        return vid_stream->_skipFrame;
-    }
+    /* Update the number of frames displayed */
+    vid_stream->totNumFrames++;
 
     /* Do we need to initialize framerate? */
     if ( vid_stream->rate_deal < 0 ) {
@@ -311,13 +318,22 @@ int timeSync( VidStream* vid_stream )
         }
         if ( vid_stream->rate_deal ) {
             vid_stream->_oneFrameTime = 1.0 / vid_stream->rate_deal;
-            vid_stream->_oneFrameTime *= 1.004;  /* Experimental */
-//printf( "One frame time %f, %d fps\n", vid_stream->_oneFrameTime, vid_stream->rate_deal );
         }
     }
 
-    /* Update timing for this frame */
-    vid_stream->_nowFrameTime += vid_stream->_oneFrameTime;
+    /* Update the current play time */
+    mpeg->play_time += vid_stream->_oneFrameTime;
+
+    /* If we are looking for a particular frame... */
+    if( vid_stream->_jumpFrame > -1 )
+    {
+        if ( vid_stream->totNumFrames != vid_stream->_jumpFrame ) {
+            vid_stream->_skipFrame = 1;
+        } else {
+            vid_stream->_skipFrame = 0;
+        }
+        return vid_stream->_skipFrame;
+    }
 
     /* If we're already behind, don't check timing */
     if ( vid_stream->_skipFrame > 0 )
@@ -331,10 +347,10 @@ int timeSync( VidStream* vid_stream )
         double time_behind;
 
         /* Calculate the frame time relative to real time */
-        time_behind = ReadSysClock() - vid_stream->_nowFrameTime;
+	time_behind = CurrentTime(vid_stream) - mpeg->Time();
 
 #ifdef DEBUG_MPEG_SCHEDULING
-//printf("Frame %d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, vid_stream->_nowFrameTime, ReadSysClock(), time_behind);
+//printf("Frame %d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, mpeg->Time(), CurrentTime(vid_stream), time_behind);
 #endif
 
         /* Allow up to MAX_FUDGE_TIME of delay in output */
@@ -346,7 +362,7 @@ printf("Ahead!  Sleeping %f\n", time_behind-TIMESLICE);
 #endif
             SDL_Delay((Uint32)((time_behind-TIMESLICE)*1000));
         } else
-        if ( time_behind < vid_stream->_oneFrameTime ) {
+        if ( time_behind < FUDGE_TIME ) {
             if ( vid_stream->_skipCount > 0 ) {
                 vid_stream->_skipCount /= 2;
             }
@@ -370,7 +386,7 @@ printf("A little behind, skipping %d frames\n", vid_stream->_skipFrame);
 printf("Way too far behind, losing time sync...\n");
 #endif
 #if 0 // This results in smoother video, but sync's terribly on slow machines
-                vid_stream->_nowFrameTime = ReadSysClock() - (MAX_FUDGE_TIME*2);
+                mpeg->play_time = CurrentTime(vid_stream) - (MAX_FUDGE_TIME*2);
 #endif
             }
 #ifdef SLOW_START_SCHEDULING

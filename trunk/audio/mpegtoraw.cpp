@@ -314,6 +314,20 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
     }
     volume = audio->volume;
 
+    /* Increment the current play time (assuming fixed frag size) */
+    switch (audio->frags_playing++) {
+        case 0:		/* The first audio buffer is being filled */
+            break;
+        case 1:		/* The first audio buffer is starting playback */
+            audio->frag_time = SDL_GetTicks();
+            break;
+        default:	/* A buffer has completed, filling a new one */
+            audio->frag_time = SDL_GetTicks();
+            audio->play_time += ((double)len)/audio->rate_in_s;
+            break;
+    }
+
+    /* Copy the audio data to output */
 #ifdef THREADED_AUDIO
     long copylen; Uint8 *rbuf;
     assert(audio);
