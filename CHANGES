@@ -1,4 +1,6 @@
 0.4.1:
+Vivien Chappelier - Sat Sep 23 17:48:59 PDT 2000
+ * Updated for SDL 1.1.5 and ATI hardware accelerated overlays
 Richard Kim - Thu Sep 21 11:28:31 PDT 2000
  * Fixed read buffer memory leak in MPEGsystem class
 Tim Jansen - Thu Sep 21 11:13:06 PDT 2000

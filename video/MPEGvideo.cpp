@@ -485,22 +485,8 @@ void
 MPEGvideo:: ScaleDisplayXY( int w, int h )
 {
     SDL_mutexP( _mutex );
-#if 1 // Sam 9/8 - The program knows how big it wants the output display!
     _dstrect.w = w;
     _dstrect.h = h;
-#else
-    if(_image)
-    {
-      /* Adjust to hide offscreen part */
-      SDL_LockYUVOverlay( _image );
-// Sam 9/5 - This is incorrect when the pitch is not the real width
-//           dstrect is the display rectangle, not the copy rectangle
-      //_dstrect.w = _image->pitch * w / _ow;
-      _dstrect.w = _image->w * w / _ow;
-      _dstrect.h = _image->h * h / _oh;
-      SDL_UnlockYUVOverlay( _image );
-    }
-#endif
     SDL_mutexV( _mutex );
 }
 
@@ -515,18 +501,8 @@ MPEGvideo:: SetDisplayRegion(int x, int y, int w, int h)
 
     if(_image)
     {
-      SDL_LockYUVOverlay( _image );
-      w = _dstrect.w * _ow / _image->pitch;
-      h = _dstrect.h * _oh / _image->h;
-      SDL_UnlockYUVOverlay( _image );
-
       SDL_FreeYUVOverlay(_image);
       _image = SDL_CreateYUVOverlay(_srcrect.w, _srcrect.h, SDL_YV12_OVERLAY, _dst);
-
-      SDL_LockYUVOverlay( _image );
-      _dstrect.w = _image->pitch * w / _ow;
-      _dstrect.h = _image->h * h / _oh;
-      SDL_UnlockYUVOverlay( _image );
     }
 
     SDL_mutexV( _mutex );
