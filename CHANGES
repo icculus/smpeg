@@ -1,4 +1,6 @@
 0.4.2:
+SiKang - Fri, 6 Oct 2000 15:23:13 +0900
+ * Fixed UDP port binding for raw:// MPEG support
 Sam Lantinga - Thu Oct  5 14:07:35 PDT 2000
  * Fixed spurious empty audio buffer at start of playback
 Sam Lantinga - Thu Oct  5 12:58:43 PDT 2000
