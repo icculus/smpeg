@@ -40,6 +40,9 @@
  * SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  */
 
+#ifdef WIN32
+#define __STDC__ 1
+#endif
 #ifdef __STDC__
 # define	P(s) s
 #include <stdlib.h>	/* used by almost all modules */

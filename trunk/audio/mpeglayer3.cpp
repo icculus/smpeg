@@ -88,7 +88,8 @@ static RATIOS rat_1[16],rat_2[2][64];
 void MPEGaudio::layer3initialize(void)
 {
   static bool initializedlayer3=false;
-
+  register int i;
+  int j,k,l;
 #if 0
 	double td = 0.0;
 printf( "%f\n", td );
@@ -102,8 +103,6 @@ printf( "B\n" );
   currentprevblock=0;
 
   {
-    int i,j,k,l;
-  
     for(l=0;l<2;l++)
       for(i=0;i<2;i++)
 	for(j=0;j<SBLIMIT;j++)
@@ -117,8 +116,6 @@ printf( "B\n" );
 
   // Calculate win
   {
-    register int i;
-
     for(i=0;i<18;i++)
       win[0][i]=win[1][i]=0.5*sin(PI_72*(double)(2*i+1))/cos(PI_72*(double)(2*i+19));
     for(;i<36;i++)
@@ -136,28 +133,28 @@ printf( "B\n" );
       win[2][i]=0.5*sin(PI_24*(double)(2*i+1))/cos(PI_24*(double)(2*i+7));
   }
 
-  for(register int i=0;i<9;i++)
+  for(i=0;i<9;i++)
     cos_18[i]=cos(PI_18*double(i));
-  for(register int i=0;i<9;i++)
+  for(i=0;i<9;i++)
     hsec_36[i]=0.5/cos(PI_36*double(i*2+1));
-  for(register int i=0;i<3;i++)
+  for(i=0;i<3;i++)
     hsec_12[i]=0.5/cos(PI_12*double(i*2+1));
 
-  for(int i=0;i<40;i++)
+  for(i=0;i<40;i++)
     two_to_negative_half_pow[i]=(REAL)pow(2.0,-0.5*(double)i);
 
   {
     REAL *TO_FOUR_THIRDS=TO_FOUR_THIRDSTABLE+FOURTHIRDSTABLENUMBER;
 
 //KR
-    for( int i = 0; i < FOURTHIRDSTABLENUMBER; i++ )
+    for( i = 0; i < FOURTHIRDSTABLENUMBER; i++ )
 	{
       TO_FOUR_THIRDS[-i]= -(TO_FOUR_THIRDS[i] = (REAL)pow((double)i,4.0/3.0));
 	}
   }
 
-  for(int i=0;i<256;i++)POW2[i]=(REAL)pow(2.0,(0.25*(i-210.0)));
-  for(int i=0,j,k;i<8;i++)
+  for(i=0;i<256;i++)POW2[i]=(REAL)pow(2.0,(0.25*(i-210.0)));
+  for(i=0;i<8;i++)
     for(j=0;j<2;j++)
       for(k=0;k<16;k++)POW2_1[i][j][k]=pow(2.0,(-2.0*i)-(0.5*(1.0+j)*k));
 
@@ -168,7 +165,7 @@ printf( "B\n" );
       -1.73205081,-1.01,      -0.57735027,  -0.26794919,
       0.0,        0.26794919, 0.57735027,   1.0};
 
-    for(int i=0;i<16;i++)
+    for(i=0;i<16;i++)
     {
       rat_1[i].l=TAN12[i]/(1.0+TAN12[i]);
       rat_1[i].r=1.0/(1.0+TAN12[i]);
@@ -180,7 +177,7 @@ printf( "B\n" );
   rat_2[0][0].l=rat_2[0][0].r=
   rat_2[1][0].l=rat_2[1][0].r=1.;
 
-  for(int i=1;i<64;i++)
+  for(i=1;i<64;i++)
     if((i%2)==1)
     {
       rat_2[0][i].l=pow(IO0,(i+1)/2);
@@ -1092,9 +1089,10 @@ void MPEGaudio::layer3fixtostereo(int gr,REAL in[2][SBLIMIT][SSLIMIT])
       {
 	for(int j=0;j<3;j++)
 	{
-	  int sfbcnt=-1;
+	  int sfb;
+      int sfbcnt=-1;
 
-	  for(int sfb=12;sfb>=0;sfb--)
+	  for(sfb=12;sfb>=0;sfb--)
 	  {
 	    int lines;
 
@@ -1114,7 +1112,7 @@ void MPEGaudio::layer3fixtostereo(int gr,REAL in[2][SBLIMIT][SSLIMIT])
 	      }
 	  }
 
-	  for(int sfb=sfbcnt+1;sfb<12;sfb++)
+	  for(sfb=sfbcnt+1;sfb<12;sfb++)
 	  {
 	    int k,t;
 

@@ -2,7 +2,12 @@
 
 #include "MPEG.h"
 
+#ifdef WIN32
+#include <io.h>
+#else
 #include <unistd.h>
+#define O_BINARY 0
+#endif
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
@@ -12,7 +17,7 @@ MPEG::MPEG(const char * name, bool Sdlaudio) :
 {
   int new_fd;
 
-  new_fd = open(name, O_RDONLY);
+  new_fd = open(name, O_RDONLY|O_BINARY);
   close_fd = true;
 
   if(new_fd == -1)
@@ -209,12 +214,16 @@ MPEGstatus MPEG::Status(void) {
       case MPEG_PLAYING:
         status = MPEG_PLAYING;
       break;
+      default:
+      break;
     }
   }
   if ( AudioEnabled() ) {
     switch (audioaction->Status()) {
       case MPEG_PLAYING:
         status = MPEG_PLAYING;
+      break;
+      default:
       break;
     }
   }
@@ -230,6 +239,8 @@ MPEGstatus MPEG::Status(void) {
       case MPEG_PLAYING:
         status = MPEG_PLAYING;
 	break;
+        default:
+        break;
       }
     }
     if ( AudioEnabled() ) {
@@ -237,6 +248,8 @@ MPEGstatus MPEG::Status(void) {
       case MPEG_PLAYING:
         status = MPEG_PLAYING;
 	break;
+        default:
+        break;
       }
     }
   }
@@ -253,7 +266,7 @@ bool MPEG::GetAudioInfo(MPEG_AudioInfo *info) {
 }
 void MPEG::Volume(int vol) {
   if ( AudioEnabled() ) {
-    return(audioaction->Volume(vol));
+    audioaction->Volume(vol);
   }
 }
 bool MPEG::WantedSpec(SDL_AudioSpec *wanted) {

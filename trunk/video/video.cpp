@@ -55,13 +55,6 @@
 #include <string.h>
 #include <assert.h>
 
-#ifndef MIPS
-#include <sys/time.h>
-#else
-#include <sys/types.h>
-#include <sys/system.h>
-#endif
-
 #include "decoders.h"
 #include "video.h"
 #include "util.h"
@@ -623,10 +616,10 @@ ReadSysClock()
 void
 InitCrop()
 {
+#ifdef USE_CROP_TABLE
   int i;
 
   /* Initialize crop table. */
-#ifdef USE_CROP_TABLE
   for (i = (-MAX_NEG_CROP); i < NUM_CROP_ENTRIES - MAX_NEG_CROP; i++) {
     if (i <= 0) {
       cropTbl[i + MAX_NEG_CROP] = 0;
@@ -893,8 +886,6 @@ void DestroyVidStream( VidStream* astream )
 PictImage* NewPictImage( VidStream* vid_stream, int w, int h, SDL_Surface *dst )
 {
     PictImage* pi;
-    int ditherType=vid_stream->ditherType;
-
 
     /* Allocate memory space for pi structure. */
 
@@ -1245,7 +1236,10 @@ done:
 static int ParseSeqHead( VidStream* vid_stream )
 {
   unsigned int data;
-  int i, ditherType=vid_stream->ditherType;
+  int i;
+#ifndef DISABLE_DITHER
+  int ditherType=vid_stream->ditherType;
+#endif
 
   /* Flush off sequence start code. */
 
@@ -1738,8 +1732,10 @@ static int ParseMacroBlock( VidStream* vid_stream )
   int zero_block_flag;
   BOOLEAN mb_quant = 0, mb_motion_forw = 0, mb_motion_back = 0, 
       mb_pattern = 0;
+#ifndef DISABLE_DITHER
   int no_dith_flag = 0;
   int ditherType = vid_stream->ditherType;
+#endif
 
 #ifdef ANALYSIS
   mbSizeCount = bitCountRead();
@@ -2247,7 +2243,7 @@ static void ReconPMBlock( VidStream* vid_stream, int bnum,
         int recon_right_for, int recon_down_for, int zflag )
 {
   int mb_row, mb_col, row, col, row_size, rr;
-  unsigned char *dest, *past;
+  unsigned char *dest, *past = 0;
   unsigned char *rindex1, *rindex2, *rindex3, *rindex4;
   unsigned char *index;
   short int *blockvals;
@@ -2731,7 +2727,7 @@ static void ReconBMBlock( VidStream* vid_stream, int bnum,
         int recon_right_back, int recon_down_back, int zflag )
 {
   int mb_row, mb_col, row, col, row_size, rr;
-  unsigned char *dest, *future;
+  unsigned char *dest, *future = 0;
   int right_back, down_back, right_half_back, down_half_back;
   unsigned char *rindex1, *rindex2, *rindex3, *rindex4;
   unsigned char *index;
@@ -3503,7 +3499,9 @@ static void ProcessSkippedPFrameMBlocks( VidStream* vid_stream )
   int row_size, half_row, mb_row, mb_col, row, col, rr;
   int addr, row_incr, half_row_incr, crow, ccol;
   int *dest, *src, *dest1, *src1;
+#ifndef DISABLE_DITHER
   int ditherType=vid_stream->ditherType;
+#endif
 
   /* Calculate row sizes for luminance and Cr/Cb macroblock areas. */
 
@@ -3645,7 +3643,9 @@ static void ProcessSkippedBFrameMBlocks( VidStream* vid_stream )
   unsigned char back_lum[256], back_cr[64], back_cb[64];
   int row_incr, half_row_incr;
   int ccol, crow;
+#ifndef DISABLE_DITHER
   int ditherType=vid_stream->ditherType;
+#endif
 
   /* Calculate row sizes for luminance and Cr/Cb macroblock areas. */
 

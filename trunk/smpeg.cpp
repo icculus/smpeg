@@ -44,7 +44,7 @@ SMPEG* SMPEG_new(const char *file, SMPEG_Info* info, int sdl_audio)
 
     /* Create a new SMPEG object! */
     mpeg = new SMPEG;
-    mpeg->obj = new MPEG(file, sdl_audio);
+    mpeg->obj = new MPEG(file, sdl_audio ? true : false);
 
     /* Find out the details of the stream, if requested */
     SMPEG_getinfo(mpeg, info);
@@ -60,7 +60,7 @@ SMPEG* SMPEG_new_descr(int file, SMPEG_Info* info, int sdl_audio)
 
     /* Create a new SMPEG object! */
     mpeg = new SMPEG;
-    mpeg->obj = new MPEG(file, sdl_audio);
+    mpeg->obj = new MPEG(file, sdl_audio ? true : false);
 
     /* Find out the details of the stream, if requested */
     SMPEG_getinfo(mpeg, info);
@@ -82,7 +82,7 @@ void SMPEG_getinfo( SMPEG* mpeg, SMPEG_Info* info )
             if ( info->has_audio ) {
                 mpeg->obj->GetAudioInfo(&ainfo);
 		info->audio_current_frame = ainfo.current_frame;
-		snprintf(info->audio_string, sizeof(info->audio_string),
+		sprintf(info->audio_string,
 		         "MPEG-%d Layer %d %dkbit/s %dHz %s",
 			 ainfo.mpegversion+1,
 			 ainfo.layer,
@@ -105,13 +105,13 @@ void SMPEG_getinfo( SMPEG* mpeg, SMPEG_Info* info )
 /* Enable or disable audio playback in MPEG stream */
 void SMPEG_enableaudio( SMPEG* mpeg, int enable )
 {
-    mpeg->obj->EnableAudio(enable);
+    mpeg->obj->EnableAudio(enable ? true : false);
 }
 
 /* Enable or disable video playback in MPEG stream */
 void SMPEG_enablevideo( SMPEG* mpeg, int enable )
 {
-    mpeg->obj->EnableVideo(enable);
+    mpeg->obj->EnableVideo(enable ? true : false);
 }
 
 /* Delete an SMPEG object */
@@ -136,6 +136,9 @@ SMPEGstatus SMPEG_status( SMPEG* mpeg )
         case MPEG_PLAYING:
             status = SMPEG_PLAYING;
             break;
+        case MPEG_ERROR:
+            status = SMPEG_ERROR;
+            break;
     }
     return(status);
 }
@@ -156,7 +159,7 @@ void SMPEG_setdisplay( SMPEG* mpeg, SDL_Surface* dst, SDL_mutex* surfLock,
 /* Set or clear looping play on an SMPEG object */
 void SMPEG_loop( SMPEG* mpeg, int repeat )
 {
-    mpeg->obj->Loop(repeat);
+    mpeg->obj->Loop(repeat ? true : false);
 }
 
 /* Scale pixel display on an SMPEG object */

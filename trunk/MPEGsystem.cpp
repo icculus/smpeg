@@ -1,13 +1,13 @@
 #include <stdlib.h>        /* for realloc() */
 #include <string.h>        /* for memmove() */
 #include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <assert.h>
+#ifdef WIN32
+#include <io.h>
+#include <winsock.h>
+#else
+#include <unistd.h>
+#endif
 
 #include "MPEGsystem.h"
 #include "MPEGstream.h"
@@ -178,21 +178,19 @@ void MPEGsystem::Read()
     /* Replace unread data at the beginning of the stream */
     memmove(read_buffer, pointer, remaining);
 
+#ifndef WIN32
+    /* Wait for new data */
+    fd_set fdset;
+    do {
+       FD_ZERO(&fdset);
+       FD_SET(mpeg_fd, &fdset);
+    } while ( select(mpeg_fd+1, &fdset, NULL, NULL, NULL) < 0 );
+#endif
+
     /* Read new data */
     read_size = 
       read(mpeg_fd, read_buffer + remaining, 
 	   READ_ALIGN(MPEG_BUFFER_SIZE - remaining));
-
-    while(read_size <= 0 && errno == EAGAIN && timeout)
-    {
-      /* Wait for packet */
-      wait(0);
-
-      read_size = 
-	read(mpeg_fd, read_buffer + remaining, MPEG_BUFFER_SIZE - remaining);
-
-      timeout --;
-    }
 
     if(read_size < 0)
     {
@@ -274,8 +272,6 @@ Uint8 MPEGsystem::FillBuffer()
   /* Parse the packet header */
   if(Match4(pointer, PACKET_CODE, PACKET_MASK))
   {
-    Uint8 stuffing_byte;
-
     /* Parse the packet information */
     pointer += 4;
 
@@ -497,7 +493,7 @@ void MPEGsystem::Rewind()
   reset_all_streams();
 
   /* Get back to the beginning of the stream */
-  if(lseek(mpeg_fd, 0, SEEK_SET) == (off_t) -1)
+  if(lseek(mpeg_fd, 0, SEEK_SET) == (long) -1)
   {
     if(errno != ESPIPE)
     {
@@ -559,18 +555,10 @@ int MPEGsystem::SystemThread(void * udata)
 {
   MPEGsystem * system = (MPEGsystem *) udata;
 
-  /* Set asynchronous I/O */
-  fcntl(system->mpeg_fd, F_SETFL, O_ASYNC | O_NONBLOCK);
-
-  /* Set the file descriptor owner */
-  fcntl(system->mpeg_fd, F_SETOWN, getpid());
-
-  /* Hook to the I/O signal */
-  signal(SIGIO, Handler_IO);
-  signal(SIGURG, Handler_IO);
-
+#ifndef WIN32
   /* Set low priority */
   nice(1);
+#endif
 
   system->system_thread_running = true;
 
@@ -585,7 +573,7 @@ int MPEGsystem::SystemThread(void * udata)
       system->end_all_streams();
 
       /* Get back to the beginning of the stream if possible */
-      if(lseek(system->mpeg_fd, 0, SEEK_SET) == (off_t) -1)
+      if(lseek(system->mpeg_fd, 0, SEEK_SET) == (long) -1)
       {
 	if(errno != ESPIPE)
 	{
@@ -624,25 +612,12 @@ int MPEGsystem::SystemThread(void * udata)
       /* Wait more and more time to avoid take too much cpu time when */
       /* there are no packets requested */
       if(delay >= 100) delay = 100;
-      usleep(delay++);
+      SDL_Delay(delay++);
     }
   }
   system->system_thread_running = false;
 
   return(true);
-}
-
-void MPEGsystem::Handler_IO(int signal)
-{
-  switch(signal)
-  {
-    case SIGIO:
-      //printf("I/O signal caught\n");
-    break;
-    case SIGURG:
-      //printf("URG signal caught\n");
-    break;
-  }
 }
 
 void MPEGsystem::add_stream(MPEGstream * stream)

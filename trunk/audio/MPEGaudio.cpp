@@ -256,6 +256,7 @@ MPEGaudio:: GetAudioInfo(MPEG_AudioInfo *info)
       info->bitrate = bitrate[version][layer-1][bitrateindex];
       info->current_frame = currentframe;
     }
+    return true;
 }
 bool
 MPEGaudio:: fillbuffer(int size)

@@ -54,7 +54,6 @@
 #include "video.h"
 #include "proto.h"
 #include "dither.h"
-#include <sys/time.h>
 #include "SDL_timer.h"
 
 #ifdef __STDC__

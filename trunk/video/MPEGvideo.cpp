@@ -120,7 +120,7 @@ int qualityFlag = 0;
 MPEGvideo::MPEGvideo(MPEGstream *stream)
 {
     Uint32 start_code;
-    MPEGstream_marker const * marker;
+    MPEGstream_marker *marker;
 
     /* Set the MPEG data stream */
     mpeg = stream;
@@ -269,10 +269,10 @@ MPEGvideo:: Rewind(void)
 void
 MPEGvideo::Skip(float seconds)
 {
-  Uint32 frame;
+  int frame;
 
   printf("Video: Skipping %f seconds... please wait\n", seconds);  
-  frame = (Uint32) (_fps * seconds);
+  frame = (int) (_fps * seconds);
 
   if( _stream )
   {
@@ -435,7 +435,7 @@ MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
     {
         /* Search for the last "group of pictures" start code */
         Uint32 start_code;
-	MPEGstream_marker const * marker, * oldmarker;
+	MPEGstream_marker * marker, * oldmarker;
 
 	marker = 0;
         mpeg->rewind_stream();

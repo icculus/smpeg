@@ -286,7 +286,6 @@ typedef struct vid_stream {
   PictImage *future;                           /* Future predictive frame.   */
   PictImage *current;                          /* Current frame.             */
   PictImage *ring[RING_BUF_SIZE];              /* Ring buffer of frames.     */
-  PictImage *saved_ring[RING_BUF_SIZE];        /* Saved ring of frames.      */
 
 /* KR - beginning of added variables */
   int rate_deal;
@@ -402,7 +401,11 @@ extern unsigned int cacheMiss[8][8];
 #endif
 
 #if !defined(LITTLE_ENDIAN_ARCHITECTURE) && !defined(BIG_ENDIAN_ARCHITECTURE)
-#include </usr/include/endian.h>
+#ifdef WIN32
+#undef  BIG_ENDIAN_ARCHITECTURE
+#define LITTLE_ENDIAN_ARCHITECTURE
+#else
+#include <endian.h>
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #undef  BIG_ENDIAN_ARCHITECTURE
 #define LITTLE_ENDIAN_ARCHITECTURE 1
@@ -410,6 +413,7 @@ extern unsigned int cacheMiss[8][8];
 #if __BYTE_ORDER == __BIG_ENDIAN
 #undef  LITTLE_ENDIAN_ARCHITECTURE
 #define BIG_ENDIAN_ARCHITECTURE 1
+#endif
 #endif
 #endif
 

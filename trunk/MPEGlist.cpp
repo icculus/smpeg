@@ -37,7 +37,7 @@ MPEGlist * MPEGlist::Alloc(Uint32 Buffer_Size)
   if(!next->data)
   {
     fprintf(stderr, "Alloc : Not enough memory\n");
-    exit(0);
+    return(0);
   }
 
   return(next);

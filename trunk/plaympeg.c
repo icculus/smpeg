@@ -17,7 +17,9 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+#ifdef unix
 #define NET_SUPPORT
+#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -115,7 +117,7 @@ int main(int argc, char *argv[])
         if ((strcmp(argv[i], "--skip") == 0)||(strcmp(argv[i], "-S") == 0)) {
             ++i;
             if ( argv[i] ) {
-                skip = atof(argv[i]);
+                skip = (float)atof(argv[i]);
             }
         } else
         if ((strcmp(argv[i], "--volume") == 0)||(strcmp(argv[i], "-v") == 0)) {
