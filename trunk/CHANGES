@@ -1,4 +1,10 @@
 
+0.3.1:
+SOL -   Fixed endlessly looping "mpegVidRsrc ParseMacroBlock" problem
+SOL -   Changed parseblock assertion so it doesn't halt playback
+SOL -   Fixed crashing bug in ParseReconBlock() with corrupt videos
+SOL -   Fixed audio synchronization problem with looping movies
+
 0.3.0:
 SOL -	Added audio synchronization support.
 SOL -	Added autoconf support.
