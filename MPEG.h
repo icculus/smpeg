@@ -247,7 +247,11 @@ public:
 		}
 	}
 	MPEGaudio *GetAudio(void) { // Simple accessor used in the C interface
-		return audio;
+        if ( audiostream == this ) {
+		    return audio;
+        } else {
+            return(audiostream->GetAudio());
+        }
 	}
 
     /* MPEG video actions */
