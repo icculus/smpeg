@@ -1,5 +1,5 @@
 *************************************************************************
-*** Applied ***
+*** Not Applied ***
 Date: Mon, 5 Feb 2001 23:29:43 -0500
 From: Joe Drew <hoserhead@woot.net>
 Subject: Bug#84685: [PATCH] SMPEG does not update current time when seeking by byte offsets
