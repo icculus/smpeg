@@ -117,7 +117,7 @@ MPEGaudio:: ~MPEGaudio()
 
     /* Close up the audio so others may play */
 #ifdef SDL_MIXER
-    Mix_CloseAudio();
+	//    Mix_CloseAudio();
 #else
     SDL_CloseAudio();
 #endif
