@@ -353,25 +353,19 @@ void MPEG::SetDisplayRegion(int x, int y, int w, int h) {
     videoaction->SetDisplayRegion(x, y, w, h);
   }
 }
-void MPEG::RenderFrame(int frame) {
-  /* Prevent acces to the audio stream to avoid filling it */
-  if( audiostream ) audiostream->enable(false);
-
-  if ( VideoEnabled() ) {
-    videoaction->RenderFrame(frame);
-  }
-
-  if( audiostream ) audiostream->enable(true);
+void MPEG::RenderFrame(int frame)
+{
+    if ( VideoEnabled() ) {
+        videoaction->RenderFrame(frame);
+    }
 }
-void MPEG::RenderFinal(SDL_Surface *dst, int x, int y) {
-  /* Prevent acces to the audio stream to avoid filling it */
-  if( audiostream ) audiostream->enable(false);
-
-  if ( VideoEnabled() ) {
-    videoaction->RenderFinal(dst, x, y);
-  }
-
-  if( audiostream ) audiostream->enable(true);
+void MPEG::RenderFinal(SDL_Surface *dst, int x, int y)
+{
+    Stop();
+    if ( VideoEnabled() ) {
+        videoaction->RenderFinal(dst, x, y);
+    }
+    Rewind();
 }
 
 SMPEG_Filter * MPEG::Filter(SMPEG_Filter * filter)

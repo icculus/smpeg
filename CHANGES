@@ -1,4 +1,6 @@
 0.4.2:
+Sam Lantinga - Fri Dec  1 18:07:50 PST 2000
+ * Fixed RenderFinal() to a different surface than the original one
 Vivien Chappelier - Fri Nov 17 13:35:36 PST 2000
  * Fixed seeking in MPEG files
 Joe Valenzuela - Fri Nov 17 13:28:38 PST 2000
