@@ -103,19 +103,20 @@ static void gtv_set_buttons_sensitive( gpointer raw, gboolean sensitive )
 {
     SMPEG_Info* info = NULL;
 
+    /* HACK If no MPEG is loaded, info has been memset()'ed to 0. */
+    info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
+
     gtv_set_sensitive( raw, "play", sensitive );
     gtv_set_sensitive( raw, "pause", sensitive );
     gtv_set_sensitive( raw, "stop", sensitive );
-    gtv_set_sensitive( raw, "step", sensitive );
-    gtv_set_sensitive( raw, "to_end", sensitive );
+    gtv_set_sensitive( raw, "step", sensitive && info->has_video );
+    gtv_set_sensitive( raw, "to_end", sensitive && info->has_video );
     gtv_set_sensitive( raw, "loop", sensitive );
     gtv_set_sensitive( raw, "close", sensitive );
     gtv_set_sensitive( raw, "file_info", sensitive );
 
-    /* HACK If no MPEG is loaded, info has been memset()'ed to 0. */
-    info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
     gtv_set_sensitive( raw, "twotimes", sensitive && info->has_video );
-    gtv_set_sensitive( raw, "audio", sensitive && info->has_audio );
+    gtv_set_sensitive( raw, "audio", sensitive && info->has_audio && info->has_video);
     gtv_set_sensitive( raw, "filter", sensitive && info->has_video );
 
     gtv_fix_toggle_state( raw );
@@ -614,12 +615,14 @@ static void gtv_audio( GtkWidget* item, gpointer raw )
 static void gtv_filter( GtkWidget* item, gpointer raw )
 {
     SMPEG* mpeg = NULL;
+    SMPEG_Info* info = NULL;
 
     assert( raw );
 
     mpeg = (SMPEG*) gtk_object_get_data( GTK_OBJECT( raw ), "mpeg" );
+    info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
 
-    if( mpeg ) {
+    if( mpeg && info->has_video ) {
 	GtkWidget* filter = NULL;
 	gboolean active = FALSE;
 
@@ -742,23 +745,23 @@ static void gtv_step( GtkWidget* item, gpointer raw )
 static void gtv_to_end( GtkWidget* item, gpointer raw )
 {
     SMPEG* mpeg = NULL;
+    SMPEG_Info* info = NULL;
 
     assert( raw );
 
     mpeg = (SMPEG*) gtk_object_get_data( GTK_OBJECT( raw ), "mpeg" );
+    info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
 
-    if( mpeg ) {
+    if( mpeg && info->has_video ) {
 	GtkWidget* twotimes = NULL;
 	gboolean active = FALSE;
 	SDL_Surface* sdl_screen = NULL;
-	SMPEG_Info* info = NULL;
 
 	SMPEG_stop( mpeg );
 
 	twotimes = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "twotimes" ) );
 	active = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( twotimes ) );
 	sdl_screen = (SDL_Surface*) gtk_object_get_data( GTK_OBJECT( raw ), "sdl_screen" );
-	info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
 
 	if( active ) {
 	    SMPEG_renderFinal( mpeg, sdl_screen, 0, 0 );
