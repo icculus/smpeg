@@ -1,4 +1,6 @@
 0.4.0:
+Robert Dean - Wed May 31 10:13:02 PDT 2000
+ * Added drag-n-drop support to gtv (drag movies onto the control window)
 Mo DeJong - Tue May 30 15:23:19 PDT 2000
  * Fixed an audio deadlock when stopping playback
 Markus Overhumer - Tue May 30 15:16:30 PDT 2000

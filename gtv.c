@@ -40,6 +40,12 @@ static void gtv_stop( GtkWidget*, gpointer );
 static void gtv_step( GtkWidget*, gpointer );
 static void gtv_to_end( GtkWidget*, gpointer );
 static void gtv_seek( GtkAdjustment*, gpointer );
+static void gtv_drag_data_received(GtkWidget * widget,
+                                   GdkDragContext * context,
+                                   gint x, gint y,
+                                   GtkSelectionData * selection_data,
+                                   guint info, guint time);
+
 
 static int gtv_trackbar_dragging;
 
@@ -742,6 +748,36 @@ static void gtv_set_trackbar( gpointer raw, int value )
     }
 }
 
+/* Drag-N-Drop support, contributed by */
+static void gtv_drag_data_received(GtkWidget * widget,
+                                   GdkDragContext * context,
+                                   gint x,
+                                   gint y,
+                                   GtkSelectionData * selection_data,
+                                   guint info,
+                                   guint time)
+{
+    gchar *temp, *string;
+    gint i = 1;
+
+    string = selection_data->data;
+
+    /* remove newline at end of line, and the file:// url header
+       at the begining, copied this code from the xmms source */
+    temp = strchr(string, '\n');
+    if (temp)
+    {
+        if (*(temp - 1) == '\r')
+            *(temp - 1) = '\0';
+        *temp = '\0';
+    }
+    if (!strncasecmp(string, "file:", 5))
+        string = string + 5;
+
+    gtv_open_file(string, widget);
+    gtv_play(NULL, widget);
+}
+
 static gint gtv_timer( gpointer raw )
 {
     SMPEG* mpeg = NULL;
@@ -796,6 +832,10 @@ static void gtv_connect( gpointer raw, gchar* name, gchar* signal, GtkSignalFunc
 
 int main( int argc, char* argv[] )
 {
+    static GtkTargetEntry drop_types[] = 
+    {
+        { "text/plain", 0, 1 }
+    };
     /* These are always on the stack until program exit. */
     SMPEG_Info info;
     gchar filename_buffer[FILENAME_BUFFER_SIZE];
@@ -808,6 +848,9 @@ int main( int argc, char* argv[] )
     gtk_init( &argc, &argv );
 
     window = create_gtv_window( );
+    gtk_drag_dest_set(window, GTK_DEST_DEFAULT_ALL, drop_types, 1, GDK_ACTION_COPY);
+    gtk_signal_connect( GTK_OBJECT( window ), "drag_data_received",
+			GTK_SIGNAL_FUNC( gtv_drag_data_received ), window );
     gtk_signal_connect( GTK_OBJECT( window ), "destroy",
 			GTK_SIGNAL_FUNC( gtv_quit ), window );
     gtk_object_set_data( GTK_OBJECT( window ), "info", &info );
