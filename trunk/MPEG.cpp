@@ -379,6 +379,7 @@ SMPEG_Filter * MPEG::Filter(SMPEG_Filter * filter)
   if ( VideoEnabled() ) {
     return(videoaction->Filter(filter));
   }
+  return 0;
 }
 
 void MPEG::Seek(int position)
@@ -386,7 +387,7 @@ void MPEG::Seek(int position)
   int was_playing = 0;
 
   /* Cannot seek past end of file */
-  if(position > system->TotalSize()) return;
+  if((Uint32)position > system->TotalSize()) return;
   
   /* get info whrether we need to restart playing at the end */
   if( Status() == MPEG_PLAYING )
@@ -411,8 +412,6 @@ void MPEG::Seek(int position)
 
 bool MPEG::seekIntoStream(int position)
 {
-  double time;
-
   /* First we stop everything */
   Stop();
 

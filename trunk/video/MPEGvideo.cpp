@@ -158,16 +158,16 @@ MPEGvideo::MPEGvideo(MPEGstream *stream)
         _h = ((buf[1]&0xF)<<8)|buf[2];   /* 12 bits of height */
 	switch(buf[3]&0xF)                /*  4 bits of fps */
 	{
-	  case 1: _fps = 23.97; break;
-	  case 2: _fps = 24.00; break;
-	  case 3: _fps = 25.00; break;
-	  case 4: _fps = 29.97; break;
-	  case 5: _fps = 30.00; break;
-	  case 6: _fps = 50.00; break;
-	  case 7: _fps = 59.94; break;
-	  case 8: _fps = 60.00; break;
-	  case 9: _fps = 15.00; break;
-	  default: _fps = 30.00; break;
+	  case 1: _fps = 23.97f; break;
+	  case 2: _fps = 24.00f; break;
+	  case 3: _fps = 25.00f; break;
+	  case 4: _fps = 29.97f; break;
+	  case 5: _fps = 30.00f; break;
+	  case 6: _fps = 50.00f; break;
+	  case 7: _fps = 59.94f; break;
+	  case 8: _fps = 60.00f; break;
+	  case 9: _fps = 15.00f; break;
+	  default: _fps = 30.00f; break;
 	}
     } else {
         _w = 0;
@@ -487,7 +487,10 @@ MPEGvideo:: ScaleDisplayXY( int w, int h )
     {
       /* Adjust to hide offscreen part */
       SDL_LockYUVOverlay( _image );
-      _dstrect.w = _image->pitch * w / _ow;
+// Sam 9/5 - This is incorrect when the pitch is not the real width
+//           dstrect is the display rectangle, not the copy rectangle
+      //_dstrect.w = _image->pitch * w / _ow;
+      _dstrect.w = _image->w * w / _ow;
       _dstrect.h = _image->h * h / _oh;
       SDL_UnlockYUVOverlay( _image );
     }
@@ -550,8 +553,6 @@ MPEGvideo:: RenderFrame( int frame )
 void
 MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
 {
-    SDL_Overlay *yuv;
-
     Stop();
 
     if( ! _stream->film_has_ended )

@@ -793,7 +793,9 @@ header_size, packet_size, stream_id, stream_timestamp);
 	p++;
 	if(p >= read_buffer + read_size) goto end;
 	if(c != 0) goto state0;
+/* Not explicitly reached:
       state1:
+ */
 	c = *p;
 	p++;
 	if(p >= read_buffer + read_size) goto end;
@@ -804,7 +806,9 @@ header_size, packet_size, stream_id, stream_timestamp);
 	if(p >= read_buffer + read_size) goto end;
 	if(c == 0) goto state2;
 	if(c != 1) goto state0;
+/* Not explicitly reached:
       state3:
+ */
 	c = *p;
 	p++;
 	if(p >= read_buffer + read_size) goto end;
@@ -961,7 +965,7 @@ void MPEGsystem::Skip(double time)
  
 Uint32 MPEGsystem::Tell()
 {
-  register int t;
+  register Uint32 t;
   register int i;
 
   /* Sum all stream positions */
@@ -1035,7 +1039,6 @@ double MPEGsystem::TotalTime()
   Uint32 size, pos;
   Uint32 file_ptr;
   Uint8 * buffer, * p;
-  Uint8 c;
   double time;
 
   /* Lock to avoid concurrent access to the stream */

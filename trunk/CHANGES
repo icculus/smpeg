@@ -1,4 +1,6 @@
 0.4.1:
+Sam Lantinga - Wed Sep  6 03:04:12 PDT 2000
+ * Various Visual C++ cleanups, DirectX hardware acceleration with SDL
 Sam Lantinga - Tue Sep  5 18:53:34 PDT 2000
  * Added the --bilinear command line option to plaympeg for filtering
 Tim Janson - Tue Sep  5 18:05:18 PDT 2000

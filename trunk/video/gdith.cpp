@@ -279,20 +279,20 @@ printf("A lot behind, skipping %d frames\n", vid_stream->_skipFrame);
 */
 void MPEGvideo::DisplayFrame( VidStream * vid_stream )
 {
-  Uint8 * image;
   SMPEG_FilterInfo info;
 
   if ( _filter_mutex )
     SDL_mutexP( _filter_mutex );
 
   /* Get a pointer to _image pixels */
-  SDL_LockYUVOverlay( _image );
+  if ( SDL_LockYUVOverlay( _image ) ) {
+    return;
+  }
 
   /* Compute additionnal info for the filter */
   if((_filter->flags & SMPEG_FILTER_INFO_PIXEL_ERROR) && vid_stream->current->mb_qscale)
   {
-    register Uint32 x, y;
-    register Uint32 w, h;
+    register int x, y;
     register Uint16 * ptr;
 
     /* Compute quantization error for each pixel */
