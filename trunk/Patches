@@ -1,5 +1,26 @@
 *************************************************************************
 *** Applied ***
+Date: Thu, 06 Apr 2000 10:51:41 +0900
+From: Atsushi Yamagata <yamagata@plathome.co.jp>
+Subject: tiny patch for smpeg
+
+
+
+This is a tiny patch for the locale in smpeg.
+--- Atsushi Yamagata
+
+--- gtv.c.locale	Thu Mar  2 00:22:45 2000
++++ gtv.c	Thu Apr  6 10:43:07 2000
+@@ -728,6 +728,7 @@
+ 
+     memset( &info, 0, sizeof( info ) );
+     memset( &filename_buffer, 0, sizeof( gchar ) * FILENAME_BUFFER_SIZE );
++    gtk_set_locale();
+     gtk_init( &argc, &argv );
+ 
+     window = create_gtv_window( );
+*************************************************************************
+*** Applied ***
 Date: Sun, 12 Mar 2000 03:18:09 +0900
 From: Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
 Subject: layer2audio fix.
