@@ -294,14 +294,13 @@ MPEGvideo:: Rewind(void)
       }
       _stream->realTimeStart = 0.0;
     }
-    play_time = 0.0;
 }
 
 void
 MPEGvideo:: ResetSynchro(double time)
 {
   _stream->_jumpFrame = -1;
-  _stream->realTimeStart = 0.0;
+  _stream->realTimeStart = -time;
   play_time = time;
 }
 
@@ -516,14 +515,15 @@ MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
     /* Create a temporary YUV surface and display the frame */
     yuv = SDL_CreateYUVOverlay(_w, _h, SDL_YV12_OVERLAY, dst);
     if ( yuv ) {
-        SDL_Rect dstrect;
         if ( SDL_LockYUVOverlay(yuv) == 0 ) {
+	  SDL_Rect dstrect;
+
             memcpy(yuv->pixels, _stream->current->image, (_w*_h)+2*(_w*_h)/4);
             SDL_UnlockYUVOverlay(yuv);
-            dstrect.x = x;
-            dstrect.y = x;
-            dstrect.w = _w*_scale;
-            dstrect.h = _h*_scale;
+            dstrect.x = _rect.x;
+            dstrect.y = _rect.y;
+            dstrect.w = _rect.w;
+            dstrect.h = _rect.h;
             SDL_DisplayYUVOverlay(yuv, &dstrect);
         }
         SDL_FreeYUVOverlay(yuv);

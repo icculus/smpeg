@@ -98,6 +98,16 @@ void SMPEG_getinfo( SMPEG* mpeg, SMPEG_Info* info )
                 info->current_frame = vinfo.current_frame;
                 info->current_fps = vinfo.current_fps;
             }
+	    if(mpeg->obj->system != NULL)
+	    {
+		info->total_size = mpeg->obj->TotalSize();
+		info->current_offset = mpeg->obj->Tell();
+	    }
+	    else
+	    {
+		info->total_size = 0;
+		info->current_offset = 0;
+	    }
         }
     }
 }
@@ -211,20 +221,6 @@ void SMPEG_rewind( SMPEG* mpeg )
 void SMPEG_seek( SMPEG* mpeg, int bytes )
 {
   mpeg->obj->Seek(bytes);
-}
-
-/* Tell the current position in the stream in bytes */
-/* Warning: this is 32 bit values so streams > 4Go will return bad values */
-Uint32 SMPEG_tell( SMPEG* mpeg )
-{
-  return(mpeg->obj->Tell());
-}
-
-/* Return the total size of the stream in bytes (O if unapplicable) */
-/* Warning: this is 32 bit values so streams > 4Go will return bad values */
-Uint32 SMPEG_total_size( SMPEG* mpeg )
-{
-  return(mpeg->obj->TotalSize());
 }
 
 /* Skip 'seconds' seconds of the MPEG */

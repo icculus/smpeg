@@ -12,10 +12,13 @@
 
 #include "gtv.h"
 
+#define TIMER_TIMEOUT 100
+
 static GtkWidget* create_gtv_window( void );
 static void gtv_connect( gpointer, gchar*, gchar*, GtkSignalFunc );
 static void gtv_set_frame( gpointer, int );
 static void gtv_set_fps( gpointer, float );
+static void gtv_set_trackbar( gpointer, int );
 static void gtv_set_sensitive( gpointer, gchar*, gboolean );
 static void gtv_clear_screen( gpointer );
 static void gtv_fix_toggle_state( gpointer );
@@ -37,6 +40,8 @@ static void gtv_stop( GtkWidget*, gpointer );
 static void gtv_step( GtkWidget*, gpointer );
 static void gtv_to_end( GtkWidget*, gpointer );
 static void gtv_seek( GtkAdjustment*, gpointer );
+
+static int gtv_trackbar_dragging;
 
 static void gtv_fix_toggle_state( gpointer raw )
 {
@@ -145,8 +150,6 @@ static void gtv_open( GtkWidget* item, gpointer raw )
     gtk_widget_show( file_sel );
 }
 
-static float mpeg_size; /* FIXME: put this somewhere else */
-
 static void gtv_open_file( gchar* name, gpointer raw )
 {
     SMPEG_Info* info = NULL;
@@ -174,8 +177,6 @@ static void gtv_open_file( gchar* name, gpointer raw )
 	gtk_object_set_data( GTK_OBJECT( raw ), "mpeg", NULL );
 	return;
     }
-    /* Get the file size */
-    mpeg_size = (float)SMPEG_total_size(mpeg);
 
     gtk_object_set_data( GTK_OBJECT( raw ), "mpeg", mpeg );
     strncpy( (char*) gtk_object_get_data( GTK_OBJECT( raw ), "filename_buffer" ),
@@ -337,12 +338,14 @@ static void gtv_info( GtkWidget* item, gpointer raw )
 
     /* Actually stuff some data in there. */
     info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
-    g_snprintf( buffer, 1024, "Filename: %s\nStream: %s\nSize: %dx%d\n",
+    g_snprintf( buffer, 1024, "Filename: %s\nStream: %s\nVideo: %dx%d resolution\nAudio: %s\nSize: %d\n",
 		(gchar*) gtk_object_get_data( GTK_OBJECT( raw ), "filename_buffer" ),
 		( info->has_audio && info->has_video ) ? "system" :
 		( info->has_video ? "video" :
 		( info->has_audio ? "audio" : "not MPEG" ) ),
-		info->width, info->height );
+		info->width, info->height,
+		( info->has_audio ? info->audio_string : "none" ),
+		info->total_size );
     text = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( dialog ), "text" ) );
     gtk_editable_insert_text( GTK_EDITABLE( text ), buffer, strlen( buffer ), &ignored );
 
@@ -546,7 +549,7 @@ static void gtv_play( GtkWidget* item, gpointer raw )
     mpeg = (SMPEG*) gtk_object_get_data( GTK_OBJECT( raw ), "mpeg" );
 
     if( mpeg ) {
-	gtv_rewind( raw );
+      //	gtv_rewind( raw );
 	SMPEG_play( mpeg );
     }
 
@@ -569,14 +572,18 @@ static void gtv_pause( GtkWidget* item, gpointer raw )
 static void gtv_stop( GtkWidget* item, gpointer raw )
 {
     SMPEG* mpeg = NULL;
+    SMPEG_Info* info = NULL;
 
     assert( raw );
 
     mpeg = (SMPEG*) gtk_object_get_data( GTK_OBJECT( raw ), "mpeg" );
+    info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
 
     if( mpeg ) {
 	SMPEG_stop( mpeg );
 	gtv_rewind( raw );
+	SMPEG_getinfo( mpeg, info );
+	gtv_set_trackbar( raw, info->current_offset );
     }
 
 }
@@ -655,14 +662,33 @@ static void gtv_to_end( GtkWidget* item, gpointer raw )
 static void gtv_seek( GtkAdjustment* adjust, gpointer raw )
 {
     SMPEG* mpeg = NULL;
+    SMPEG_Info* info = NULL;
 
     assert( raw );
+    if(gtv_trackbar_dragging) return;
 
     mpeg = (SMPEG*) gtk_object_get_data( GTK_OBJECT( raw ), "mpeg" );
+    info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
 
-    if( mpeg && mpeg_size ) {
-        SMPEG_seek(mpeg, (int)((mpeg_size*adjust->value)/100));
+    if( mpeg && info && info->total_size ) {
+
+      /* In case file is growing while we're playing */
+      SMPEG_getinfo( mpeg, info );
+      
+      SMPEG_seek(mpeg, (int)((info->total_size*adjust->value)/100));
+
+      gtv_step( NULL, raw );
     }
+}
+
+static void gtv_trackbar_drag_on(GtkWidget *widget, gpointer raw)
+{
+    gtv_trackbar_dragging = 1;
+}
+
+static void gtv_trackbar_drag_off(GtkWidget *widget, gpointer raw)
+{
+    gtv_trackbar_dragging = 0;
 }
 
 static void gtv_set_frame( gpointer raw, int value )
@@ -691,6 +717,31 @@ static void gtv_set_fps( gpointer raw, float value )
     gtk_label_set_text( GTK_LABEL( fps ), buffer );
 }
 
+static void gtv_set_trackbar( gpointer raw, int value )
+{
+    SMPEG* mpeg = NULL;
+    SMPEG_Info* info = NULL;
+    GtkWidget* scale = NULL;
+    GtkAdjustment* seek = NULL;
+
+    assert( raw );
+    assert( value >= 0 );
+    if(gtv_trackbar_dragging) return;
+
+    mpeg = (SMPEG*) gtk_object_get_data( GTK_OBJECT( raw ), "mpeg" );
+    info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
+
+    if( mpeg && info && info->total_size ) {
+            scale = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "scale" ) );
+      seek  = gtk_range_get_adjustment ( GTK_RANGE( scale ) );
+      seek->value = 100. * value / info->total_size;
+      gtk_range_set_adjustment ( GTK_RANGE( scale ), seek );
+      gtk_range_slider_update ( GTK_RANGE( scale ) );
+      gtk_range_clear_background ( GTK_RANGE( scale ) );
+      gtk_range_draw_background ( GTK_RANGE( scale ) );
+    }
+}
+
 static gint gtv_timer( gpointer raw )
 {
     SMPEG* mpeg = NULL;
@@ -705,6 +756,7 @@ static gint gtv_timer( gpointer raw )
 	    SMPEG_getinfo( mpeg, info );
 	    gtv_set_frame( raw, info->current_frame );
 	    gtv_set_fps( raw, info->current_fps );
+	    gtv_set_trackbar( raw, info->current_offset );
 	}
 
     }
@@ -781,8 +833,11 @@ int main( int argc, char* argv[] )
     gtv_connect( window, "audio", "toggled", GTK_SIGNAL_FUNC( gtv_audio ) );
     gtv_connect( window, "seek", "value_changed", GTK_SIGNAL_FUNC( gtv_seek ) );
 
+    gtv_connect( window, "scale", "button_press_event", GTK_SIGNAL_FUNC( gtv_trackbar_drag_on ) );
+    gtv_connect( window, "scale", "button_release_event", GTK_SIGNAL_FUNC( gtv_trackbar_drag_off ) );
+
     /*    gtk_idle_add_priority( G_PRIORITY_LOW, gtv_timer, window );*/
-    gtk_timeout_add( 1000, gtv_timer, window );
+    gtk_timeout_add( TIMER_TIMEOUT, gtv_timer, window );
 
     gtv_set_frame( window, 0 );
     gtv_set_fps( window, 0.0 );
@@ -962,6 +1017,10 @@ static GtkWidget* create_gtv_window( void )
   gtk_object_set_data_full (GTK_OBJECT (gtv_window), "seek", seek,
                             (GtkDestroyNotify) (0));
   scale = gtk_hscale_new(GTK_ADJUSTMENT(seek));
+  gtv_trackbar_dragging = 0;
+  gtk_widget_ref (scale);
+  gtk_object_set_data_full (GTK_OBJECT (gtv_window), "scale", scale,
+                            (GtkDestroyNotify) gtk_widget_unref);
   gtk_range_set_update_policy (GTK_RANGE (scale), GTK_UPDATE_DELAYED);
   gtk_widget_show (scale);
   gtk_table_attach (GTK_TABLE (table1), scale, 0, 5, 3, 4,

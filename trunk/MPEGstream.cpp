@@ -79,6 +79,7 @@ MPEGstream::reset_stream()
   br = new MPEGlist();
   data = 0;
   stop = 0;
+  pos = 0;
   looping = false;
   preread_size = 0;
   SDL_mutexV(mutex);
@@ -226,8 +227,11 @@ MPEGstream:: seek_marker(MPEGstream_marker const * marker)
 void
 MPEGstream:: delete_marker(MPEGstream_marker *marker)
 {
-    marker->marked_buffer->Unlock();
-    delete marker;
+    if( marker && marker->marked_buffer)
+    {
+      marker->marked_buffer->Unlock();
+      delete marker;
+    }
 }
 
 Uint32

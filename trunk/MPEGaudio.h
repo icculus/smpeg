@@ -355,6 +355,14 @@ private:
         rawdata=NULL;
   }
   void putraw(short int pcm) {rawdata[rawdatawriteoffset++]=pcm;}
+
+  /********************/
+  /* Timestamp sync   */
+  /********************/
+public:
+#define N_TIMESTAMPS 5
+
+  double timestamp[N_TIMESTAMPS];
 };
 
 #endif /* _MPEGAUDIO_H_ */

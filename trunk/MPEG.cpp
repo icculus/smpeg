@@ -316,23 +316,30 @@ void MPEG::RenderFinal(SDL_Surface *dst, int x, int y) {
 
 void MPEG::Seek(int position)
 {
-  int were_playing = 0;
+  int was_playing = 0;
 
   /* Cannot seek past end of file */
   if(position > TotalSize()) return;
   
   /* get info whrether we need to restart playing at the end */
   if( Status() == MPEG_PLAYING )
-    were_playing = 1;
+    was_playing = 1;
 
-  seekIntoStream(position);
+  if(!seekIntoStream(position)) return;
 
   /* If we were playing and not rewind then play again */
-  if (were_playing)
+  if (was_playing)
     Play();
+
+  if ( pause && VideoEnabled() ) {
+    videoaction->Pause();
+  }
+  if ( pause && AudioEnabled() ) {
+    audioaction->Pause();
+  }
 }
 
-void MPEG::seekIntoStream(int position)
+bool MPEG::seekIntoStream(int position)
 {
   double time;
 
@@ -340,7 +347,7 @@ void MPEG::seekIntoStream(int position)
   Stop();
 
   /* Go to the desired position into file */
-  time = system->Seek(position);
+  if((time = system->Seek(position)) < 0) return(false);
 
   /* Skip the first empty buffer made when creating a mpegstream */
   /* which would otherwise be interpreted as end of file */
@@ -349,16 +356,16 @@ void MPEG::seekIntoStream(int position)
   if(videostream) videostream->next_packet();
 
   /* And forget what we previouly buffered */
-
-  if ( AudioEnabled() ) {
+  if ( audioaction ) {
     audioaction->Rewind();
     audioaction->ResetSynchro(time);
   }
-
-  if ( VideoEnabled() ) {
+  if ( videoaction ) {
     videoaction->Rewind();
     videoaction->ResetSynchro(time);
   }
+
+  return(true);
 }
 
 Uint32 MPEG::Tell()

@@ -85,15 +85,11 @@ MPEG_ring:: ReleaseThreads( void )
         while ( SDL_SemValue(ring->readwait) == 0 ) {
             SDL_SemPost(ring->readwait);
         }
-        SDL_DestroySemaphore( ring->readwait );
-        ring->readwait = 0;
     }
     if ( ring->writewait ) {
         while ( SDL_SemValue(ring->writewait) == 0 ) {
             SDL_SemPost(ring->writewait);
         }
-        SDL_DestroySemaphore( ring->writewait );
-        ring->writewait = 0;
     }
 }
 
@@ -104,6 +100,18 @@ MPEG_ring:: ~MPEG_ring( void )
     {
         /* Free up the semaphores */
         ReleaseThreads();
+
+	/* Destroy the semaphores */
+	if( ring->readwait )
+	{
+	    SDL_DestroySemaphore( ring->readwait );
+	    ring->readwait = 0;
+	}
+	if( ring->writewait )
+	{
+	    SDL_DestroySemaphore( ring->writewait );
+	    ring->writewait = 0;
+	}
 
         /* Free data buffer */
         if ( ring->begin ) {
@@ -127,9 +135,9 @@ MPEG_ring:: NextWriteBuffer( void )
 
     buffer = 0;
     if ( ring->active ) {
-//printf("Waiting for write buffer (%d available)\n", SDL_SemValue(ring->writewait));
+	//printf("Waiting for write buffer (%d available)\n", SDL_SemValue(ring->writewait));
         SDL_SemWait(ring->writewait);
-//printf("Finished waiting for write buffer\n");
+	//printf("Finished waiting for write buffer\n");
 	if ( ring->active ) {
             buffer = ring->write + sizeof(Uint32);
         }
