@@ -154,7 +154,7 @@ MPEG_ring:: NextWriteBuffer( void )
 void
 MPEG_ring:: WriteDone( Uint32 len, double timestamp)
 {
-    if ( ring->active && len ) {
+    if ( ring->active ) {
 #ifdef NO_GRIFF_MODS
         assert(len <= ring->bufSize);
 #else
