@@ -30,7 +30,11 @@ MPEGlist * MPEGlist::Alloc(Uint32 Buffer_Size)
   next = new MPEGlist;
 
   next->next = tmp;
-  next->data = new Uint8[Buffer_Size];
+  if ( Buffer_Size ) {
+    next->data = new Uint8[Buffer_Size];
+  } else {
+    next->data = 0;
+  }
   next->size = Buffer_Size;
   next->prev = this;
 
