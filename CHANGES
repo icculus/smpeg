@@ -9,6 +9,8 @@ Ryan C. Gordon - Sun Jun 02 20:10:42 EST 2002
  * Newer ltconfig and hacks for libtool and .S files.
 Adam Procter - Sat Jun  8 05:41:30 EDT 2002
  * Fixed potential deadlock in MPEGaudio.cpp
+Sam Lantinga - Sun Jun  9 00:24:10 EDT 2002
+ * Fix for crash when an MPEG file can't be opened.
 
 0.4.5:
 Sam Lantinga - Tue Jul 17 12:27:20 PDT 2001
