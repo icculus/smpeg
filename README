@@ -29,8 +29,8 @@ Currently it has only been tested on x86 Linux.
 
 Requirements:
 
-	* Simple DirectMedia Layer v1.0.6 or newer
-		http://www.devolution.com/~slouken/SDL/
+	* Simple DirectMedia Layer v1.1.4 or newer
+		http://www.libsdl.org/
 
 To make:
 
