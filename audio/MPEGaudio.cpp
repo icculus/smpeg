@@ -74,12 +74,13 @@ MPEGaudio:: MPEGaudio(MPEGstream *stream, bool initSDL) : sdl_audio(initSDL)
 
 MPEGaudio:: ~MPEGaudio()
 {
-    /* Remove ourselves from the mixer hooks */
-    Stop();
 #ifdef THREADED_AUDIO
     /* Stop the decode thread */
     StopDecoding();
 #endif
+
+    /* Remove ourselves from the mixer hooks */
+    Stop();
     if ( sdl_audio ) {
         /* Close up the audio so others may play */
         SDL_CloseAudio();
