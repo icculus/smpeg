@@ -83,6 +83,7 @@ void MPEGaudio::initialize()
   REAL *s3,*s4;
 
   forcetomonoflag = false;
+  forcetostereoflag = false;
   downfrequency = 0;
 
   scalefactor=SCALE;
@@ -182,6 +183,8 @@ bool MPEGaudio::loadheader()
     inputstereo = (mode == single) ? 0 : 1;
     if(forcetomonoflag)
         outputstereo=0;
+    else if(forcetostereoflag)
+        outputstereo=1;
     else
         outputstereo=inputstereo;
 

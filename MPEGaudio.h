@@ -215,6 +215,7 @@ private:
   /***************************************/
 private:
   bool forcetomonoflag;
+  bool forcetostereoflag;
   int  downfrequency;
 
 public:

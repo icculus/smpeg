@@ -110,6 +110,7 @@ MPEGaudio:: WantedSpec(SDL_AudioSpec *wanted)
     } else {
         wanted->channels = 1;
     }
+wanted->channels = 2;
     wanted->samples = 4096;
     wanted->callback = Play_MPEGaudio;
     wanted->userdata = this;
@@ -122,6 +123,10 @@ MPEGaudio:: ActualSpec(const SDL_AudioSpec *actual)
     /* Splay can optimize some of the conversion */
     if ( actual->channels == 1 && outputstereo) {
         forcetomonoflag = true;
+    }
+    if ( actual->channels == 2 && !outputstereo ) {
+printf("Forcing stereo output\n");
+        forcetostereoflag = true;
     }
     /* FIXME: Create an audio conversion block */
     if ( (actual->freq/100) == ((frequencies[version][frequency]/2)/100) ) {

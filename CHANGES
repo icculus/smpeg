@@ -1,5 +1,7 @@
 
 0.3.3:
+Stephane Peter - Thu Jan  6 22:22:33 PST 2000
+ * Fixed playing mono MP3 files on stereo audio output
 Sam Lantinga - Thu Jan  6 13:02:32 PST 2000
  * SMPEG now detects MP3 files again (broken by RIFF searching code)
  * gtv is now included by default when building an RPM
