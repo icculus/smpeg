@@ -15,493 +15,501 @@
 #define O_BINARY 0
 #endif
 
-MPEG::MPEG(const char * name, bool SDLaudio) :
-  MPEGerror()
-{
-  SDL_RWops *source;
+bool MPEG_seekIntoStream(MPEG *self, int position);
+void MPEG_parse_stream_list(MPEG *self);
 
-  mpeg_mem = 0;
+MPEG *MPEG_create() {
+		MPEG *ret = (MPEG *)malloc(sizeof(MPEG));
 
-  source = SDL_RWFromFile(name, "rb");
-  if (!source) {
-    InitErrorState();
-    SetError(SDL_GetError());
-    return;
-  }
-  Init(source, SDLaudio);
+		if (ret) ret->err = MPEGerror_create();
+
+		return ret;
 }
 
-MPEG::MPEG(int Mpeg_FD, bool SDLaudio) :
-  MPEGerror()
-{
-  SDL_RWops *source;
+MPEG *MPEG_create_file(const char * name, bool SDLaudio) {
+		MPEG *ret = MPEG_create();
 
-  mpeg_mem = 0;
+		mpeg_mem = 0;
 
-  // *** FIXME we're leaking a bit of memory for the FILE *
-  // best solution would be to have SDL_RWFromFD
-  FILE *file = fdopen(Mpeg_FD, "rb");
-  if (!file) {
-    InitErrorState();
-    SetError(strerror(errno));
-    return;
-  }
+		ret->source = SDL_RWFromFile(name, "rb");
+		if (!ret->source) {
+				MPEG_InitErrorState(ret);
+				MPEGerror_SetError(ret->err, SDL_GetError());
+				return;
+		}
+		MPEG_Init(ret, ret->source, SDLaudio);
 
-  source = SDL_RWFromFP(file,false);
-  if (!source) {
-    InitErrorState();
-    SetError(SDL_GetError());
-    return;
-  }
-  Init(source, SDLaudio);
+		return ret;
 }
 
-MPEG::MPEG(void *data, int size, bool SDLaudio) :
-  MPEGerror()
-{
-  SDL_RWops *source;
+MPEG *MPEG_create_fd(int Mpeg_FD, bool SDLaudio) {
+		MPEG *ret = MPEG_create();
 
-  // The semantics are that the data passed in should be copied
-  // (?)
-  mpeg_mem = new char[size];
-  memcpy(mpeg_mem, data, size);
+		mpeg_mem = 0;
 
-  source = SDL_RWFromMem(mpeg_mem, size);
-  if (!source) {
-    InitErrorState();
-    SetError(SDL_GetError());
-    return;
-  }
-  Init(source, SDLaudio);
+		// *** FIXME we're leaking a bit of memory for the FILE *
+		// best solution would be to have SDL_RWFromFD
+		FILE *file = fdopen(Mpeg_FD, "rb");
+		if (!file) {
+				MPEG_InitErrorState(ret);
+				MPEGerror_SetError(ret->err, strerror(errno));
+				return;
+		}
+
+		ret->source = SDL_RWFromFP(file,false);
+		if (!ret->source) {
+				MPEG_InitErrorState(ret);
+				MPEGerror_SetError(ret->err, SDL_GetError());
+				return;
+		}
+		MPEG_Init(ret, ret->source, SDLaudio);
+
+		return ret;
 }
 
-MPEG::MPEG(SDL_RWops *mpeg_source, bool SDLaudio) :
-  MPEGerror()
-{
-  mpeg_mem = 0;
-  Init(mpeg_source, SDLaudio);
+MPEG *MPEG_create_mem(void *data, int size, bool SDLaudio) {
+		MPEG *ret = MPEG_create();
+
+		// The semantics are that the data passed in should be copied
+		// (?)
+		ret->mpeg_mem = new char[size];
+		memcpy(ret->mpeg_mem, data, size);
+
+		ret->source = SDL_RWFromMem(ret->mpeg_mem, size);
+		if (!ret->source) {
+				MPEG_InitErrorState(ret);
+				MPEGerror_SetError(ret->err, SDL_GetError());
+				return;
+		}
+		MPEG_Init(ret, ret->source, SDLaudio);
+
+		return ret;
 }
 
-void MPEG::Init(SDL_RWops *mpeg_source, bool SDLaudio)
+MPEG *MPEG_create_rwops(SDL_RWops *mpeg_source, bool SDLaudio) {
+		MPEG *ret = MPEG_create();
+
+    ret->source = mpeg_source;
+		ret->mpeg_mem = 0;
+		MPEG_Init(ret, ret->source, SDLaudio);
+
+		return ret;
+}
+
+void MPEG_Init(MPEG *self, SDL_RWops *mpeg_source, bool SDLaudio)
 {
-    source = mpeg_source;
-    sdlaudio = SDLaudio;
+		/* Initialize everything to invalid values for cleanup */
+    MPEG_InitErrorState(self);
+
+    self->source = mpeg_source;
+    self->sdlaudio = SDLaudio;
 
     /* Create the system that will parse the MPEG stream */
-    system = new MPEGsystem(source);
+    self->system = MPEGsystem_create_rwops(source);
 
-    /* Initialize everything to invalid values for cleanup */
-    error = NULL;
+    MPEG_parse_stream_list(self);
 
-    audiostream = videostream = NULL;
-    audioaction = NULL;
-    videoaction = NULL;
-    audio = NULL;
-    video = NULL;
-    audioaction_enabled = videoaction_enabled = false;
-    loop = false;
-    pause = false;
+    MPEG_EnableAudio(self, self->audioaction_enabled);
+    MPEG_EnableVideo(self, self->videoaction_enabled);
 
-    parse_stream_list();
-
-    EnableAudio(audioaction_enabled);
-    EnableVideo(videoaction_enabled);
-
-    if ( ! audiostream && ! videostream ) {
-      SetError("No audio/video stream found in MPEG");
+    if ( ! self->audiostream && ! self->videostream ) {
+      MPEGerror_SetError(self->err, "No audio/video stream found in MPEG");
     }
 
-    if ( system && system->WasError() ) {
-      SetError(system->TheError());
+    if ( system && MPEGerror_WasError(system->err) ) {
+      MPEGerror_SetError(self->err, MPEGerror_TheError(system->err));
     }
 
-    if ( audio && audio->WasError() ) {
-      SetError(audio->TheError());
+    if ( audio && MPEGerror_WasError(audio->err) ) {
+      MPEGerror_SetError(self->err, MPEGerror_TheError(audio->err));
     }
 
-    if ( video && video->WasError() ) {
-      SetError(video->TheError());
+    if ( video && MPEGerror_WasError(video->err) ) {
+      MPEGerror_SetError(self->err, MPEGerror_TheError(video->err));
     }
 
-    if ( WasError() ) {
-      SetError(TheError());
+    if ( MPEGerror_WasError(self->err) ) {
+      MPEGerror_SetError(self->err, MPEGerror_TheError(self->err));
     }
 }
 
-void MPEG::InitErrorState() {
-    audio = NULL;
-    video = NULL;
-    system = NULL;
-    error = NULL;
-    source = NULL;
+void MPEG_InitErrorState(MPEG *self) {
+    MPEGerror_ClearError(self->err);
 
-    audiostream = videostream = NULL;
-    audioaction = NULL;
-    videoaction = NULL;
-    audio = NULL;
-    video = NULL;
-    audioaction_enabled = videoaction_enabled = false;
-    loop = false;
-    pause = false;
+		self->audio = NULL;
+    self->video = NULL;
+    self->system = NULL;
+    self->source = NULL;
+
+    self->audiostream = self->videostream = NULL;
+    self->audioaction = NULL;
+    self->videoaction = NULL;
+    self->audio = NULL;
+    self->video = NULL;
+    self->audioaction_enabled = self->videoaction_enabled = false;
+    self->loop = false;
+    self->pause = false;
 }
 
-MPEG::~MPEG()
-{
-  Stop();
-  if(video) delete video;
-  if(audio) delete audio;
-  if(system) delete system;
-  
-  if(source) SDL_RWclose(source);
-  if ( mpeg_mem )
-    delete[] mpeg_mem;
+void MPEG_destroy(MPEG *self) {
+		MPEG_Stop(self);
+		if(self->video) delete self->video;
+		if(self->audio) delete self->audio;
+		if(self->system) MPEGsystem_destroy(self->system);
+
+		if(self->source) SDL_RWclose(self->source);
+		if ( self->mpeg_mem )
+				delete[] self->mpeg_mem;
+
+		free(self);
 }
 
-bool MPEG::AudioEnabled(void) {
-  return(audioaction_enabled);
+bool MPEG_AudioEnabled(MPEG *self) {
+		return(self->audioaction_enabled);
 }
-void MPEG::EnableAudio(bool enabled) {
-  if ( enabled && ! audioaction ) {
-    enabled = false;
-  }
-  audioaction_enabled = enabled;
 
-  /* Stop currently playing stream, if necessary */
-  if ( audioaction && ! audioaction_enabled ) {
-    audioaction->Stop();
-  } 
-  /* Set the video time source */
-  if ( videoaction ) {
-    if ( audioaction_enabled ) {
-      videoaction->SetTimeSource(audioaction);
-    } else {
-      videoaction->SetTimeSource(NULL);
-    }
-  }
-  if(audiostream)
-    audiostream->enable(enabled);
-}
-bool MPEG::VideoEnabled(void) {
-  return(videoaction_enabled);
-}
-void MPEG::EnableVideo(bool enabled) {
-  if ( enabled && ! videoaction ) {
-    enabled = false;
-  }
-  videoaction_enabled = enabled;
+void MPEG_EnableAudio(MPEG *self, bool enabled) {
+		if ( enabled && ! self->audioaction ) {
+				enabled = false;
+		}
+		self->audioaction_enabled = enabled;
 
-  /* Stop currently playing stream, if necessary */
-  if ( videoaction && ! videoaction_enabled ) {
-    videoaction->Stop();
-  } 
-  if(videostream)
-    videostream->enable(enabled);
+		/* Stop currently playing stream, if necessary */
+		if ( self->audioaction && ! self->audioaction_enabled ) {
+				self->audioaction->Stop();
+		}
+		/* Set the video time source */
+		if ( self->videoaction ) {
+				if ( self->audioaction_enabled ) {
+						self->videoaction->SetTimeSource(audioaction);
+				} else {
+						self->videoaction->SetTimeSource(NULL);
+				}
+		}
+		if(self->audiostream)
+				self->audiostream->enable(enabled);
+}
+bool MPEG_VideoEnabled(MPEG *self) {
+		return(self->videoaction_enabled);
+}
+void MPEG_EnableVideo(MPEG *self, bool enabled) {
+		if ( enabled && ! self->videoaction ) {
+				enabled = false;
+		}
+		self->videoaction_enabled = enabled;
+
+		/* Stop currently playing stream, if necessary */
+		if ( self->videoaction && ! self->videoaction_enabled ) {
+				self->videoaction->Stop();
+		}
+		if(self->videostream)
+				self->videostream->enable(enabled);
 }
 
 /* MPEG actions */
-void MPEG::Loop(bool toggle) {
-  loop = toggle;
+void MPEG_Loop(MPEG *self, bool toggle) {
+		self->loop = toggle;
 }
-void MPEG::Play(void) {
-  if ( AudioEnabled() ) {
-    audioaction->Play();
-  }
-  if ( VideoEnabled() ) {
-    videoaction->Play();
-  }
+void MPEG_Play(MPEG *self) {
+		if ( MPEG_AudioEnabled(self) ) {
+				self->audioaction->Play();
+		}
+		if ( MPEG_VideoEnabled(self) ) {
+				self->videoaction->Play();
+		}
 }
-void MPEG::Stop(void) {
-  if ( VideoEnabled() ) {
-    videoaction->Stop();
-  }
-  if ( AudioEnabled() ) {
-    audioaction->Stop();
-  }
-}
-
-void MPEG::Rewind(void) {
-  seekIntoStream(0);
+void MPEG_Stop(MPEG *self) {
+		if ( MPEG_VideoEnabled(self) ) {
+				self->videoaction->Stop();
+		}
+		if ( MPEG_AudioEnabled(self) ) {
+				self->audioaction->Stop();
+		}
 }
 
-void MPEG::Pause(void) {
-  pause = !pause;
+void MPEG_Rewind(MPEG *self) {
+		self->seekIntoStream(0);
+}
 
-  if ( VideoEnabled() ) {
-    videoaction->Pause();
-  }
-  if ( AudioEnabled() ) {
-    audioaction->Pause();
-  }
+void MPEG_Pause(MPEG *self) {
+		self->pause = !self->pause;
+
+		if ( MPEG_VideoEnabled(self) ) {
+				self->videoaction->Pause();
+		}
+		if ( MPEG_AudioEnabled(self) ) {
+				self->audioaction->Pause();
+		}
 }
 
 /* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
-MPEGstatus MPEG::GetStatus(void) {
-  MPEGstatus status;
+MPEGstatus MPEG_GetStatus(MPEG *self) {
+		MPEGstatus status;
 
-  status = MPEG_STOPPED;
-  if ( VideoEnabled() ) {
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
-    switch (videoaction->GetStatus()) {
-      case MPEG_PLAYING:
-        status = MPEG_PLAYING;
-      break;
-      default:
-      break;
-    }
-  }
-  if ( AudioEnabled() ) {
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
-    switch (audioaction->GetStatus()) {
-      case MPEG_PLAYING:
-        status = MPEG_PLAYING;
-      break;
-      default:
-      break;
-    }
-  }
+		status = MPEG_STOPPED;
+		if ( MPEG_VideoEnabled(self) ) {
+				/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
+				switch (self->videoaction->GetStatus()) {
+				case MPEG_PLAYING:
+						status = MPEG_PLAYING;
+						break;
+				default:
+						break;
+				}
+		}
+		if ( MPEG_AudioEnabled(self) ) {
+				/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
+				switch (self->audioaction->GetStatus()) {
+				case MPEG_PLAYING:
+						status = MPEG_PLAYING;
+						break;
+				default:
+						break;
+				}
+		}
 
-  if(status == MPEG_STOPPED && loop && !pause)
-  {
-    /* Here we go again */
-    Rewind();
-    Play();
+		if(status == MPEG_STOPPED && self->loop && !self->pause)
+		{
+				/* Here we go again */
+				MPEG_Rewind(self);
+				MPEG_Play(self);
 
-    if ( VideoEnabled() ) {
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
-      switch (videoaction->GetStatus()) {
-      case MPEG_PLAYING:
-        status = MPEG_PLAYING;
-	break;
-        default:
-        break;
-      }
-    }
-    if ( AudioEnabled() ) {
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
-      switch (audioaction->GetStatus()) {
-      case MPEG_PLAYING:
-        status = MPEG_PLAYING;
-	break;
-        default:
-        break;
-      }
-    }
-  }
+				if ( MPEG_VideoEnabled(self) ) {
+						/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
+						switch (self->videoaction->GetStatus()) {
+						case MPEG_PLAYING:
+								status = MPEG_PLAYING;
+								break;
+						default:
+								break;
+						}
+				}
+				if ( MPEG_AudioEnabled(self) ) {
+						/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
+						switch (self->audioaction->GetStatus()) {
+						case MPEG_PLAYING:
+								status = MPEG_PLAYING;
+								break;
+						default:
+								break;
+						}
+				}
+		}
 
-  return(status);
+		return(status);
 }
 
 
 /* MPEG audio actions */
-bool MPEG::GetAudioInfo(MPEG_AudioInfo *info) {
-  if ( AudioEnabled() ) {
-    return(audioaction->GetAudioInfo(info));
-  }
-  return(false);
+bool MPEG_GetAudioInfo(MPEG *self, MPEG_AudioInfo *info) {
+		if ( MPEG_AudioEnabled(self) ) {
+				return(self->audioaction->GetAudioInfo(info));
+		}
+		return(false);
 }
-void MPEG::Volume(int vol) {
-  if ( AudioEnabled() ) {
-    audioaction->Volume(vol);
-  }
+void MPEG_Volume(MPEG *self, int vol) {
+		if ( MPEG_AudioEnabled(self) ) {
+				self->audioaction->Volume(vol);
+		}
 }
-bool MPEG::WantedSpec(SDL_AudioSpec *wanted) {
-  if( audiostream ) {
-    return(GetAudio()->WantedSpec(wanted));
-  }
-  return(false);
+bool MPEG_WantedSpec(MPEG *self, SDL_AudioSpec *wanted) {
+		if( self->audiostream ) {
+				return(GetAudio(self)->WantedSpec(wanted));
+		}
+		return(false);
 }
-void MPEG::ActualSpec(const SDL_AudioSpec *actual) {
-  if( audiostream ) {
-    GetAudio()->ActualSpec(actual);
-  }
+void MPEG_ActualSpec(MPEG *self, const SDL_AudioSpec *actual) {
+		if( self->audiostream ) {
+				GetAudio(self)->ActualSpec(actual);
+		}
 }
-MPEGaudio *MPEG::GetAudio(void) { // Simple accessor used in the C interface
-  return audio;
+MPEGaudio *MPEG_GetAudio(MPEG *self) { // Simple accessor used in the C interface
+		return self->audio;
 }
 
 /* MPEG video actions */
-bool MPEG::GetVideoInfo(MPEG_VideoInfo *info) {
-  if ( VideoEnabled() ) {
-    return(videoaction->GetVideoInfo(info));
-  }
-  return(false);
+bool MPEG_GetVideoInfo(MPEG *self, MPEG_VideoInfo *info) {
+		if ( MPEG_VideoEnabled(self) ) {
+				return(self->videoaction->GetVideoInfo(info));
+		}
+		return(false);
 }
-bool MPEG::SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
-		MPEG_DisplayCallback callback) {
-  if ( VideoEnabled() ) {
-    return(videoaction->SetDisplay(dst, lock, callback));
-  }
-  return(false);
+bool MPEG_SetDisplay(MPEG *self, SDL_Surface *dst, SDL_Mutex *lock,
+										 MPEG_DisplayCallback callback) {
+		if ( MPEG_VideoEnabled(self) ) {
+				return(self->videoaction->SetDisplay(dst, lock, callback));
+		}
+		return(false);
 }
-void MPEG::MoveDisplay(int x, int y) {
-  if ( VideoEnabled() ) {
-    videoaction->MoveDisplay(x, y);
-  }
+void MPEG_MoveDisplay(MPEG *self, int x, int y) {
+		if ( MPEG_VideoEnabled(self) ) {
+				self->videoaction->MoveDisplay(x, y);
+		}
 }
-void MPEG::ScaleDisplayXY(int w, int h) {
-  if ( VideoEnabled() ) {
-    videoaction->ScaleDisplayXY(w, h);
-  }
+void MPEG_ScaleDisplayXY(MPEG *self, int w, int h) {
+		if ( MPEG_VideoEnabled(self) ) {
+				self->videoaction->ScaleDisplayXY(w, h);
+		}
 }
-void MPEG::SetDisplayRegion(int x, int y, int w, int h) {
-  if ( VideoEnabled() ) {
-    videoaction->SetDisplayRegion(x, y, w, h);
-  }
+void MPEG_SetDisplayRegion(MPEG *self, int x, int y, int w, int h) {
+		if ( MPEG_VideoEnabled(self) ) {
+				self->videoaction->SetDisplayRegion(x, y, w, h);
+		}
 }
-void MPEG::RenderFrame(int frame)
+void MPEG_RenderFrame(MPEG *self, int frame)
 {
-    if ( VideoEnabled() ) {
-        videoaction->RenderFrame(frame);
+		if ( MPEG_VideoEnabled(self) ) {
+				self->videoaction->RenderFrame(frame);
+		}
+}
+void MPEG_RenderFinal(MPEG *self, SDL_Surface *dst, int x, int y)
+{
+    MPEG_Stop(self);
+    if ( MPEG_VideoEnabled(self) ) {
+        self->videoaction->RenderFinal(dst, x, y);
     }
-}
-void MPEG::RenderFinal(SDL_Surface *dst, int x, int y)
-{
-    Stop();
-    if ( VideoEnabled() ) {
-        videoaction->RenderFinal(dst, x, y);
-    }
-    Rewind();
+    MPEG_Rewind(self);
 }
 
-SMPEG_Filter * MPEG::Filter(SMPEG_Filter * filter)
+SMPEG_Filter * MPEG_Filter(MPEG *self, SMPEG_Filter * filter)
 {
-  if ( VideoEnabled() ) {
-    return(videoaction->Filter(filter));
-  }
-  return 0;
+		if ( MPEG_VideoEnabled(self) ) {
+				return(self->videoaction->Filter(filter));
+		}
+		return 0;
 }
 
-void MPEG::Seek(int position)
+void MPEG_Seek(MPEG *self, int position)
 {
-  int was_playing = 0;
+		int was_playing = 0;
 
-  /* Cannot seek past end of file */
-  if((Uint32)position > system->TotalSize()) return;
-  
-	/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
-  /* get info whrether we need to restart playing at the end */
-  if( GetStatus() == MPEG_PLAYING )
-    was_playing = 1;
+		/* Cannot seek past end of file */
+		if((Uint32)position > self->system->TotalSize()) return;
 
-  if(!seekIntoStream(position)) return;
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
+		/* get info whrether we need to restart playing at the end */
+		if( MPEG_GetStatus(self) == MPEG_PLAYING )
+				was_playing = 1;
 
-  /* If we were playing and not rewind then play again */
-  if (was_playing)
-    Play();
+		if(!MPEG_seekIntoStream(self, position)) return;
 
-  if (VideoEnabled() && !was_playing) 
-    videoaction->RenderFrame(0);
+		/* If we were playing and not rewind then play again */
+		if (was_playing)
+				MPEG_Play(self);
 
-  if ( pause && VideoEnabled() ) {
-    videoaction->Pause();
-  }
-  if ( pause && AudioEnabled() ) {
-    audioaction->Pause();
-  }
+		if (MPEG_VideoEnabled(self) && !was_playing)
+				self->videoaction->RenderFrame(0);
+
+		if ( self->pause && MPEG_VideoEnabled(self) ) {
+				self->videoaction->Pause();
+		}
+		if ( self->pause && MPEG_AudioEnabled(self) ) {
+				self->audioaction->Pause();
+		}
 }
 
-bool MPEG::seekIntoStream(int position)
+bool MPEG_seekIntoStream(MPEG *self, int position)
 {
-  /* First we stop everything */
-  Stop();
+		/* First we stop everything */
+		MPEG_Stop(self);
 
-  /* Go to the desired position into file */
-  if(!system->Seek(position)) return(false);
+		/* Go to the desired position into file */
+		if(!self->system->Seek(position)) return(false);
 
-  /* Seek first aligned data */
-  if(audiostream && audioaction_enabled)
-    while(audiostream->time() == -1)
-      if ( ! audiostream->next_packet() ) return false;
-  if(videostream && videoaction_enabled)
-    while(videostream->time() == -1)
-      if ( ! videostream->next_packet() ) return false;
+		/* Seek first aligned data */
+		if(self->audiostream && self->audioaction_enabled)
+				while(self->audiostream->time() == -1)
+						if ( ! self->audiostream->next_packet() ) return false;
+		if(self->videostream && self->videoaction_enabled)
+				while(self->videostream->time() == -1)
+						if ( ! self->videostream->next_packet() ) return false;
 
-  /* Calculating current play time on audio only makes sense when there
-     is no video */  
-  if ( audioaction && !videoaction) {
-    audioaction->Rewind();
-    audioaction->ResetSynchro(system->TimeElapsedAudio(position));
-  }
-  /* And forget what we previouly buffered */
-  else if ( audioaction ) {
-    audioaction->Rewind();
-    audioaction->ResetSynchro(audiostream->time());
-  }
-  if ( videoaction ) {
-    videoaction->Rewind();
-    videoaction->ResetSynchro(videostream->time());
-  }
+		/* Calculating current play time on audio only makes sense when there
+		 is no video */
+		if ( self->audioaction && !self->videoaction) {
+				self->audioaction->Rewind();
+				self->audioaction->ResetSynchro(system->TimeElapsedAudio(position));
+		}
+		/* And forget what we previouly buffered */
+		else if ( self->audioaction ) {
+				self->audioaction->Rewind();
+				self->audioaction->ResetSynchro(audiostream->time());
+		}
+		if ( self->videoaction ) {
+				self->videoaction->Rewind();
+				self->videoaction->ResetSynchro(videostream->time());
+		}
 
-  return(true);
+		return(true);
 }
 
-void MPEG::Skip(float seconds)
+void MPEG_Skip(MPEG *self, float seconds)
 {
-  if(system->get_stream(SYSTEM_STREAMID))
-  {
-    system->Skip(seconds);
-  }
-  else
-  {
-    /* No system information in MPEG */
-    if( VideoEnabled() ) videoaction->Skip(seconds);
-    if( AudioEnabled() ) audioaction->Skip(seconds);
-  }
+		if(self->system->get_stream(SYSTEM_STREAMID))
+		{
+				self->system->Skip(seconds);
+		}
+		else
+		{
+				/* No system information in MPEG */
+				if( MPEG_VideoEnabled(self) ) self->videoaction->Skip(seconds);
+				if( MPEG_AudioEnabled(self) ) self->audioaction->Skip(seconds);
+		}
 }
 
-void MPEG::GetSystemInfo(MPEG_SystemInfo * sinfo)
+void MPEG_GetSystemInfo(MPEG *self, MPEG_SystemInfo * sinfo)
 {
-  sinfo->total_size = system->TotalSize();
-  sinfo->current_offset = system->Tell();
-  sinfo->total_time = system->TotalTime();
+		sinfo->total_size = self->system->TotalSize();
+		sinfo->current_offset = self->system->Tell();
+		sinfo->total_time = self->system->TotalTime();
 
-  /* Get current time from audio or video decoder */
-  /* TODO: move timing reference in MPEGsystem    */
-  sinfo->current_time = 0;
-  if( videoaction ) 
-    sinfo->current_time = videoaction->Time();
-  if( audioaction )
-    sinfo->current_time = audioaction->Time();
+		/* Get current time from audio or video decoder */
+		/* TODO: move timing reference in MPEGsystem    */
+		sinfo->current_time = 0;
+		if( self->videoaction )
+				sinfo->current_time = self->videoaction->Time();
+		if( self->audioaction )
+				sinfo->current_time = self->audioaction->Time();
 }
 
-void MPEG::parse_stream_list()
+void MPEG_parse_stream_list(MPEG *self)
 {
-  MPEGstream ** stream_list;
-  register int i;
+		MPEGstream ** stream_list;
+		register int i;
 
-  /* A new thread is created for each video and audio */
-  /* stream                                           */ 
-  /* TODO: support MPEG systems containing more than  */
-  /*       one audio or video stream                  */
-  i = 0;
-  do
-  {
-    /* Retreive the list of streams */
-    stream_list = system->GetStreamList();
+		/* A new thread is created for each video and audio */
+		/* stream                                           */
+		/* TODO: support MPEG systems containing more than  */
+		/*       one audio or video stream                  */
+		i = 0;
+		do
+		{
+				/* Retreive the list of streams */
+				stream_list = self->system->GetStreamList();
 
-    switch(stream_list[i]->streamid)
-    {
-      case SYSTEM_STREAMID:
-      break;
+				switch(stream_list[i]->streamid)
+				{
+				case SYSTEM_STREAMID:
+						break;
 
-      case AUDIO_STREAMID:
-	audiostream = stream_list[i];
-	audioaction_enabled = true;
-	audiostream->next_packet();
-	audio = new MPEGaudio(audiostream, sdlaudio);
-	audioaction = audio;
-      break;
+				case AUDIO_STREAMID:
+						self->audiostream = stream_list[i];
+						self->audioaction_enabled = true;
+						self->audiostream->next_packet();
+						self->audio = new MPEGaudio(audiostream, sdlaudio);
+						self->audioaction = audio;
+						break;
 
-      case VIDEO_STREAMID:
-	videostream = stream_list[i];
-	videoaction_enabled = true;
-	videostream->next_packet();
-	video = new MPEGvideo(videostream);
-	videoaction = video;
-      break;
-    }
+				case VIDEO_STREAMID:
+						self->videostream = stream_list[i];
+						self->videoaction_enabled = true;
+						self->videostream->next_packet();
+						self->video = new MPEGvideo(videostream);
+						self->videoaction = video;
+						break;
+				}
 
-    i++;
-  }
-  while(stream_list[i]);
+				i++;
+		}
+		while(stream_list[i]);
 }

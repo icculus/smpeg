@@ -18,72 +18,7 @@ class MPEGstream;
 /* The system class is necessary for splitting the MPEG stream into */
 /* peaces of data that will be sent to the audio or video decoder.  */
 
-class MPEGsystem : public MPEGerror
-{
-public:
-	/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
-    MPEGsystem() {}
-    MPEGsystem(SDL_RWops *mpeg_source);
-    virtual ~MPEGsystem();
-
-    /* Buffered I/O functions */
-    void RequestBuffer();
-    bool Wait();
-    Uint32 Tell();
-    void Rewind();
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
-    virtual void Start();
-    void Stop();
-    bool Eof() const;
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
-    virtual bool Seek(int length);
-    virtual Uint32 TotalSize();
-    virtual double TotalTime();
-    virtual double TimeElapsedAudio(int atByte);
-
-    /* Skip "seconds" seconds */
-    void Skip(double seconds);
-
-    /* Create all the streams present in the MPEG */
-    MPEGstream ** GetStreamList();
-
-    /* Insert a stream in the list */
-    void add_stream(MPEGstream * stream);
-
-    /* Search for a stream in the list */
-    MPEGstream * get_stream(Uint8 stream_id);
-
-    /* Test if a stream is in the list */
-    Uint8 exist_stream(Uint8 stream_id, Uint8 mask);
-
-    /* Reset all the system streams */
-    void reset_all_streams();
-    
-    /* Set eof for all streams */
-    void end_all_streams();
-    
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
-    /* Seek the first header */
-    virtual bool seek_first_header();
-
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
-    /* Seek the next header */
-    virtual bool seek_next_header();
-
-protected:
-    /* Run the loop to fill the stream buffers */
-    static bool SystemLoop(MPEGsystem *system);
-
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
-    /* Fill a buffer */
-    virtual Uint8 FillBuffer();
-
-    /* Read a new packet */
-    virtual void Read();
-
-    /* The system thread which fills the FIFO */
-    static int SystemThread(void * udata);
-
+typedef struct {
     SDL_RWops *source;
 
     SDL_Thread * system_thread;
@@ -106,12 +41,58 @@ protected:
     double frametime;
     double stream_timestamp;
 
+    MPEGerror *err;
+
 #ifdef USE_SYSTEM_TIMESTAMP
     /* Current timestamp for this stream */
     double timestamp;
     double timedrift;
     double skip_timestamp;
 #endif
-};
+} MPEGsystem;
+
+MPEGsystem *MPEGsystem_create();
+MPEGsystem *MPEGsystem_create_rwops(SDL_RWops *mpeg_source);
+void MPEGsystem_destroy(MPEGsystem *self);
+
+/* Buffered I/O functions */
+void MPEGsystem_RequestBuffer(MPEGsystem *self);
+bool MPEGsystem_Wait(MPEGsystem *self);
+Uint32 MPEGsystem_Tell(MPEGsystem *self);
+void MPEGsystem_Rewind(MPEGsystem *self);
+void MPEGsystem_Start(MPEGsystem *self);
+void MPEGsystem_Stop(MPEGsystem *self);
+bool MPEGsystem_Eof(MPEGsystem *self) const;
+bool MPEGsystem_Seek(MPEGsystem *self, int length);
+Uint32 MPEGsystem_TotalSize(MPEGsystem *self);
+double MPEGsystem_TotalTime(MPEGsystem *self);
+double MPEGsystem_TimeElapsedAudio(MPEGsystem *self, int atByte);
+
+/* Skip "seconds" seconds */
+void MPEGsystem_Skip(MPEGsystem *self, double seconds);
+
+/* Create all the streams present in the MPEG */
+MPEGstream ** MPEGsystem_GetStreamList(MPEGsystem *self);
+
+/* Insert a stream in the list */
+void MPEGsystem_add_stream(MPEGsystem *self, MPEGstream * stream);
+
+/* Search for a stream in the list */
+MPEGstream * MPEGsystem_get_stream(MPEGsystem *self, Uint8 stream_id);
+
+/* Test if a stream is in the list */
+Uint8 MPEGsystem_exist_stream(MPEGsystem *self, Uint8 stream_id, Uint8 mask);
+
+/* Reset all the system streams */
+void MPEGsystem_reset_all_streams(MPEGsystem *self);
+
+/* Set eof for all streams */
+void MPEGsystem_end_all_streams(MPEGsystem *self);
+
+/* Seek the first header */
+bool MPEGsystem_seek_first_header(MPEGsystem *self);
+
+/* Seek the next header */
+bool MPEGsystem_seek_next_header(MPEGsystem *self);
 #endif
 

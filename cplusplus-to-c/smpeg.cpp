@@ -209,6 +209,12 @@ void SMPEG_setdisplay( SMPEG* mpeg, SDL_Surface* dst, SDL_mutex* surfLock,
     mpeg->obj->SetDisplay(dst, surfLock, callback);
 }
 
+void SMPEG2_setdisplay(SMPEG *mpeg, SDL_Surface *dst, pthread_mutex_t *surfLock,
+											 SMPEG_DisplayCallback callback) 
+{
+		mpeg->obj->SetDisplay(dst, surfLock, callback);
+}
+
 /* Set or clear looping play on an SMPEG object */
 void SMPEG_loop( SMPEG* mpeg, int repeat )
 {

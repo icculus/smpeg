@@ -15,25 +15,35 @@
     You should have received a copy of the GNU Library General Public
     License along with this library; if not, write to the Free
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
+ */
 
-/* A class used for error reporting in the MPEG classes */
+#include "MPEGerror.h"
 
-#ifndef _MPEGERROR_H_
-#define _MPEGERROR_H_
+MPEGerror *MPEGerror_create() {
+    MPEGerror *ret = (MPEGerror *)malloc(sizeof(MPEGerror));
 
-#include <stdio.h>
-#include <stdarg.h>
+    if (ret) MPEGerror_ClearError();
 
-typedef struct {
-    char errbuf[512];
-    char *error;
-} MPEGerror;
+    return ret;
+}
 
-MPEGerror *MPEGerror_create();
-void MPEGerror_SetError(MPEGerror *self, char *fmt, ...);
-int MPEGerror_WasError(MPEGerror *self);
-char *MPEGerror_TheError(MPEGerror *self);
-void MPEGerror_ClearError(MPEGerror *self);
+void MPEGerror_SetError(MPEGerror *self, char *fmt, ...) {
+    va_list ap;
 
-#endif /* _MPEGERROR_H_ */
+    va_start(ap, fmt);
+    vsprintf(self->errbuf, fmt, ap);
+    va_end(ap);
+    self->error = errbuf;
+}
+
+int MPEGerror_WasError(MPEGerror *self) {
+    return (self->error != NULL);
+}
+
+char *MPEGerror_TheError(MPEGerror *self) {
+    return(self->error);
+}
+
+void MPEGerror_ClearError(MPEGerror *self) {
+    self->error = NULL;
+}

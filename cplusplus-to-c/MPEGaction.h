@@ -33,47 +33,25 @@ typedef enum {
     MPEG_PLAYING
 } MPEGstatus;
 
-class MPEGaction {
-public:
-    MPEGaction() {
-        playing = false;
-        paused = false;
-        looping = false;
-	play_time = 0.0;
-    }
-    virtual void Loop(bool toggle) {
-        looping = toggle;
-    }
-    virtual double Time(void) {  /* Returns the time in seconds since start */
-        return play_time;
-    }
-    virtual void Play(void) = 0;
-    virtual void Stop(void) = 0;
-    virtual void Rewind(void) = 0;
-    virtual void ResetSynchro(double) = 0;
-    virtual void Skip(float seconds) = 0;
-    virtual void Pause(void) {  /* A toggle action */
-        if ( paused ) {
-            paused = false;
-            Play();
-        } else {
-            Stop();
-            paused = true;
-        }
-    }
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  conflict name in popcorn */
-    virtual MPEGstatus GetStatus(void) = 0;
-
-protected:
-    bool playing;
-    bool paused;
-    bool looping;
+typedef struct {
+    int playing;
+    int paused;
+    int looping;
     double play_time;
+    void (*play)(void *);
+    void (*stop)(void *);
+    void *parent;
+} MPEGaction;
 
-    void ResetPause(void) {
-        paused = false;
-    }
-};
+MPEGaction *MPEGaction_create(void *parent, void (*play)(void *), void (*stop)(void *));
+
+void MPEGaction_Play(MPEGaction *self);
+void MPEGaction_Stop(MPEGaction *self);
+void MPEGaction_Loop(MPEGaction *self, int toggle);
+double MPEGaction_Time(MPEGaction *self, int toggle);
+void MPEGaction_Pause(MPEGaction *self);
+
+void MPEGaction_ResetPause(MPEGaction *self);
 
 /* For getting info about the audio portion of the stream */
 typedef struct MPEG_AudioInfo {
@@ -86,13 +64,13 @@ typedef struct MPEG_AudioInfo {
 } MPEG_AudioInfo;
 
 /* Audio action class */
-class MPEGaudioaction : public MPEGaction {
-public:
-    virtual bool GetAudioInfo(MPEG_AudioInfo *info) {
-        return(true);
-    }
-    virtual void Volume(int vol) = 0;
-};
+typedef struct {
+    MPEGaction *act;
+} MPEGaudioaction;
+
+MPEGaudioaction *MPEGaudioaction_create(void *parent, void (*play)(void *), void (*stop)(void *));
+
+int MPEGaudioaction_GetAudioInfo(MPEGaudioaction *self, MPEG_AudioInfo *info);
 
 /* Matches the declaration of SDL_UpdateRect() */
 typedef void(*MPEG_DisplayCallback)(SDL_Surface* dst, int x, int y,
@@ -107,26 +85,15 @@ typedef struct MPEG_VideoInfo {
 } MPEG_VideoInfo;
 
 /* Video action class */
-class MPEGvideoaction : public MPEGaction {
-public:
-    virtual void SetTimeSource(MPEGaudioaction *source) {
-        time_source = source;
-    }
-    virtual bool GetVideoInfo(MPEG_VideoInfo *info) {
-        return(false);
-    }
-    virtual bool SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
-                                MPEG_DisplayCallback callback) = 0;
-    virtual void MoveDisplay(int x, int y) = 0;
-    virtual void ScaleDisplayXY(int w, int h) = 0;
-    virtual void SetDisplayRegion(int x, int y, int w, int h) = 0;
-    virtual void RenderFrame(int frame) = 0;
-    virtual void RenderFinal(SDL_Surface *dst, int x, int y) = 0;
-    virtual SMPEG_Filter * Filter(SMPEG_Filter * filter) = 0;
-protected:
+typedef struct {
     MPEGaudioaction *time_source;
-};
+    MPEGaction *act;
+} MPEGvideoaction;
 
+MPEGvideoaction *MPEGvideoaction_create(void *parent, void (*play)(void *), void (*stop)(void *));
+
+void MPEGvideoaction_SetTimeSource(MPEGvideoaction *self, MPEGaudioaction *source);
+int MPEGvideoaction_GetVideoInfo(MPEGvideoaction *self, MPEG_VideoInfo *info);
 
 /* For getting info about the system portion of the stream */
 typedef struct MPEG_SystemInfo {

@@ -19,6 +19,11 @@
 #include "MPEGsystem.h"
 #include "MPEGstream.h"
 
+static bool MPEGsystem_SystemLoop(MPEGsystem *self);
+virtual Uint8 MPEGsystem_FillBuffer(MPEGsystem *self);
+virtual void MPEGsystem_Read(MPEGsystem *self);
+static int MPEGsystem_SystemThread(void * udata);
+
 /* Define this if you want to debug the system stream parsing */
 //#define DEBUG_SYSTEM
 
@@ -395,1064 +400,1099 @@ Uint32 skip_zeros(Uint8 * pointer, Uint32 size)
   return(header_size);
 }
 
-MPEGsystem::MPEGsystem(SDL_RWops *mpeg_source)
+MPEGsystem *MPEGsystem_create() {
+    MPEGsystem *ret;
+
+    ret = (MPEGsystem *)malloc(sizeof(MPEGsystem));
+    ret->err = MPEGerror_create();
+
+    return ret;
+}
+
+MPEGsystem *MPEGsystem_create_rwops(SDL_RWops *mpeg_source)
 {
-  source = mpeg_source;
+    MPEGsystem *ret = MPEGsystem_create();
+    int tries = 0;
 
-  /* Create a new buffer for reading */
-  read_buffer = new Uint8[MPEG_BUFFER_SIZE];
+    ret->source = mpeg_source;
 
-  /* Create a mutex to avoid concurrent access to the stream */
-  system_mutex = SDL_CreateMutex();
-  request_wait = SDL_CreateSemaphore(0);
+    /* Create a new buffer for reading */
+    ret->read_buffer = new Uint8[MPEG_BUFFER_SIZE];
 
-  /* Invalidate the read buffer */
-  pointer = read_buffer;
-  read_size = 0;
-  read_total = 0;
-  packet_total = 0;
-  endofstream = errorstream = false;
-  frametime = 0.0;
-  stream_timestamp = 0.0;
+    /* Create a mutex to avoid concurrent access to the stream */
+    ret->system_mutex = SDL_CreateMutex();
+    ret->request_wait = SDL_CreateSemaphore(0);
 
-  /* Create an empty stream list */
-  stream_list = 
-    (MPEGstream **) malloc(sizeof(MPEGstream *));
-  stream_list[0] = 0;
+    /* Invalidate the read buffer */
+    ret->pointer = read_buffer;
+    ret->read_size = 0;
+    ret->read_total = 0;
+    ret->packet_total = 0;
+    ret->endofstream = ret->errorstream = false;
+    ret->frametime = 0.0;
+    ret->stream_timestamp = 0.0;
 
-  /* Create the system stream and add it to the list */
-  if(!get_stream(SYSTEM_STREAMID))
-    add_stream(new MPEGstream(this, SYSTEM_STREAMID));
+    /* Create an empty stream list */
+    ret->stream_list =
+	(MPEGstream **) malloc(sizeof(MPEGstream *));
+    ret->stream_list[0] = 0;
 
-  timestamp = 0.0;
-  timedrift = 0.0;
-  skip_timestamp = -1;
-  system_thread_running = false;
-  system_thread = 0;
+    /* Create the system stream and add it to the list */
+    if(!MPEGsystem_get_stream(ret, SYSTEM_STREAMID))
+	MPEGsystem_add_stream(ret, new MPEGstream(this, SYSTEM_STREAMID));
 
-  /* Search the MPEG for the first header */
-  if(!seek_first_header())
-  {
-    errorstream = true;
-    SetError("Could not find the beginning of MPEG data\n");
-    return;
-  }
+    ret->timestamp = 0.0;
+    ret->timedrift = 0.0;
+    ret->skip_timestamp = -1;
+    ret->system_thread_running = false;
+    ret->system_thread = 0;
+
+    /* Search the MPEG for the first header */
+    if(!MPEGsystem_seek_first_header(ret))
+    {
+	ret->errorstream = true;
+	MPEGerror_SetError(ret->err, "Could not find the beginning of MPEG data\n");
+	return;
+    }
 
 #ifdef USE_SYSTEM_THREAD
-  /* Start the system thread */
-  system_thread = SDL_CreateThread(SystemThread, this);
+    /* Start the system thread */
+    ret->system_thread = SDL_CreateThread(SystemThread, this);
 
-  /* Wait for the thread to start */
-  while(!system_thread_running && !Eof())
-    SDL_Delay(1);
+    /* Wait for the thread to start */
+    while(!ret->system_thread_running && !MPEGsystem_Eof(ret))
+	SDL_Delay(1);
 #else
-  system_thread_running = true;
+    ret->system_thread_running = true;
 #endif
 
-  /* Look for streams */
-  int tries = 0;
-  do
-  {
-    RequestBuffer();
-    Wait();
-    if ( tries++ < 20 ) {  // Adjust this to catch more streams
-      if ( exist_stream(VIDEO_STREAMID, 0xF0) &&
-	   exist_stream(AUDIO_STREAMID, 0xF0) ) {
-        break;
-      }
-    } else {
-      if ( exist_stream(VIDEO_STREAMID, 0xF0) ||
-	   exist_stream(AUDIO_STREAMID, 0xF0) ) {
-        break;
-      }
-    }
-  }
-  while(!Eof());
-}
-
-MPEGsystem::~MPEGsystem()
-{
-  MPEGstream ** list;
-
-  /* Kill the system thread */
-  Stop();
-
-  SDL_DestroySemaphore(request_wait);
-  SDL_DestroyMutex(system_mutex);
-
-  /* Delete the streams */
-  for(list = stream_list; *list; list ++)
-    delete *list;
-
-  free(stream_list);
-
-  /* Delete the read buffer */
-  delete[] read_buffer;
-}
-
-MPEGstream ** MPEGsystem::GetStreamList()
-{
-  return(stream_list);
-}
-
-void MPEGsystem::Read()
-{
-  int remaining;
-  int timeout;
-
-  /* Lock to prevent concurrent access to the stream */
-  SDL_mutexP(system_mutex);
-
-  timeout = READ_TIME_OUT;
-  remaining = read_buffer + read_size - pointer;
-
-  /* Only read data if buffer is rather empty */
-  if(remaining < MPEG_BUFFER_SIZE / 2)
-  {
-    if(remaining < 0)
-    {
-      /* Hum.. we'd better stop if we have already read past the buffer size */
-      errorstream = true;
-      SDL_mutexV(system_mutex);
-      return;
-    }
-
-    /* Replace unread data at the beginning of the stream */
-    memmove(read_buffer, pointer, remaining);
-
-#ifdef NO_GRIFF_MODS
-    read_size = SDL_RWread(source,
-                    read_buffer + remaining, 
-                    READ_ALIGN(MPEG_BUFFER_SIZE - remaining));
-    if(read_size < 0)
-    {
-      perror("Read");
-      errorstream = true;
-      SDL_mutexV(system_mutex);
-      return;
-    }
-#else
-    /* Read new data */
-    int bytes_read    = 0;
-    int buffer_offset = remaining;
-    int bytes_to_read = READ_ALIGN(MPEG_BUFFER_SIZE - remaining);
-    int read_at_once = 0;
-
-    read_size = 0;
+    /* Look for streams */
     do
     {
-      read_at_once = 
-        SDL_RWread(source, read_buffer + buffer_offset, 1, bytes_to_read );
-
-      if(read_at_once < 0)
-      {
-        perror("Read");
-        errorstream = true;
-        SDL_mutexV(system_mutex);
-        return;
-      }
-      else
-      {
-        bytes_read    += read_at_once;
-        buffer_offset += read_at_once;
-        read_size     += read_at_once;
-        bytes_to_read -= read_at_once;
-      }
+	MPEGsystem_RequestBuffer(ret);
+	MPEGsystem_Wait(ret);
+	if ( tries++ < 20 ) {  // Adjust this to catch more streams
+	    if ( MPEGsystem_exist_stream(VIDEO_STREAMID, 0xF0) &&
+		 MPEGsystem_exist_stream(AUDIO_STREAMID, 0xF0) ) {
+		break;
+	    }
+	} else {
+	    if ( MPEGsystem_exist_stream(VIDEO_STREAMID, 0xF0) ||
+		 MPEGsystem_exist_stream(AUDIO_STREAMID, 0xF0) ) {
+		break;
+	    }
+	}
     }
-    while( read_at_once>0 && bytes_to_read>0 );
+    while(!MPEGsystem_Eof(ret));
+}
+
+void MPEGsystem_destroy(MPEGsystem *self)
+{
+    MPEGstream ** list;
+
+    /* Kill the system thread */
+    MPEGsystem_Stop(self);
+
+    SDL_DestroySemaphore(self->request_wait);
+    SDL_DestroyMutex(self->system_mutex);
+
+    /* Delete the streams */
+    for(list = self->stream_list; *list; list ++)
+	delete *list;
+
+    free(self->stream_list);
+
+    /* Delete the read buffer */
+    delete[] self->read_buffer;
+}
+
+MPEGstream ** MPEGsystem_GetStreamList(MPEGsystem *self)
+{
+    return(self->stream_list);
+}
+
+void MPEGsystem_Read(MPEGsystem *self)
+{
+    int remaining;
+    int timeout;
+
+    /* Lock to prevent concurrent access to the stream */
+    SDL_mutexP(self->system_mutex);
+
+    timeout = READ_TIME_OUT;
+    remaining = self->read_buffer + self->read_size - self->pointer;
+
+    /* Only read data if buffer is rather empty */
+    if(remaining < MPEG_BUFFER_SIZE / 2)
+    {
+	if(remaining < 0)
+	{
+	    /* Hum.. we'd better stop if we have already read past the buffer size */
+	    self->errorstream = true;
+	    SDL_mutexV(self->system_mutex);
+	    return;
+	}
+
+	/* Replace unread data at the beginning of the stream */
+	memmove(self->read_buffer, self->pointer, remaining);
+
+#ifdef NO_GRIFF_MODS
+	self->read_size = SDL_RWread(self->source,
+				     self->read_buffer + remaining,
+				     READ_ALIGN(MPEG_BUFFER_SIZE - remaining));
+	if(self->read_size < 0)
+	{
+	    perror("Read");
+	    self->errorstream = true;
+	    SDL_mutexV(self->system_mutex);
+	    return;
+	}
+#else
+	/* Read new data */
+	int bytes_read    = 0;
+	int buffer_offset = remaining;
+	int bytes_to_read = READ_ALIGN(MPEG_BUFFER_SIZE - remaining);
+	int read_at_once = 0;
+
+	self->read_size = 0;
+	do
+	{
+	    read_at_once =
+		SDL_RWread(self->source, self->read_buffer + buffer_offset, 1, bytes_to_read );
+
+	    if(read_at_once < 0)
+	    {
+		perror("Read");
+		self->errorstream = true;
+		SDL_mutexV(self->system_mutex);
+		return;
+	    }
+	    else
+	    {
+		bytes_read    += read_at_once;
+		buffer_offset += read_at_once;
+		read_size     += read_at_once;
+		bytes_to_read -= read_at_once;
+	    }
+	}
+	while( read_at_once>0 && bytes_to_read>0 );
 #endif
 
-    read_total += read_size;
+	self->read_total += self->read_size;
 
-    packet_total ++;
+	self->packet_total ++;
 
-    if((MPEG_BUFFER_SIZE - remaining) != 0 && read_size <= 0)
-    {
-      if(read_size != 0)
-      {
-	errorstream = true;
-	SDL_mutexV(system_mutex);
-	return;
-      }
+	if((MPEG_BUFFER_SIZE - remaining) != 0 && self->read_size <= 0)
+	{
+	    if(self->read_size != 0)
+	    {
+		self->errorstream = true;
+		SDL_mutexV(self->system_mutex);
+		return;
+	    }
+	}
+
+	self->read_size += remaining;
+
+	/* Move the pointer */
+	self->pointer = self->read_buffer;
+
+	if(self->read_size == 0)
+	{
+	    /* There is no more data */
+	    self->endofstream = true;
+	    SDL_mutexV(self->system_mutex);
+	    return;
+	}
     }
 
-    read_size += remaining;
-
-    /* Move the pointer */
-    pointer = read_buffer;  
-
-    if(read_size == 0)
-    {
-      /* There is no more data */
-      endofstream = true;
-      SDL_mutexV(system_mutex);
-      return;
-    }
-  }
-
-  SDL_mutexV(system_mutex);
+    SDL_mutexV(self->system_mutex);
 }
 
 /* ASSUME: stream_list[0] = system stream */
 /*         packet length < MPEG_BUFFER_SIZE */
-Uint8 MPEGsystem::FillBuffer()
+Uint8 MPEGsystem_FillBuffer(MPEGsystem *self)
 {
-  Uint8 stream_id;
-  Uint32 packet_size;
-  Uint32 header_size;
+    Uint8 stream_id;
+    Uint32 packet_size;
+    Uint32 header_size;
 
-  /* - Read a new packet - */
-  Read();
+    /* - Read a new packet - */
+    MPEGsystem_Read(self);
 
-  if(Eof())
-  {
-    RequestBuffer();
-    return(0);
-  }
-
-  pointer += skip_zeros(pointer, read_buffer + read_size - pointer); 
-
-  if((header_size = packet_header(pointer, read_buffer + read_size - pointer, &timestamp)) != 0)
-  {
-      pointer += header_size;
-      stream_list[0]->pos += header_size;
-#ifdef DEBUG_SYSTEM
-      fprintf(stderr, "MPEG packet header time: %lf\n", timestamp);
-#endif
-  }
-
-  if((header_size = stream_header(pointer, read_buffer + read_size - pointer, &packet_size, &stream_id, &stream_timestamp, timestamp)) != 0)
-  {
-      pointer += header_size;
-      stream_list[0]->pos += header_size;
-#ifdef DEBUG_SYSTEM
-      fprintf(stderr, "[%d] MPEG stream header [%d|%d] id: %d streamtime: %lf\n", read_total - read_size + (pointer - read_buffer),
-header_size, packet_size, stream_id, stream_timestamp);
-#endif
-  }
-  else
-  if(Match4(pointer, END_CODE, END_MASK) ||
-     Match4(pointer, END2_CODE, END2_MASK))
-  {
-    /* End codes belong to video stream */
-#ifdef DEBUG_SYSTEM
-    fprintf(stderr, "[%d] MPEG end code\n", read_total - read_size + (pointer - read_buffer));
-#endif
-    stream_id = exist_stream(VIDEO_STREAMID, 0xF0);
-    packet_size = 4;
-  }
-  else
-  {
-    stream_id = stream_list[0]->streamid;
-
-    if(!stream_list[1])
-    { 
-      //Uint8 * packet_end;
-
-      packet_size = 0;
-
-      /* There is no system info in the stream */
-
-      /* If we're still a system stream, morph to an audio */
-      /* or video stream */
-
-      /* Sequence header -> gives framerate */
-      while((header_size = sequence_header(pointer+packet_size, read_buffer + read_size - pointer - packet_size, &frametime)) != 0)
-      {
-	stream_id = VIDEO_STREAMID;
-	stream_list[0]->streamid = stream_id;
-	packet_size += header_size;
-#ifdef DEBUG_SYSTEM
-	fprintf(stderr, "MPEG sequence header  frametime: %lf\n", frametime);
-#endif
-      }
-
-      /* GOP header */
-      while((header_size = gop_header(pointer+packet_size, read_buffer + read_size - pointer - packet_size, 0)) != 0)
-      {
-	packet_size += header_size; 
-#ifdef DEBUG_SYSTEM
-	fprintf(stderr, "MPEG gop header\n");
-#endif
-      }
-
-      /* Picture header */
-      while((header_size = picture_header(pointer+packet_size, read_buffer + read_size - pointer - packet_size)) != 0)
-      {
-	packet_size += header_size;    // Warning: header size not quite correct (can be not byte aligned)
-	stream_timestamp += frametime; // but this is compensated by skipping a little more, as we don't need to be header aligned	
-	packet_size += 4;              // after this, since we then check for the next header to know the slice size.
-#ifdef DEBUG_SYSTEM
-	fprintf(stderr, "MPEG picture header\n");
-#endif
-      }
-
-      /* Slice header */
-      while((header_size = slice_header(pointer+packet_size, read_buffer + read_size - pointer - packet_size)) != 0)
-      {
-	packet_size += header_size;    
-#ifdef DEBUG_SYSTEM
-	fprintf(stderr, "MPEG slice header\n");
-#endif
-      }
-
-      /* Audio frame */
-      if(audio_header(pointer+packet_size, &packet_size, &frametime))
-      {
-	  stream_id = AUDIO_STREAMID;
-	  stream_list[0]->streamid = stream_id;
-	  stream_timestamp += frametime;
-#ifdef DEBUG_SYSTEM
-	  fprintf(stderr, "MPEG audio header [%d] time: %lf @ %lf\n", packet_size, frametime, stream_timestamp);
-#endif
-      }
-      else
-      {
-	/* Check for next slice, picture, gop or sequence header */
-	register Uint8 * p;
-	register Uint8 c;
-	
-	p = pointer + packet_size;
-      state0:
-	c = *p;
-	p++;
-	if(p >= read_buffer + read_size) goto end;
-	if(c != 0) goto state0;
-/* Not explicitly reached:
-      state1:
- */
-	c = *p;
-	p++;
-	if(p >= read_buffer + read_size) goto end;
-	if(c != 0) goto state0;
-      state2:
-	c = *p;
-	p++;
-	if(p >= read_buffer + read_size) goto end;
-	if(c == 0) goto state2;
-	if(c != 1) goto state0;
-/* Not explicitly reached:
-      state3:
- */
-	c = *p;
-	p++;
-	if(p >= read_buffer + read_size) goto end;
-	if(c <= 0xaf) goto end;
-	if(c == 0xb8) goto end;
-	if(c == 0xb3) goto end;
-	goto state0;
-      end:
-
-	if(p >= read_buffer + read_size) packet_size = (read_buffer + read_size) - pointer;
-	else packet_size = p - pointer - 4;
-      }
-
-      if(stream_id == SYSTEM_STREAMID)
-	stream_id = 0;
-    }
-    else
+    if(MPEGsystem_Eof(self))
     {
-#ifdef DEBUG_SYSTEM
-	fprintf(stderr,
-		"Warning: unexpected header %02x%02x%02x%02x at offset %d\n",
-		pointer[0],
-		pointer[1],
-		pointer[2],
-		pointer[3],
-		read_total - read_size + (pointer - read_buffer));
-#endif
-	pointer++;
-	stream_list[0]->pos++;
-	seek_next_header();
-	RequestBuffer();
+	MPEGsystem_RequestBuffer(self);
 	return(0);
     }
-  }
 
-  if(Eof())
-  {
-    RequestBuffer();
-    return(0);
-  }
+    self->pointer += skip_zeros(self->pointer, self->read_buffer + self->read_size - self->pointer);
 
-  assert(packet_size <= MPEG_BUFFER_SIZE);
-
-  if(skip_timestamp > timestamp){
-    int cur_seconds=int(timestamp)%60;
-
-    if (cur_seconds%5==0){
-      fprintf(stderr, "Skiping to %02d:%02d (%02d:%02d)\r",
-              int(skip_timestamp)/60, int(skip_timestamp)%60,
-              int(timestamp)/60, cur_seconds);
+    if((header_size = packet_header(self->pointer, self->read_buffer + self->read_size - self->pointer,
+				    &self->timestamp)) != 0)
+    {
+        self->pointer += header_size;
+	self->stream_list[0]->pos += header_size;
+#ifdef DEBUG_SYSTEM
+	fprintf(stderr, "MPEG packet header time: %lf\n", self->timestamp);
+#endif
     }
-    pointer += packet_size;
-    stream_list[0]->pos += packet_size;
-    /* since we skip data, request more */
-    RequestBuffer();
-    return (0);
-  }
 
-  switch(stream_id)
-  {
+    if((header_size = stream_header(self->pointer, self->read_buffer + self->read_size - self->pointer,
+				    &packet_size, &stream_id, &self->stream_timestamp, self->timestamp)) != 0)
+    {
+	self->pointer += header_size;
+	self->stream_list[0]->pos += header_size;
+#ifdef DEBUG_SYSTEM
+	fprintf(stderr, "[%d] MPEG stream header [%d|%d] id: %d streamtime: %lf\n",
+		self->read_total - self->read_size + (self->pointer - self->read_buffer),
+		header_size, packet_size, stream_id, self->stream_timestamp);
+#endif
+    }
+    else
+	if(Match4(self->pointer, END_CODE, END_MASK) ||
+	   Match4(self->pointer, END2_CODE, END2_MASK))
+	{
+	    /* End codes belong to video stream */
+#ifdef DEBUG_SYSTEM
+	    fprintf(stderr, "[%d] MPEG end code\n",
+		    self->read_total - self->read_size + (self->pointer - self->read_buffer));
+#endif
+	    stream_id = exist_stream(VIDEO_STREAMID, 0xF0);
+	    packet_size = 4;
+	}
+	else
+	{
+	    stream_id = stream_list[0]->streamid;
+
+	    if(!self->stream_list[1])
+	    {
+		//Uint8 * packet_end;
+
+		packet_size = 0;
+
+		/* There is no system info in the stream */
+
+		/* If we're still a system stream, morph to an audio */
+		/* or video stream */
+
+		/* Sequence header -> gives framerate */
+		while((header_size = sequence_header(self->pointer+packet_size,
+						     self->read_buffer + self->read_size - self->pointer -
+						     packet_size,
+						     &self->frametime)) != 0)
+		{
+		    stream_id = VIDEO_STREAMID;
+		    self->stream_list[0]->streamid = stream_id;
+		    packet_size += header_size;
+#ifdef DEBUG_SYSTEM
+		    fprintf(stderr, "MPEG sequence header  frametime: %lf\n", self->frametime);
+#endif
+		}
+
+		/* GOP header */
+		while((header_size = gop_header(self->pointer+packet_size,
+						self->read_buffer + self->read_size - self->pointer -
+						packet_size,
+						0)) != 0)
+		{
+		    packet_size += header_size;
+#ifdef DEBUG_SYSTEM
+		    fprintf(stderr, "MPEG gop header\n");
+#endif
+		}
+
+		/* Picture header */
+		while((header_size = picture_header(self->pointer+packet_size,
+						    self->read_buffer + self->read_size - self->pointer -
+						    packet_size)) != 0)
+		{
+		    /* Warning: header size not quite correct (can be not byte aligned) but this is
+		       compensated by skipping a little more, as we don't need to be header aligned after
+		       this, since we then check for the next header to know the slice size. */
+		    packet_size += header_size;
+		    self->stream_timestamp += self->frametime;
+		    packet_size += 4;
+#ifdef DEBUG_SYSTEM
+		    fprintf(stderr, "MPEG picture header\n");
+#endif
+		}
+
+		/* Slice header */
+		while((header_size = slice_header(self->pointer+packet_size,
+						  self->read_buffer + self->read_size - self->pointer -
+						  self->packet_size)) != 0)
+		{
+		    packet_size += header_size;
+#ifdef DEBUG_SYSTEM
+		    fprintf(stderr, "MPEG slice header\n");
+#endif
+		}
+
+		/* Audio frame */
+		if(audio_header(self->pointer+packet_size, &packet_size, &self->frametime))
+		{
+		    stream_id = AUDIO_STREAMID;
+		    self->stream_list[0]->streamid = stream_id;
+		    self->stream_timestamp += frametime;
+#ifdef DEBUG_SYSTEM
+		    fprintf(stderr, "MPEG audio header [%d] time: %lf @ %lf\n",
+			    packet_size, self->frametime, self->stream_timestamp);
+#endif
+		}
+		else
+		{
+		    /* Check for next slice, picture, gop or sequence header */
+		    register Uint8 * p;
+		    register Uint8 c;
+
+		    p = self->pointer + packet_size;
+		state0:
+		    c = *p;
+		    p++;
+		    if(p >= self->read_buffer + self->read_size) goto end;
+		    if(c != 0) goto state0;
+		    /* Not explicitly reached:
+		     state1:
+		     */
+		    c = *p;
+		    p++;
+		    if(p >= self->read_buffer + self->read_size) goto end;
+		    if(c != 0) goto state0;
+		state2:
+		    c = *p;
+		    p++;
+		    if(p >= self->read_buffer + self->read_size) goto end;
+		    if(c == 0) goto state2;
+		    if(c != 1) goto state0;
+		    /* Not explicitly reached:
+		     state3:
+		     */
+		    c = *p;
+		    p++;
+		    if(p >= self->read_buffer + self->read_size) goto end;
+		    if(c <= 0xaf) goto end;
+		    if(c == 0xb8) goto end;
+		    if(c == 0xb3) goto end;
+		    goto state0;
+		end:
+
+		    if(p >= self->read_buffer + self->read_size)
+			packet_size = (self->read_buffer + self->read_size) - self->pointer;
+		    else
+			packet_size = p - self->pointer - 4;
+		}
+
+		if(stream_id == SYSTEM_STREAMID)
+		    stream_id = 0;
+	    }
+	    else
+	    {
+#ifdef DEBUG_SYSTEM
+		fprintf(stderr,
+			"Warning: unexpected header %02x%02x%02x%02x at offset %d\n",
+			self->pointer[0],
+			self->pointer[1],
+			self->pointer[2],
+			self->pointer[3],
+			self->read_total - self->read_size + (self->pointer - self->read_buffer));
+#endif
+		self->pointer++;
+		self->stream_list[0]->pos++;
+		MPEGsystem_seek_next_header(self);
+		MPEGsystem_RequestBuffer(self);
+		return(0);
+	    }
+	}
+
+    if(MPEGsystem_Eof(self))
+    {
+	MPEGsystem_RequestBuffer(self);
+	return(0);
+    }
+
+    assert(packet_size <= MPEG_BUFFER_SIZE);
+
+    if(self->skip_timestamp > self->timestamp){
+	int cur_seconds=int(self->timestamp)%60;
+
+	if (cur_seconds%5==0){
+	    fprintf(stderr, "Skipping to %02d:%02d (%02d:%02d)\r",
+		    int(self->skip_timestamp)/60, int(self->skip_timestamp)%60,
+		    int(self->timestamp)/60, cur_seconds);
+	}
+	self->pointer += packet_size;
+	self->stream_list[0]->pos += packet_size;
+	/* since we skip data, request more */
+	MPEGsystem_RequestBuffer(self);
+	return (0);
+    }
+
+    switch(stream_id)
+    {
     case 0:
-      /* Unknown stream, just get another packet */
-      pointer += packet_size;
-      stream_list[0]->pos += packet_size;
-      RequestBuffer();
-    return(0);
+	/* Unknown stream, just get another packet */
+	self->pointer += packet_size;
+	self->stream_list[0]->pos += packet_size;
+	MPEGsystem_RequestBuffer(self);
+	return(0);
 
     case SYSTEM_STREAMID:
-      /* System header */
+	/* System header */
 
-      /* This MPEG contain system information */
-      /* Parse the system header and create MPEG streams  */
-    
-      /* Read the stream table */
-      pointer += 5;
-      stream_list[0]->pos += 5;
+	/* This MPEG contain system information */
+	/* Parse the system header and create MPEG streams  */
 
-      while (pointer[0] & 0x80 )
-      {
-	/* If the stream doesn't already exist */
-	if(!get_stream(pointer[0]))
+	/* Read the stream table */
+	self->pointer += 5;
+	self->stream_list[0]->pos += 5;
+
+	while (self->pointer[0] & 0x80 )
 	{
-	  /* Create a new stream and add it to the list */
-	  add_stream(new MPEGstream(this, pointer[0]));
+	    /* If the stream doesn't already exist */
+	    if(!MPEGsystem_get_stream(self, self->pointer[0]))
+	    {
+		/* Create a new stream and add it to the list */
+		MPEGsystem_add_stream(self, new MPEGstream(self, self->pointer[0]));
+	    }
+	    self->pointer += 3;
+	    self->stream_list[0]->pos += 3;
 	}
-	pointer += 3;
-	stream_list[0]->pos += 3;
-      }          
-      /* Hack to detect video streams that are not advertised */
-      if ( ! exist_stream(VIDEO_STREAMID, 0xF0) ) {
-	if ( pointer[3] == 0xb3 ) {
-	  add_stream(new MPEGstream(this, VIDEO_STREAMID));
+	/* Hack to detect video streams that are not advertised */
+	if ( ! MPEGsystem_exist_stream(self, VIDEO_STREAMID, 0xF0) ) {
+	    if ( self->pointer[3] == 0xb3 ) {
+		MPEGsystem_add_stream(self, new MPEGstream(self, VIDEO_STREAMID));
+	    }
 	}
-      }
-      RequestBuffer();
-    return(stream_id);
+	MPEGsystem_RequestBuffer(self);
+	return(stream_id);
 
     default:
-      MPEGstream * stream;
+	MPEGstream * stream;
 
-      /* Look for the stream the data must be given to */
-      stream = get_stream(stream_id);
+	/* Look for the stream the data must be given to */
+	stream = MPEGsystem_get_stream(self, stream_id);
 
-      if(!stream)
-      {	
-	/* Hack to detect video or audio streams that are not declared in system header */
-	if ( ((stream_id & 0xF0) == VIDEO_STREAMID) && !exist_stream(stream_id, 0xFF) ) {
+	if(!stream)
+	{
+	    /* Hack to detect video or audio streams that are not declared in system header */
+	    if ( ((stream_id & 0xF0) == VIDEO_STREAMID) && !MPEGsystem_exist_stream(self, stream_id, 0xFF) ) {
 #ifdef DEBUG_SYSTEM
-	  fprintf(stderr, "Undeclared video packet, creating a new video stream\n");
+		fprintf(stderr, "Undeclared video packet, creating a new video stream\n");
 #endif
-	    stream = new MPEGstream(this, stream_id);
-	    add_stream(stream);
+		stream = new MPEGstream(self, stream_id);
+		MPEGsystem_add_stream(self, stream);
+	    }
+	    else
+		if ( ((stream_id & 0xF0) == AUDIO_STREAMID) &&
+		     !MPEGsystem_exist_stream(self, stream_id, 0xFF) ) {
+#ifdef DEBUG_SYSTEM
+		    fprintf(stderr, "Undeclared audio packet, creating a new audio stream\n");
+#endif
+		    stream = new MPEGstream(self, stream_id);
+		    MPEGsystem_add_stream(self, stream);
+		}
+		else
+		{
+		    /* No stream found for packet, skip it */
+		    self->pointer += packet_size;
+		    self->stream_list[0]->pos += packet_size;
+		    MPEGsystem_RequestBuffer(self);
+		    return(stream_id);
+		}
 	}
-	else
-	if ( ((stream_id & 0xF0) == AUDIO_STREAMID) && !exist_stream(stream_id, 0xFF) ) {
-#ifdef DEBUG_SYSTEM
-	  fprintf(stderr, "Undeclared audio packet, creating a new audio stream\n");
-#endif
-	    stream = new MPEGstream(this, stream_id);
-	    add_stream(stream);
+
+	/* Insert the new data at the end of the stream */
+	if(self->pointer + packet_size <= self->read_buffer + self->read_size)
+	{
+	    if(packet_size) stream->insert_packet(self->pointer, packet_size, self->stream_timestamp);
+	    self->pointer += packet_size;
 	}
 	else
 	{
-	  /* No stream found for packet, skip it */
-	  pointer += packet_size;
-	  stream_list[0]->pos += packet_size;
-	  RequestBuffer();
-	  return(stream_id);
+	    stream->insert_packet(self->pointer, 0, self->stream_timestamp);
+	    self->errorstream = true;
+	    self->pointer = self->read_buffer + self->read_size;
 	}
-      }
-
-      /* Insert the new data at the end of the stream */
-      if(pointer + packet_size <= read_buffer + read_size)
-      {
-	if(packet_size) stream->insert_packet(pointer, packet_size, stream_timestamp);
-	pointer += packet_size;
-      }
-      else
-      {
-	stream->insert_packet(pointer, 0, stream_timestamp);
-	errorstream = true;
-	pointer = read_buffer + read_size;
-      }
-      return(stream_id);
-  }
+	return(stream_id);
+    }
 }
 
-void MPEGsystem::Skip(double time)
+void MPEGsystem_Skip(MPEGsystem *self, double time)
 {
-  if (skip_timestamp < timestamp)
-    skip_timestamp = timestamp;
-  skip_timestamp += time;
+    if (self->skip_timestamp < self->timestamp)
+	self->skip_timestamp = self->timestamp;
+    self->skip_timestamp += time;
 }
  
-Uint32 MPEGsystem::Tell()
+Uint32 MPEGsystem_Tell(MPEGsystem *self)
 {
-  register Uint32 t;
-  register int i;
+    register Uint32 t;
+    register int i;
 
-  /* Sum all stream positions */
-  for(i = 0, t = 0; stream_list[i]; i++)
-    t += stream_list[i]->pos;
+    /* Sum all stream positions */
+    for(i = 0, t = 0; self->stream_list[i]; i++)
+	t += self->stream_list[i]->pos;
 
-  if(t > TotalSize())
-    return(TotalSize());
-  else
-    return(t);
-}
-
-Uint32 MPEGsystem::TotalSize()
-{
-  off_t size;
-  off_t pos;
-
-  /* Lock to avoid concurrent access to the stream */
-  SDL_mutexP(system_mutex);
-
-  /* I made it this way (instead of fstat) to avoid #ifdef WIN32 everywhere */
-  /* in case 'in some weird perversion of nature' someone wants to port this to Win32 :-) */
-  if((pos = SDL_RWtell(source)) < 0)
-  {
-    if(errno != ESPIPE)
-    {
-      errorstream = true;
-      SetError(strerror(errno));
-    }
-    SDL_mutexV(system_mutex);
-    return(0);
-  }
-
-  if((size = SDL_RWseek(source, 0, SEEK_END)) < 0)
-  {
-    if(errno != ESPIPE)
-    {
-      errorstream = true;
-      SetError(strerror(errno));  
-    }
-    SDL_mutexV(system_mutex);
-    return(0);
-  }
-  
-  if((pos = SDL_RWseek(source, pos, SEEK_SET)) < 0)
-  {
-    if(errno != ESPIPE)
-    {
-      errorstream = true;
-      SetError(strerror(errno));  
-    }
-    SDL_mutexV(system_mutex);
-    return(0);
-  }
-
-  SDL_mutexV(system_mutex);
-  return(size);
-}
-
-double MPEGsystem::TotalTime()
-{
-  off_t size, pos;
-  off_t file_ptr;
-  Uint8 * buffer, * p;
-  double time;
-
-  /* Lock to avoid concurrent access to the stream */
-  SDL_mutexP(system_mutex);
-
-  /* Save current position */
-  if((pos = SDL_RWtell(source)) < 0)
-  {
-    if(errno != ESPIPE)
-    {
-      errorstream = true;
-      SetError(strerror(errno));
-    }
-    SDL_mutexV(system_mutex);
-    return(false);
-  }
-
-  file_ptr = 0;
-  buffer = new Uint8[MPEG_BUFFER_SIZE];
-  time = 0;
-
-  /* If audio, compute total time according to bitrate of the first header and total size */
-  /* Note: this doesn't work on variable bitrate streams */
-  if(stream_list[0]->streamid == AUDIO_STREAMID)
-  {
-    do
-    {
-      if((size = SDL_RWseek(source, file_ptr, SEEK_SET)) < 0)
-      {
-        if(errno != ESPIPE)
-        {
-          errorstream = true;
-          SetError(strerror(errno));  
-        }
-        SDL_mutexV(system_mutex);
-        return(false);
-      }
-    
-      if(SDL_RWread(source, buffer, 1, MPEG_BUFFER_SIZE) < 0) break;
-
-      /* Search for a valid audio header */
-      for(p = buffer; p < buffer + MPEG_BUFFER_SIZE; p++)
-	if(audio_aligned(p, buffer + MPEG_BUFFER_SIZE - p)) break;
-    
-      file_ptr += MPEG_BUFFER_SIZE;
-    }
-    while(p >= MPEG_BUFFER_SIZE + buffer);
-
-    /* Extract time info from the first header */
-    Uint32 framesize;
-    double frametime;
-    Uint32 totalsize;
-
-    audio_header(p, &framesize, &frametime);
-    totalsize = TotalSize();
-    if(framesize)
-      time = frametime * totalsize / framesize;
-  }
-  else
-  {
-    bool last_chance = false;
-    do
-    {
-    /* Otherwise search the stream backwards for a valid header */
-      file_ptr -= MPEG_BUFFER_SIZE;
-      if ( file_ptr < -(Sint32)TotalSize() ) {
-          last_chance = true;
-          file_ptr = -(Sint32)TotalSize();
-      }
-     
-      if((size = SDL_RWseek(source, file_ptr, SEEK_END)) < 0)
-      {
-        if(errno != ESPIPE)
-        {
-          errorstream = true;
-          SetError(strerror(errno));  
-        }
-        SDL_mutexV(system_mutex);
-        return(false);
-      }
-      
-      if(SDL_RWread(source, buffer, 1, MPEG_BUFFER_SIZE) < 0) break;
-      
-      if(stream_list[0]->streamid == SYSTEM_STREAMID)
-	for(p = buffer + MPEG_BUFFER_SIZE - 1; p >= buffer;)
-	{
-	  if(*p-- != 0xba) continue; // Packet header
-	  if(*p-- != 1) continue;
-	  if(*p-- != 0) continue;
-	  if(*p-- != 0) continue;
-          ++p;
-	  break;
-	}
-      if(stream_list[0]->streamid == VIDEO_STREAMID)
-	for(p = buffer + MPEG_BUFFER_SIZE - 1; p >= buffer;)
-	{
-	  if(*p-- != 0xb8) continue; // GOP header
-	  if(*p-- != 1) continue;
-	  if(*p-- != 0) continue;
-	  if(*p-- != 0) continue;
-          ++p;
-	  break;
-	}
-    }
-    while( !last_chance && (p < buffer) );
-
-    if ( p >= buffer ) {
-      /* Extract time info from the last header */
-      if(stream_list[0]->streamid == SYSTEM_STREAMID)
-        packet_header(p, buffer + MPEG_BUFFER_SIZE - p, &time);
-    
-      if(stream_list[0]->streamid == VIDEO_STREAMID)
-        gop_header(p, buffer + MPEG_BUFFER_SIZE - p, &time);
-    }
-  }
-
-  delete[] buffer;
-
-  /* Get back to saved position */
-  if((pos = SDL_RWseek(source, pos, SEEK_SET)) < 0)
-  {
-    if(errno != ESPIPE)
-    {
-      errorstream = true;
-      SetError(strerror(errno));  
-    }
-    time = 0;
-  }
-
-  SDL_mutexV(system_mutex);
-
-  return(time);
-}
-
-double MPEGsystem::TimeElapsedAudio(int atByte)
-{
-  off_t size, pos;
-  off_t file_ptr;
-  Uint8 * buffer, * p;
-  double time;
-  
-  if (atByte < 0)
-  {
-      return -1;
-  }
-  
-  /* Lock to avoid concurrent access to the stream */
-  SDL_mutexP(system_mutex);
-
-  /* Save current position */
-  if((pos = SDL_RWtell(source)) < 0)
-  {
-    if(errno != ESPIPE)
-    {
-      errorstream = true;
-      SetError(strerror(errno));
-    }
-    SDL_mutexV(system_mutex);
-    return(false);
-  }
-
-  file_ptr = 0;
-  buffer = new Uint8[MPEG_BUFFER_SIZE];
-
-  /* If audio, compute total time according to bitrate of the first header and total size */
-  /* Note: this doesn't work on variable bitrate streams */
-  if(stream_list[0]->streamid == AUDIO_STREAMID)
-  {
-    do
-    {
-      if((size = SDL_RWseek(source, file_ptr, SEEK_SET)) < 0)
-      {
-        if(errno != ESPIPE)
-        {
-          errorstream = true;
-          SetError(strerror(errno));  
-        }
-        SDL_mutexV(system_mutex);
-        return(false);
-      }
-    
-      if(SDL_RWread(source, buffer, 1, MPEG_BUFFER_SIZE) < 0) break;
-
-      /* Search for a valid audio header */
-      for(p = buffer; p < buffer + MPEG_BUFFER_SIZE; p++)
-	if(audio_aligned(p, buffer + MPEG_BUFFER_SIZE - p)) break;
-    
-      file_ptr += MPEG_BUFFER_SIZE;
-    }
-    while(p >= MPEG_BUFFER_SIZE + buffer);
-
-    /* Extract time info from the first header */
-    Uint32 framesize;
-    double frametime;
-    Uint32 totalsize;
-
-    audio_header(p, &framesize, &frametime);
-    totalsize = TotalSize();
-    if(framesize)
-      //is there a better way to do this?
-      time = (frametime * (atByte ? atByte:totalsize)) / framesize;
+    if(t > MPEGsystem_TotalSize(self))
+	return(MPEGsystem_TotalSize(self));
     else
-      time = 0;
-  }
-  else
-  //This is not a purely audio stream. This doesn't make sense!
-  {
-      time = -1;
-  }
+	return(t);
+}
 
-  delete buffer;
+Uint32 MPEGsystem_TotalSize(MPEGsystem *self)
+{
+    off_t size;
+    off_t pos;
 
-  /* Get back to saved position */
-  if((pos = SDL_RWseek(source, pos, SEEK_SET)) < 0)
-  {
-    if(errno != ESPIPE)
+    /* Lock to avoid concurrent access to the stream */
+    SDL_mutexP(self->system_mutex);
+
+    /* I made it this way (instead of fstat) to avoid #ifdef WIN32 everywhere */
+    /* in case 'in some weird perversion of nature' someone wants to port this to Win32 :-) */
+    if((pos = SDL_RWtell(self->source)) < 0)
     {
-      errorstream = true;
-      SetError(strerror(errno));  
+	if(errno != ESPIPE)
+	{
+	    self->errorstream = true;
+	    MPEGerror_SetError(self->err, strerror(errno));
+	}
+	SDL_mutexV(self->system_mutex);
+	return(0);
     }
-    SDL_mutexV(system_mutex);
-    return(0);
-  }
 
-  SDL_mutexV(system_mutex);
-  return(time);
-}
-
-void MPEGsystem::Rewind()
-{
-  Seek(0);
-}
-
-bool MPEGsystem::Seek(int length)
-{
-  /* Stop the system thread */
-  Stop();
-
-  /* Lock to avoid concurrent access to the stream */
-  SDL_mutexP(system_mutex);
-  
-  /* Get into the stream */
-  if(SDL_RWseek(source, length, SEEK_SET) < 0)
-  {
-    if(errno != ESPIPE)
+    if((size = SDL_RWseek(self->source, 0, SEEK_END)) < 0)
     {
-      errorstream = true;
-      SetError(strerror(errno));
+	if(errno != ESPIPE)
+	{
+	    self->errorstream = true;
+	    MPEGerror_SetError(self->err, strerror(errno));
+	}
+	SDL_mutexV(self->system_mutex);
+	return(0);
     }
-    return(false);
-  }
 
-  /* Reinitialize the read buffer */
-  pointer = read_buffer;
-  read_size = 0;
-  read_total = length;
-  stream_list[0]->pos += length;
-  packet_total = 0;
-  endofstream = false;
-  errorstream = false;
-  timestamp = 0.0;
-  skip_timestamp = -1;
-  reset_all_streams();
-
-  SDL_mutexV(system_mutex);
-
-  /* Restart the system thread */
-  Start();
-
-  return(true);
-}
-
-void MPEGsystem::RequestBuffer()
-{
-  SDL_SemPost(request_wait);
-}
-
-void MPEGsystem::Start()
-{
-  if(system_thread_running) return;
-
-  /* Get the next header */
-  if(!seek_next_header())
-  {
-    if(!Eof())
+    if((pos = SDL_RWseek(self->source, pos, SEEK_SET)) < 0)
     {
-      errorstream = true;
-      SetError("Could not find the beginning of MPEG data\n");
+	if(errno != ESPIPE)
+	{
+	    self->errorstream = true;
+	    MPEGerror_SetError(self->err, strerror(errno));
+	}
+	SDL_mutexV(self->system_mutex);
+	return(0);
     }
-  }
-  
-#ifdef USE_SYSTEM_THREAD
-  /* Start the system thread */
-  system_thread = SDL_CreateThread(SystemThread, this);
 
-  /* Wait for the thread to start */
-  while(!system_thread_running && !Eof())
-    SDL_Delay(1);
-#else
-  system_thread_running = true;
-#endif
+    SDL_mutexV(self->system_mutex);
+    return(size);
 }
 
-void MPEGsystem::Stop()
+double MPEGsystem_TotalTime(MPEGsystem *self)
 {
-  if(!system_thread_running) return;
+    off_t size, pos;
+    off_t file_ptr;
+    Uint8 * buffer, * p;
+    double time;
 
-  /* Force the system thread to die */
-  system_thread_running = false;
-#ifdef USE_SYSTEM_THREAD
-  SDL_SemPost(request_wait);
-  SDL_WaitThread(system_thread, NULL);
-#endif
+    /* Lock to avoid concurrent access to the stream */
+    SDL_mutexP(self->system_mutex);
 
-  /* Reset the streams */
-  reset_all_streams();
-}
-
-bool MPEGsystem::Wait()
-{
-#ifdef USE_SYSTEM_THREAD
-  if ( ! errorstream ) {
-    while(SDL_SemValue(request_wait) != 0)
-      SDL_Delay(1);
-  }
-#else
-  while(SDL_SemValue(request_wait) != 0)
-      if ( ! SystemLoop(this) ) break;
-#endif
-  return(!errorstream);
-}
-
-bool MPEGsystem::Eof() const
-{
-  return(errorstream || endofstream);
-}
-
-bool MPEGsystem::SystemLoop(MPEGsystem *system)
-{
-  /* Check for end of file */
-  if(system->Eof())
-  {
-    /* Set the eof mark on all streams */
-    system->end_all_streams();
-
-    /* Get back to the beginning of the stream if possible */
-    if(SDL_RWseek(system->source, 0, SEEK_SET) < 0)
+    /* Save current position */
+    if((pos = SDL_RWtell(self->source)) < 0)
     {
-      if(errno != ESPIPE)
-      {
-        system->errorstream = true;
-        system->SetError(strerror(errno));
-      }
-      return(false);
+	if(errno != ESPIPE)
+	{
+	    self->errorstream = true;
+	    MPEGerror_SetError(self->err, strerror(errno));
+	}
+	SDL_mutexV(self->system_mutex);
+	return(false);
+    }
+
+    file_ptr = 0;
+    buffer = new Uint8[MPEG_BUFFER_SIZE];
+    time = 0;
+
+    /* If audio, compute total time according to bitrate of the first header and total size */
+    /* Note: this doesn't work on variable bitrate streams */
+    if(self->stream_list[0]->streamid == AUDIO_STREAMID)
+    {
+	do
+	{
+	    if((size = SDL_RWseek(self->source, file_ptr, SEEK_SET)) < 0)
+	    {
+		if(errno != ESPIPE)
+		{
+		    self->errorstream = true;
+		    MPEGerror_SetError(self->err, strerror(errno));
+		}
+		SDL_mutexV(self->system_mutex);
+		return(false);
+	    }
+
+	    if(SDL_RWread(self->source, buffer, 1, MPEG_BUFFER_SIZE) < 0) break;
+
+	    /* Search for a valid audio header */
+	    for(p = buffer; p < buffer + MPEG_BUFFER_SIZE; p++)
+		if(audio_aligned(p, buffer + MPEG_BUFFER_SIZE - p)) break;
+
+	    file_ptr += MPEG_BUFFER_SIZE;
+	}
+	while(p >= MPEG_BUFFER_SIZE + buffer);
+
+	/* Extract time info from the first header */
+	Uint32 framesize;
+	double frametime;
+	Uint32 totalsize;
+
+	audio_header(p, &framesize, &frametime);
+	totalsize = TotalSize();
+	if(framesize)
+	    time = frametime * totalsize / framesize;
+    }
+    else
+    {
+	bool last_chance = false;
+	do
+	{
+	    /* Otherwise search the stream backwards for a valid header */
+	    file_ptr -= MPEG_BUFFER_SIZE;
+	    if ( file_ptr < -(Sint32)TotalSize() ) {
+		last_chance = true;
+		file_ptr = -(Sint32)TotalSize();
+	    }
+
+	    if((size = SDL_RWseek(self->source, file_ptr, SEEK_END)) < 0)
+	    {
+		if(errno != ESPIPE)
+		{
+		    self->errorstream = true;
+		    MPEGerror_SetError(self->err, strerror(errno));
+		}
+		SDL_mutexV(self->system_mutex);
+		return(false);
+	    }
+
+	    if(SDL_RWread(self->source, buffer, 1, MPEG_BUFFER_SIZE) < 0) break;
+
+	    if(self->stream_list[0]->streamid == SYSTEM_STREAMID)
+		for(p = buffer + MPEG_BUFFER_SIZE - 1; p >= buffer;)
+		{
+		    if(*p-- != 0xba) continue; // Packet header
+		    if(*p-- != 1) continue;
+		    if(*p-- != 0) continue;
+		    if(*p-- != 0) continue;
+		    ++p;
+		    break;
+		}
+	    if(self->stream_list[0]->streamid == VIDEO_STREAMID)
+		for(p = buffer + MPEG_BUFFER_SIZE - 1; p >= buffer;)
+		{
+		    if(*p-- != 0xb8) continue; // GOP header
+		    if(*p-- != 1) continue;
+		    if(*p-- != 0) continue;
+		    if(*p-- != 0) continue;
+		    ++p;
+		    break;
+		}
+	}
+	while( !last_chance && (p < buffer) );
+
+	if ( p >= buffer ) {
+	    /* Extract time info from the last header */
+	    if(self->stream_list[0]->streamid == SYSTEM_STREAMID)
+		packet_header(p, buffer + MPEG_BUFFER_SIZE - p, &time);
+
+	    if(self->stream_list[0]->streamid == VIDEO_STREAMID)
+		gop_header(p, buffer + MPEG_BUFFER_SIZE - p, &time);
+	}
+    }
+
+    delete[] buffer;
+
+    /* Get back to saved position */
+    if((pos = SDL_RWseek(self->source, pos, SEEK_SET)) < 0)
+    {
+	if(errno != ESPIPE)
+	{
+	    self->errorstream = true;
+	    MPEGerror_SetError(self->err, strerror(errno));
+	}
+	time = 0;
+    }
+
+    SDL_mutexV(self->system_mutex);
+
+    return(time);
+}
+
+double MPEGsystem_TimeElapsedAudio(MPEGsystem *self, int atByte)
+{
+    off_t size, pos;
+    off_t file_ptr;
+    Uint8 * buffer, * p;
+    double time;
+
+    if (atByte < 0)
+    {
+	return -1;
+    }
+
+    /* Lock to avoid concurrent access to the stream */
+    SDL_mutexP(self->system_mutex);
+
+    /* Save current position */
+    if((pos = SDL_RWtell(self->source)) < 0)
+    {
+	if(errno != ESPIPE)
+	{
+	    self->errorstream = true;
+	    MPEGerror_SetError(self->err, strerror(errno));
+	}
+	SDL_mutexV(self->system_mutex);
+	return(false);
+    }
+
+    file_ptr = 0;
+    buffer = new Uint8[MPEG_BUFFER_SIZE];
+
+    /* If audio, compute total time according to bitrate of the first header and total size */
+    /* Note: this doesn't work on variable bitrate streams */
+    if(self->stream_list[0]->streamid == AUDIO_STREAMID)
+    {
+	do
+	{
+	    if((size = SDL_RWseek(self->source, file_ptr, SEEK_SET)) < 0)
+	    {
+		if(errno != ESPIPE)
+		{
+		    self->errorstream = true;
+		    MPEGerror_SetError(self->err, strerror(errno));
+		}
+		SDL_mutexV(self->system_mutex);
+		return(false);
+	    }
+    
+	    if(SDL_RWread(self->source, buffer, 1, MPEG_BUFFER_SIZE) < 0) break;
+
+	    /* Search for a valid audio header */
+	    for(p = buffer; p < buffer + MPEG_BUFFER_SIZE; p++)
+		if(audio_aligned(p, buffer + MPEG_BUFFER_SIZE - p)) break;
+
+	    file_ptr += MPEG_BUFFER_SIZE;
+	}
+	while(p >= MPEG_BUFFER_SIZE + buffer);
+
+	/* Extract time info from the first header */
+	Uint32 framesize;
+	double frametime;
+	Uint32 totalsize;
+
+	audio_header(p, &framesize, &frametime);
+	totalsize = MPEGsystem_TotalSize(self);
+	if(framesize)
+	    //is there a better way to do this?
+	    time = (frametime * (atByte ? atByte:totalsize)) / framesize;
+	else
+	    time = 0;
+    }
+    else
+	//This is not a purely audio stream. This doesn't make sense!
+    {
+	time = -1;
+    }
+
+    delete buffer;
+
+    /* Get back to saved position */
+    if((pos = SDL_RWseek(self->source, pos, SEEK_SET)) < 0)
+    {
+	if(errno != ESPIPE)
+	{
+	    self->errorstream = true;
+	    MPEGerror_SetError(self->err, strerror(errno));
+	}
+	SDL_mutexV(self->system_mutex);
+	return(0);
+    }
+
+    SDL_mutexV(self->system_mutex);
+    return(time);
+}
+
+void MPEGsystem_Rewind(MPEGsystem *self)
+{
+    MPEGsystem_Seek(self, 0);
+}
+
+bool MPEGsystem_Seek(MPEGsystem *self, int length)
+{
+    /* Stop the system thread */
+    MPEGsystem_Stop(self);
+
+    /* Lock to avoid concurrent access to the stream */
+    SDL_mutexP(self->system_mutex);
+
+    /* Get into the stream */
+    if(SDL_RWseek(self->source, length, SEEK_SET) < 0)
+    {
+	if(errno != ESPIPE)
+	{
+	    self->errorstream = true;
+	    MPEGerror_SetError(self->err, strerror(errno));
+	}
+	return(false);
     }
 
     /* Reinitialize the read buffer */
-    system->pointer = system->read_buffer;
-    system->read_size = 0;
-    system->read_total = 0;
-    system->packet_total = 0;
-    system->endofstream = false;
-    system->errorstream = false;
+    self->pointer = self->read_buffer;
+    self->read_size = 0;
+    self->read_total = length;
+    self->stream_list[0]->pos += length;
+    self->packet_total = 0;
+    self->endofstream = false;
+    self->errorstream = false;
+    self->timestamp = 0.0;
+    self->skip_timestamp = -1;
+    MPEGsystem_reset_all_streams(self);
 
-    /* Get the first header */
-    if(!system->seek_first_header())
+    SDL_mutexV(self->system_mutex);
+
+    /* Restart the system thread */
+    MPEGsystem_Start(self);
+
+    return(true);
+}
+
+void MPEGsystem_RequestBuffer(MPEGsystem *self)
+{
+    SDL_SemPost(self->request_wait);
+}
+
+void MPEGsystem_Start(MPEGsystem *self)
+{
+    if(self->system_thread_running) return;
+
+    /* Get the next header */
+    if(!MPEGsystem_seek_next_header(self))
     {
-      system->errorstream = true;
-      system->SetError("Could not find the beginning of MPEG data\n");
-      return(false);
+	if(!MPEGsystem_Eof(self))
+	{
+	    self->errorstream = true;
+	    MPEGerror_SetError(self->err, "Could not find the beginning of MPEG data\n");
+	}
     }
-  }
 
-  /* Wait for a buffer request */
-  SDL_SemWait(system->request_wait);
+#ifdef USE_SYSTEM_THREAD
+    /* Start the system thread */
+    self->system_thread = SDL_CreateThread(MPEGsystem_SystemThread, self);
 
-  /* Read the buffer */
-  system->FillBuffer();
-
-  return(true);
+    /* Wait for the thread to start */
+    while(!self->system_thread_running && !MPEGsystem_Eof(self))
+	SDL_Delay(1);
+#else
+    self->system_thread_running = true;
+#endif
 }
 
-int MPEGsystem::SystemThread(void * udata)
+void MPEGsystem_Stop(MPEGsystem *self)
 {
-  MPEGsystem * system = (MPEGsystem *) udata;
+    if(!self->system_thread_running) return;
 
-  system->system_thread_running = true;
+    /* Force the system thread to die */
+    self->system_thread_running = false;
+#ifdef USE_SYSTEM_THREAD
+    SDL_SemPost(self->request_wait);
+    SDL_WaitThread(self->system_thread, NULL);
+#endif
 
-  while(system->system_thread_running)
-  {
-    if ( ! SystemLoop(system) ) {
-      system->system_thread_running = false;
+    /* Reset the streams */
+    MPEGsystem_reset_all_streams(self);
+}
+
+bool MPEGsystem_Wait(MPEGsystem *self)
+{
+#ifdef USE_SYSTEM_THREAD
+    if ( ! self->errorstream ) {
+	while(SDL_SemValue(self->request_wait) != 0)
+	    SDL_Delay(1);
     }
-  }
-  return(true);
+#else
+    while(SDL_SemValue(self->request_wait) != 0)
+	if ( ! MPEGsystem_SystemLoop(self) ) break;
+#endif
+    return(!self->errorstream);
 }
 
-void MPEGsystem::add_stream(MPEGstream * stream)
+bool MPEGsystem_Eof(MPEGsystem *self) const
 {
-  register int i;
-
-  /* Go to the end of the list */
-  for(i = 0; stream_list[i]; i++);
-
-  /* Resize list */
-  stream_list = 
-    (MPEGstream **) realloc(stream_list, (i+2)*sizeof(MPEGstream *));
-
-  /* Write the stream */
-  stream_list[i] = stream;
-
-  /* Put the end marker (null) */
-  stream_list[i+1] = 0;
+    return(self->errorstream || self->endofstream);
 }
 
-MPEGstream * MPEGsystem::get_stream(Uint8 stream_id)
+bool MPEGsystem_SystemLoop(MPEGsystem *self)
 {
-  register int i;
+    /* Check for end of file */
+    if(MPEGsystem_Eof(self))
+    {
+	/* Set the eof mark on all streams */
+	MPEGsystem_end_all_streams(self);
 
-  for(i = 0; stream_list[i]; i++)
-    if(stream_list[i]->streamid == stream_id)
-      break;
+	/* Get back to the beginning of the stream if possible */
+	if(SDL_RWseek(self->source, 0, SEEK_SET) < 0)
+	{
+	    if(errno != ESPIPE)
+	    {
+		self->errorstream = true;
+		MPEGerror_SetError(self->err, strerror(errno));
+	    }
+	    return(false);
+	}
 
-  return(stream_list[i]);
+	/* Reinitialize the read buffer */
+	self->pointer = self->read_buffer;
+	self->read_size = 0;
+	self->read_total = 0;
+	self->packet_total = 0;
+	self->endofstream = false;
+	self->errorstream = false;
+
+	/* Get the first header */
+	if(!MPEGsystem_seek_first_header(self))
+	{
+	    self->errorstream = true;
+	    MPEGerror_SetError(self->err, "Could not find the beginning of MPEG data\n");
+	    return(false);
+	}
+    }
+
+    /* Wait for a buffer request */
+    SDL_SemWait(self->request_wait);
+
+    /* Read the buffer */
+    MPEGsystem_FillBuffer(self);
+
+    return(true);
 }
 
-Uint8 MPEGsystem::exist_stream(Uint8 stream_id, Uint8 mask)
+int MPEGsystem_SystemThread(void * self)
 {
-  register int i;
+    MPEGsystem * system = (MPEGsystem *) self;
 
-  for(i = 0; stream_list[i]; i++)
-    if(((stream_list[i]->streamid) & mask) == (stream_id & mask))
-      return(stream_list[i]->streamid);
+    system->system_thread_running = true;
 
-  return(0);
+    while(system->system_thread_running)
+    {
+	if ( ! MPEGsystem_SystemLoop(system) ) {
+	    system->system_thread_running = false;
+	}
+    }
+    return(true);
 }
 
-void MPEGsystem::reset_all_streams()
+void MPEGsystem_add_stream(MPEGsystem *self, MPEGstream * stream)
 {
-  register int i;
+    register int i;
 
-  /* Reset the streams */
-  for(i = 0; stream_list[i]; i++)
-    stream_list[i]->reset_stream();
+    /* Go to the end of the list */
+    for(i = 0; self->stream_list[i]; i++);
+
+    /* Resize list */
+    self->stream_list =
+	(MPEGstream **) realloc(self->stream_list, (i+2)*sizeof(MPEGstream *));
+
+    /* Write the stream */
+    self->stream_list[i] = stream;
+
+    /* Put the end marker (null) */
+    self->stream_list[i+1] = 0;
 }
 
-void MPEGsystem::end_all_streams()
+MPEGstream * MPEGsystem_get_stream(MPEGsystem *self, Uint8 stream_id)
 {
-  register int i;
+    register int i;
 
-  /* End the streams */
-  /* We use a null buffer as the end of stream marker */
-  for(i = 0; stream_list[i]; i++)
-    stream_list[i]->insert_packet(0, 0);
+    for(i = 0; self->stream_list[i]; i++)
+	if(self->stream_list[i]->streamid == stream_id)
+	    break;
+
+    return(self->stream_list[i]);
 }
 
-bool MPEGsystem::seek_first_header()
+Uint8 MPEGsystem_exist_stream(MPEGsystem *self, Uint8 stream_id, Uint8 mask)
 {
-  Read();
+    register int i;
 
-  if(Eof())
-    return(false);
+    for(i = 0; self->stream_list[i]; i++)
+	if(((self->stream_list[i]->streamid) & mask) == (stream_id & mask))
+	    return(self->stream_list[i]->streamid);
 
-  while(!(audio_aligned(pointer, read_buffer + read_size - pointer) ||
-	  system_aligned(pointer, read_buffer + read_size - pointer) ||
- 	  Match4(pointer, VIDEO_CODE, VIDEO_MASK)))
-  {
-       ++pointer;
-       stream_list[0]->pos++;
-      /* Make sure buffer is always full */
-      Read();
+    return(0);
+}
 
-      if(Eof())
+void MPEGsystem_reset_all_streams(MPEGsystem *self)
+{
+    register int i;
+
+    /* Reset the streams */
+    for(i = 0; self->stream_list[i]; i++)
+	self->stream_list[i]->reset_stream();
+}
+
+void MPEGsystem_end_all_streams(MPEGsystem *self)
+{
+    register int i;
+
+    /* End the streams */
+    /* We use a null buffer as the end of stream marker */
+    for(i = 0; self->stream_list[i]; i++)
+	self->stream_list[i]->insert_packet(0, 0);
+}
+
+bool MPEGsystem_seek_first_header(MPEGsystem *self)
+{
+    MPEGsystem_Read(self);
+
+    if(MPEGsystem_Eof(self))
 	return(false);
-  }
-  return(true);
+
+    while(!(audio_aligned(pointer, read_buffer + read_size - pointer) ||
+	    system_aligned(pointer, read_buffer + read_size - pointer) ||
+	    Match4(pointer, VIDEO_CODE, VIDEO_MASK)))
+    {
+	++self->pointer;
+	self->stream_list[0]->pos++;
+	/* Make sure buffer is always full */
+	MPEGsystem_Read(self);
+
+	if(MPEGsystem_Eof(self))
+	    return(false);
+    }
+    return(true);
 }
 
-bool MPEGsystem::seek_next_header()
+bool MPEGsystem_seek_next_header(MPEGsystem *self)
 {
-  Read();
+    MPEGsystem_Read(self);
 
-  if(Eof())
-    return(false);
-
-  while(!( (stream_list[0]->streamid == AUDIO_STREAMID && audio_aligned(pointer, read_buffer + read_size - pointer)) ||
-	   (stream_list[0]->streamid == SYSTEM_STREAMID && system_aligned(pointer, read_buffer + read_size - pointer)) ||
-	   (stream_list[0]->streamid == VIDEO_STREAMID && Match4(pointer, GOP_CODE, GOP_MASK))
-	 ) )
-  {
-       ++pointer;
-       stream_list[0]->pos++;
-      /* Make sure buffer is always full */
-      Read();
-
-      if(Eof())
+    if(MPEGsystem_Eof(self))
 	return(false);
-  }
 
-  return(true);
+    while(!( (self->stream_list[0]->streamid == AUDIO_STREAMID &&
+	      audio_aligned(self->pointer, self->read_buffer + self->read_size - self->pointer)) ||
+	     (self->stream_list[0]->streamid == SYSTEM_STREAMID &&
+	      system_aligned(self->pointer, self->read_buffer + self->read_size - self->pointer)) ||
+	     (self->stream_list[0]->streamid == VIDEO_STREAMID &&
+	      Match4(self->pointer, GOP_CODE, GOP_MASK))
+	   ) )
+    {
+	++self->pointer;
+	self->stream_list[0]->pos++;
+	/* Make sure buffer is always full */
+	MPEGsystem_Read(self);
+
+	if(MPEGsystem_Eof(self))
+	    return(false);
+    }
+
+    return(true);
 }

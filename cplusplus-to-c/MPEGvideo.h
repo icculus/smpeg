@@ -24,6 +24,7 @@
 #ifndef _MPEGVIDEO_H_
 #define _MPEGVIDEO_H_
 
+#include "pthread.h"
 #include "SDL.h"
 #include "SDL_thread.h"
 #include "MPEGerror.h"
@@ -63,7 +64,7 @@ public:
 
     /* MPEG video actions */
     bool GetVideoInfo(MPEG_VideoInfo *info);
-    bool SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
+    bool SetDisplay(SDL_Surface *dst, pthread_mutex_t *lock,
                                             MPEG_DisplayCallback callback);
     void MoveDisplay(int x, int y);
     void ScaleDisplayXY(int w, int h);
@@ -87,7 +88,7 @@ protected:
 
     VidStream* _stream;
     SDL_Surface* _dst;
-    SDL_mutex* _mutex;
+    SDL_mutex *_mutex;
     SDL_Thread* _thread;
 
     MPEG_DisplayCallback _callback;
@@ -102,7 +103,7 @@ protected:
     float _fps;         // frames per second
     SMPEG_Filter * _filter; // pointer to the current filter used
     SDL_mutex* _filter_mutex; // make sure the filter is not changed while being used
-
+    
     void RewindStream(void);
 };
 

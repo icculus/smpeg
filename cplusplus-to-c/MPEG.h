@@ -24,6 +24,7 @@
 #ifndef _MPEG_H_
 #define _MPEG_H_
 
+#include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -49,69 +50,14 @@
    do all the data parsing for that stream type.  It's a little odd,
    but seemed like the best way to implement stream parsing.
  */
-class MPEG : public MPEGerror
+struct MPEG
 {
-public:
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
-    MPEG():MPEGerror(){}
-	MPEG(bool Sdlaudio, char *addresse,char *asset,long buffersize){}
-
-    MPEG(const char * name, bool SDLaudio = true);
-    MPEG(int Mpeg_FD, bool SDLaudio = true);
-    MPEG(void *data, int size, bool SDLaudio = true);
-    MPEG(SDL_RWops *mpeg_source,bool SDLaudio = true);
-    virtual ~MPEG();
-
-    /* Initialize the MPEG */
-    void Init(SDL_RWops *mpeg_source, bool SDLaudio);
-    void InitErrorState();
-
-    /* Enable/Disable audio and video */
-    bool AudioEnabled(void);
-    void EnableAudio(bool enabled);
-    bool VideoEnabled(void);
-    void EnableVideo(bool enabled);
-
-    /* MPEG actions */
-    void Loop(bool toggle);
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
-    virtual void Play(void);
-    void Stop(void);
-    void Rewind(void);
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
-    virtual void Pause(void);
-    virtual void Seek(int bytes);
-    void Skip(float seconds);
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
-    MPEGstatus GetStatus(void);
-    void GetSystemInfo(MPEG_SystemInfo *info);
-
-    /* MPEG audio actions */
-    bool GetAudioInfo(MPEG_AudioInfo *info);
-    void Volume(int vol);
-    bool WantedSpec(SDL_AudioSpec *wanted);
-    void ActualSpec(const SDL_AudioSpec *actual);
-    MPEGaudio *GetAudio(void);
-
-    /* MPEG video actions */
-    bool GetVideoInfo(MPEG_VideoInfo *info);
-    bool SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
-		                 MPEG_DisplayCallback callback);
-    void MoveDisplay(int x, int y);
-    void ScaleDisplayXY(int w, int h);
-    void SetDisplayRegion(int x, int y, int w, int h);
-    void RenderFrame(int frame);
-    void RenderFinal(SDL_Surface *dst, int x, int y);
-    SMPEG_Filter * Filter(SMPEG_Filter * filter);
-
-public:
     /* We need to have separate audio and video streams */
     MPEGstream * audiostream;
     MPEGstream * videostream;
 
     MPEGsystem * system;
 
-protected:
     char *mpeg_mem;       // Used to copy MPEG passed in as memory
     SDL_RWops *source;
     MPEGaudioaction *audioaction;
@@ -128,8 +74,49 @@ protected:
     bool loop;
     bool pause;
 
-    void parse_stream_list();
-    bool seekIntoStream(int position);
+    MPEGerror *err;
 };
+
+MPEG *MPEG_create();
+MPEG *MPEG_create_file(const char *path, bool SDLaudio);
+MPEG *MPEG_create_fd(int Mpeg_FD, bool SDLaudio);
+MPEG *MPEG_create_mem(void *data, int size, bool SDLaudio);
+MPEG *MPEG_create_rwops(SDL_RWops *mpeg_source, bool SDLaudio);
+void MPEG_destroy(MPEG *self);
+
+void MPEG_Init(MPEG *self, SDL_RWops *mpeg_source, bool SDLaudio);
+void MPEG_InitErrorState(MPEG *self);
+
+bool MPEG_AudioEnabled(MPEG *self);
+void MPEG_EnableAudio(MPEG *self, bool enabled);
+bool MPEG_VideoEnabled(MPEG *self);
+void MPEG_EnableVideo(MPEG *self, bool enabled);
+
+void MPEG_Loop(MPEG *self, bool toggle);
+void MPEG_Play(MPEG *self);
+void MPEG_Stop(MPEG *self);
+void MPEG_Rewind(MPEG *self);
+void MPEG_Pause(MPEG *self);
+
+void MPEG_Skip(MPEG *self, float seconds);
+void MPEG_Seek(MPEG *self, int bytes);
+MPEGstatus MPEG_GetStatus(MPEG *self);
+void MPEG_GetSystemInfo(MPEG *self, MPEG_SystemInfo *info);
+
+bool MPEG_GetAudioInfo(MPEG *self, MPEG_AudioInfo *info);
+void MPEG_Volume(MPEG *self, int vol);
+bool MPEG_WantedSpec(MPEG *self, SDL_AudioSpec *wanted);
+void MPEG_ActualSpec(MPEG *self, const SDL_AudioSpec *actual);
+MPEGaudio *MPEG_GetAudio(MPEG *self);
+
+bool MPEG_GetVideoInfo(MPEG *self, MPEG_VideoInfo *info);
+bool MPEG_SetDisplay(MPEG *self, SDL_Surface *dst, SDL_Mutex *lock,
+		     MPEG_DisplayCallback callback);
+void MPEG_MoveDisplay(MPEG *self, int x, int y);
+void MPEG_ScaleDisplayXY(MPEG *self, int w, int h);
+void MPEG_SetDisplayRegion(MPEG *self, int x, int y, int w, int h);
+void MPEG_RenderFrame(MPEG *self, int frame);
+void MPEG_RenderFinal(MPEG *self, SDL_Surface *dst, int x, int y);
+SMPEG_Filter * MPEG_Filter(MPEG *self, SMPEG_Filter * filter);
 
 #endif /* _MPEG_H_ */
