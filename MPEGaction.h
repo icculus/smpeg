@@ -36,6 +36,7 @@ public:
         playing = false;
         paused = false;
         looping = false;
+	play_time = 0.0;
     }
     virtual void Loop(bool toggle) {
         looping = toggle;
@@ -106,7 +107,7 @@ public:
     virtual bool SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
                                 MPEG_DisplayCallback callback) = 0;
     virtual void MoveDisplay(int x, int y) = 0;
-    virtual void DoubleDisplay(bool toggle) = 0;
+    virtual void ScaleDisplay(int scale) = 0;
     virtual void RenderFrame(int frame, SDL_Surface *dst, int x, int y) = 0;
     virtual void RenderFinal(SDL_Surface *dst, int x, int y) = 0;
 protected:

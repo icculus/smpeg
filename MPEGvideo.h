@@ -59,7 +59,7 @@ public:
     bool SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
                                             MPEG_DisplayCallback callback);
     void MoveDisplay(int x, int y);
-    void DoubleDisplay(bool toggle);
+    void ScaleDisplay(int scale);
     void RenderFrame(int frame, SDL_Surface *dst, int x, int y);
     void RenderFinal(SDL_Surface *dst, int x, int y);
 
@@ -78,7 +78,7 @@ protected:
 
     MPEG_DisplayCallback _callback;
 
-    int _double;        // play back at double size
+    int _scale;         // play back at '_scale' size
     int _w;             // width of movie
     int _h;             // height of movie
     int _x;             // pixel x offset

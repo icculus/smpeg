@@ -445,6 +445,7 @@ static void gtv_double( GtkWidget* item, gpointer raw )
 {
     SMPEG* mpeg = NULL;
     SDL_Surface* sdl_screen = NULL;
+    int scale = 1;
 
     assert( raw );
 
@@ -460,6 +461,7 @@ static void gtv_double( GtkWidget* item, gpointer raw )
 
 	if( active ) {
 	    SMPEG_move( mpeg, 0, 0 );
+	    scale = 2;
 	} else {
 	    SMPEG_Info* info = NULL;
 
@@ -468,9 +470,10 @@ static void gtv_double( GtkWidget* item, gpointer raw )
 	    SMPEG_move( mpeg,
 			( sdl_screen->w - info->width ) / 2,
 			( sdl_screen->h - info->height ) / 2 );
+	    scale = 1;
 	}
 
-	SMPEG_double( mpeg, active );
+	SMPEG_scale( mpeg, scale );
 	gtv_clear_screen( raw );
     }
 

@@ -27,12 +27,13 @@ void usage(char *argv0)
     printf(
 "Usage: %s [options] file ...\n"
 "Where the options are one of:\n"
-"	--noaudio	Don't play audio stream\n"
-"	--novideo	Don't play video stream\n"
-"	--fullscreen	Play MPEG in fullscreen mode\n"
-"	--double or -2	Play MPEG at double size\n"
-"	--loop or -l	Play MPEG over and over\n"
-"	--volume N or -v N Set audio volume to N (0-100)\n", argv0);
+"	--noaudio	     Don't play audio stream\n"
+"	--novideo	     Don't play video stream\n"
+"	--fullscreen	     Play MPEG in fullscreen mode\n"
+"	--double or -2	     Play MPEG at double size\n"
+"	--loop or -l	     Play MPEG over and over\n"
+"	--volume N or -v N   Set audio volume to N (0-100)\n"
+"	--scale S or -s S    Play MPEG at size S (1-)\n", argv0);
 }
 
 void update(SDL_Surface *screen, Sint32 x, Sint32 y, Uint32 w, Uint32 h)
@@ -50,9 +51,9 @@ int main(int argc, char *argv[])
     int video_bpp;
     int use_audio, use_video;
     int fullscreen;
-    int doublesize;
+    int scalesize;
     int loop_play;
-    int i, done;
+    int i, done, pause;
     int volume;
     SMPEG *mpeg;
     SMPEG_Info info;
@@ -68,7 +69,7 @@ int main(int argc, char *argv[])
     use_audio = 1;
     use_video = 1;
     fullscreen = 0;
-    doublesize = 0;
+    scalesize = 1;
     loop_play = 0;
     volume = 100;
     for ( i=1; argv[i] && (argv[i][0] == '-'); ++i ) {
@@ -82,7 +83,7 @@ int main(int argc, char *argv[])
             fullscreen = 1;
         } else
         if ((strcmp(argv[i], "--double") == 0)||(strcmp(argv[i], "-2") == 0)) {
-            doublesize = 1;
+            scalesize = 2;
         } else
         if ((strcmp(argv[i], "--loop") == 0) || (strcmp(argv[i], "-l") == 0)) {
             loop_play = 1;
@@ -92,6 +93,23 @@ int main(int argc, char *argv[])
             if ( argv[i] ) {
                 volume = atoi(argv[i]);
             }
+	    if ( ( volume < 0 ) || ( volume > 100 ) ) {
+	      fprintf(stderr, "Volume must be between 0 and 100\n");
+	      volume = 100;
+	    }
+        } else
+        if ((strcmp(argv[i], "--scale") == 0)||(strcmp(argv[i], "-s") == 0)) {
+            ++i;
+            if ( argv[i] ) {
+                scalesize = atoi(argv[i]);
+            }
+	    if (( scalesize < 1 ) || ( scalesize > 2)) {
+	      fprintf(stderr, "Scale must be 1 or 2 (work in progress)\n");
+              if ( scalesize < 1 )
+	          scalesize = 1;
+              else
+	          scalesize = 2;
+	    }
         } else
         if ((strcmp(argv[i], "--help") == 0) || (strcmp(argv[i], "-h") == 0)) {
             usage(argv[0]);
@@ -153,20 +171,19 @@ int main(int argc, char *argv[])
         if ( info.has_video && use_video ) {
             SDL_Surface *screen;
             Uint32 video_flags;
+            int width, height;
 
-            if ( doublesize ) {
-                SMPEG_double(mpeg, 1);
-                info.width *= 2;
-                info.height *= 2;
-            }
+            SMPEG_scale(mpeg, scalesize);
+            width = info.width * scalesize;
+            height = info.height * scalesize;
             video_flags = SDL_SWSURFACE;
             if ( fullscreen ) {
                 video_flags = SDL_FULLSCREEN|SDL_DOUBLEBUF|SDL_HWSURFACE;
             }
-            screen = SDL_SetVideoMode(info.width, info.height, video_bpp, video_flags);
+            screen = SDL_SetVideoMode(width, height, video_bpp, video_flags);
             if ( screen == NULL ) {
                 fprintf(stderr, "Unable to set %dx%d video mode: %s\n",
-                                info.width, info.height, SDL_GetError());
+                                	width, height, SDL_GetError());
                 continue;
             }
             if ( screen->flags & SDL_FULLSCREEN ) {
@@ -183,15 +200,88 @@ int main(int argc, char *argv[])
         /* Play it, and wait for playback to complete */
         SMPEG_play(mpeg);
         done = 0;
-        while ( ! done && (SMPEG_status(mpeg) == SMPEG_PLAYING) ) {
+	pause = 0;
+        while ( ! done && ( pause || (SMPEG_status(mpeg) == SMPEG_PLAYING) ) ) {
             SDL_Event event;
 
             while ( SDL_PollEvent(&event) ) {
                 switch (event.type) {
                     case SDL_KEYDOWN:
-                        if ( event.key.keysym.sym == SDLK_ESCAPE ) {
-                            done = 1;
-                        }
+                        if ( (event.key.keysym.sym == SDLK_ESCAPE) || (event.key.keysym.sym == SDLK_q) ) {
+			  // Quit
+			  done = 1;
+                        } else if ( event.key.keysym.sym == SDLK_UP ) {
+			  // Volume up
+			  if ( volume < 100 ) {
+			    if ( SDL_GetModState() & KMOD_SHIFT ) {       // 10+
+			      volume += 10;
+			    } else if ( SDL_GetModState() & KMOD_CTRL ) { // 100+
+			      volume = 100;
+			    } else {                                      // 1+
+			      volume++;
+			    }
+			    if ( volume > 100 ) 
+			      volume = 100;
+			    SMPEG_setvolume(mpeg, volume);
+			  }
+                        } else if ( event.key.keysym.sym == SDLK_DOWN ) {
+			  // Volume down
+			  if ( volume > 0 ) {
+			    if ( SDL_GetModState() & KMOD_SHIFT ) {
+			      volume -= 10;
+			    } else if ( SDL_GetModState() & KMOD_CTRL ) {
+			      volume = 0;
+			    } else {
+			      volume--;
+			    }
+			    if ( volume < 0 ) 
+			      volume = 0;
+			    SMPEG_setvolume(mpeg, volume);
+			  }
+                        } else if ( event.key.keysym.sym == SDLK_PAGEUP ) {
+			  // Full volume
+			  volume = 100;
+			  SMPEG_setvolume(mpeg, volume);
+                        } else if ( event.key.keysym.sym == SDLK_PAGEDOWN ) {
+			  // Volume off
+			  volume = 0;
+			  SMPEG_setvolume(mpeg, volume);
+                        } else if ( event.key.keysym.sym == SDLK_SPACE ) {
+			  // Toggle play / pause
+			  if ( SMPEG_status(mpeg) == SMPEG_PLAYING ) {
+			    SMPEG_pause(mpeg);
+			    pause = 1;
+			  } else {
+			    SMPEG_play(mpeg);
+			    pause = 0;
+			  }
+			} else if ( event.key.keysym.sym == SDLK_RIGHT ) {
+			  // Forward
+			  if ( SDL_GetModState() & KMOD_SHIFT ) {
+
+			  } else if ( SDL_GetModState() & KMOD_CTRL ) {
+
+			  } else {
+			    
+			  }
+                        } else if ( event.key.keysym.sym == SDLK_LEFT ) {
+			  // Reverse
+			  if ( SDL_GetModState() & KMOD_SHIFT ) {
+
+			  } else if ( SDL_GetModState() & KMOD_CTRL ) {
+
+			  } else {
+
+			  }
+                        } else if ( event.key.keysym.sym == SDLK_KP_MINUS ) {
+			  // Scale minus
+			  if ( scalesize > 1 ) {
+			    scalesize--;
+			  }
+                        } else if ( event.key.keysym.sym == SDLK_KP_PLUS ) {
+			  // Scale plus
+			  scalesize++;
+			}
                         break;
                     case SDL_QUIT:
                         done = 1;

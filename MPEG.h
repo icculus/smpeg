@@ -273,9 +273,9 @@ public:
             videoaction->MoveDisplay(x, y);
         }
     }
-    void DoubleDisplay(bool toggle) {
+    void ScaleDisplay(int scale) {
         if ( VideoEnabled() ) {
-            videoaction->DoubleDisplay(toggle);
+            videoaction->ScaleDisplay(scale);
         }
     }
     void RenderFrame(int frame, SDL_Surface *dst, int x, int y) {
@@ -501,9 +501,9 @@ public:
             mpeg->MoveDisplay(x, y);
         }
     }
-    void DoubleDisplay(bool toggle) {
+    void ScaleDisplay(int scale) {
         if ( mpeg ) {
-            mpeg->DoubleDisplay(toggle);
+            mpeg->ScaleDisplay(scale);
         }
     }
     void RenderFrame(int frame, SDL_Surface *dst, int x, int y) {

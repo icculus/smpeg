@@ -137,7 +137,7 @@ MPEGvideo::MPEGvideo(MPEGstream *stream)
     _thread = NULL;
     _x = 0;
     _y = 0;
-    _double = false;
+    _scale = 1;
     _surf = NULL;
     _mutex = NULL;
     _stream = NULL;
@@ -191,7 +191,6 @@ int Play_MPEGvideo( void *udata )
 
     /* Get the time the playback started */
     mpeg->_stream->realTimeStart = ReadSysClock();
-    mpeg->play_time = 0.0;
 
     while( mpeg->playing )
     {
@@ -213,7 +212,7 @@ int Play_MPEGvideo( void *udata )
             }
         }
     }
-	return(0);
+    return(0);
 }
 
 void
@@ -254,6 +253,8 @@ MPEGvideo:: RewindStream(void)
     ResetVidStream( _stream );
 
     mpeg->reset_stream();
+
+    play_time = 0.0;
 
 #ifdef ANALYSIS 
     init_stats();
@@ -402,9 +403,9 @@ MPEGvideo:: MoveDisplay( int x, int y )
 }
 
 void
-MPEGvideo:: DoubleDisplay( bool toggle )
+MPEGvideo:: ScaleDisplay( int scale )
 {
-    _double = toggle;
+    _scale = scale;
 }
 
 

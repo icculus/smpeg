@@ -95,8 +95,11 @@ extern void SMPEG_setdisplay(SMPEG* mpeg, SDL_Surface* dst, SDL_mutex* surfLock,
 /* Set or clear looping play on an SMPEG object */
 extern void SMPEG_loop( SMPEG* mpeg, int repeat );
 
-/* Set or clear pixel-doubled display on an SMPEG object */
-extern void SMPEG_double( SMPEG* mpeg, int big );
+/* Scale pixel display on an SMPEG object */
+extern void SMPEG_scale( SMPEG* mpeg, int scale );
+/* */
+#define SMPEG_double(mpeg, on) \
+	SMPEG_scale(mpeg, (on) ? 2 : 1)
 
 /* Move the video display area within the destination surface */
 extern void SMPEG_move( SMPEG* mpeg, int x, int y );
