@@ -103,10 +103,15 @@ protected:
 
     class MPEGsystem * system;
     MPEGlist * br;
+    bool cleareof;
     bool enabled;
     bool looping;
 
     SDL_mutex * mutex;
+
+    /* Get a buffer from the stream */
+    bool next_system_buffer(void);
+
 public:
     /* "pos" where "timestamp" belongs */
     Uint32 timestamp_pos;

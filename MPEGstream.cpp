@@ -31,7 +31,8 @@ MPEGstream::MPEGstream(MPEGsystem * System, Uint8 Streamid)
   system = System;
   streamid = Streamid;
   br = new MPEGlist();
-  
+  cleareof = true;
+
   data = 0;
   stop = 0;
   pos = 0;
@@ -77,6 +78,7 @@ MPEGstream::reset_stream()
   delete newbr;
 
   br = new MPEGlist();
+  cleareof = true;
   data = 0;
   stop = 0;
   pos = 0;
@@ -99,6 +101,28 @@ MPEGstream::rewind_stream()
 }
 
 bool
+MPEGstream:: next_system_buffer(void)
+{
+  bool has_data = true;
+
+  /* No more buffer ? */
+  while(has_data && !br->Next())
+  {
+    SDL_mutexV(mutex);
+    system->RequestBuffer();
+    has_data = system->Wait();
+    SDL_mutexP(mutex);
+  }
+
+  if ( has_data && (br->Size() || cleareof) ) {
+    cleareof = false;
+    br = br->Next();
+    preread_size -= br->Size();
+  }
+  return(has_data);
+}
+
+bool
 MPEGstream:: next_packet(bool recurse, bool update_timestamp)
 {
   SDL_mutexP(mutex);
@@ -106,39 +130,24 @@ MPEGstream:: next_packet(bool recurse, bool update_timestamp)
   /* Unlock current buffer */
   br->Unlock();
 
-  /* No more buffer ? */
-  while(!br->Next())
-  {
-    SDL_mutexV(mutex);
-    system->RequestBuffer();
-    system->Wait();
-    SDL_mutexP(mutex);
-  }
-
-  br = br->Next();
-  preread_size -= br->Size();
-
   /* Check for the end of stream mark */
-  while(eof())
+  next_system_buffer();
+  if(eof())
   {
+    bool system_eof;
+
     if(looping)
     {
-      /* No more buffer ? */
-      while(!br->Next())
-      {
-	/* Then ask the system to read a new buffer */
-	SDL_mutexV(mutex);
-	system->RequestBuffer();
-	system->Wait();
-	SDL_mutexP(mutex);
-      }
-
-      /* Skip the eof mark */
-      br = br->Next();
-      preread_size -= br->Size();
+      do {
+        cleareof = true;
+        system_eof = next_system_buffer();
+      } while(eof() && !system_eof);
     }
     else
     {
+      system_eof = true;
+    }
+    if ( system_eof ) {
       /* Report eof */
       SDL_mutexV(mutex);
       return(false);

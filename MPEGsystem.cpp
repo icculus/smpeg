@@ -1335,14 +1335,17 @@ void MPEGsystem::Stop()
   reset_all_streams();
 }
 
-void MPEGsystem::Wait()
+bool MPEGsystem::Wait()
 {
-  while(SDL_SemValue(request_wait) != 0)
+  if ( ! errorstream ) {
+    while(SDL_SemValue(request_wait) != 0)
 #ifdef USE_SYSTEM_THREAD
-    SDL_Delay(1);
+      SDL_Delay(1);
 #else
-    if ( ! SystemLoop(this) ) break;
+      if ( ! SystemLoop(this) ) break;
 #endif
+  }
+  return(!errorstream);
 }
 
 bool MPEGsystem::Eof() const

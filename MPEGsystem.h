@@ -25,7 +25,7 @@ public:
 
     /* Buffered I/O functions */
     void RequestBuffer();
-    void Wait();
+    bool Wait();
     Uint32 Tell();
     void Rewind();
     void Loop(bool toggle);
