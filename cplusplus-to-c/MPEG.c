@@ -339,7 +339,6 @@ METH(Pause) (_THIS)
   }
 }
 
-/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
 MPEGstatus
 METH(GetStatus) (_THIS)
 {
@@ -347,7 +346,6 @@ METH(GetStatus) (_THIS)
 
   status = MPEG_STOPPED;
   if ( METH(VideoEnabled)(self) ) {
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
 //    switch (videoaction->GetStatus()) { /* XXX */
 //    switch (MPEGvideo_GetStatus(self->videoaction)) {
 //    switch (self->videoaction->GetStatus(self->videoaction)) {
@@ -361,7 +359,6 @@ METH(GetStatus) (_THIS)
     }
   }
   if ( METH(AudioEnabled) (self) ) {
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
 //    switch (audioaction->GetStatus()) { /* XXX */
 //    switch (MPEGaudio_GetStatus(self->audioaction)) {
 //    switch (self->audioaction->GetStatus(self->audioaction)) {
@@ -384,7 +381,6 @@ METH(GetStatus) (_THIS)
     METH(Play) (self);
 
     if ( METH(VideoEnabled) (self) ) {
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
 //      switch (videoaction->GetStatus()) { /* XXX */
 //      switch (MPEGvideo_GetStatus(self->videoaction)) {
 //      switch (self->videoaction->GetStatus(self->videoaction)) {
@@ -398,7 +394,6 @@ METH(GetStatus) (_THIS)
       }
     }
     if ( METH(AudioEnabled) (self) ) {
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
 //      switch (audioaction->GetStatus()) { /* XXX */
 //      switch (MPEGaudio_GetStatus(self->audioaction)) {
 //      switch (self->audioaction->GetStatus(self->audioaction)) {
@@ -574,7 +569,6 @@ METH(Seek) (_THIS, int position)
 //  if((Uint32)self->position > system->TotalSize()) return; /* XXX */
   if((Uint32)position > MPEGsystem_TotalSize(self->system)) return;
   
-	/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
   /* get info whrether we need to restart playing at the end */
 //  if( GetStatus() == MPEG_PLAYING ) /* XXX */
   if (METH(GetStatus) (self) == MPEG_PLAYING)
