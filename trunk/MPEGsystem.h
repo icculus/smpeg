@@ -2,7 +2,6 @@
 
 #ifndef _MPEGSYSTEM_H_
 #define _MPEGSYSTEM_H_
-#define USE_SYSTEM_TIMESTAMP
 
 #include "SDL.h"
 #include "SDL_thread.h"
@@ -28,12 +27,19 @@ public:
     void Rewind();
     void Loop(bool toggle);
     bool Eof() const;
-    double Seek(int length);
-    /* Skip "seconds" seconds */
-    void Skip(double seconds);
 
     /* Create all the streams present in the MPEG */
     MPEGstream ** GetStreamList();
+
+protected:
+    /* Fill a buffer */
+    Uint8 FillBuffer();
+
+    /* Read a new packet */
+    void Read();
+
+    /* The system thread which fills the FIFO */
+    static int SystemThread(void * udata);
 
     /* Insert a stream in the list */
     void add_stream(MPEGstream * stream);
@@ -55,16 +61,6 @@ public:
 
     /* Seek the next header */
     bool seek_next_header();
-
-protected:
-    /* Fill a buffer */
-    Uint8 FillBuffer();
-
-    /* Read a new packet */
-    void Read();
-
-    /* The system thread which fills the FIFO */
-    static int SystemThread(void * udata);
 
     int mpeg_fd;
 
@@ -88,7 +84,6 @@ protected:
     /* Current timestamp for this stream */
     double timestamp;
     double timedrift;
-    double skip_timestamp;
 #endif
 };
 #endif

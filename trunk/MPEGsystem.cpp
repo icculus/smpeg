@@ -39,8 +39,11 @@ Uint8 const PICTURE_MASK[]      = { 0xff, 0xff, 0xff, 0x00 };
 
 /* The size is arbitrary but should be sufficient to contain */
 /* two MPEG packets and reduce disk (or network) access.     */
-// Hiroshi Yamashita notes that the original size was too large
-#define MPEG_BUFFER_SIZE (16 * 1024) 
+#if 0 // Hiroshi Yamashita notes that the original size was too large
+#define MPEG_BUFFER_SIZE (64 * 1024)
+#else
+#define MPEG_BUFFER_SIZE (16 * 1024)
+#endif
 
 /* The granularity (2^LG2_GRANULARITY) determine what length of read data */
 /* will be a multiple of, e.g. setting LG2_GRANULARITY to 12 will make    */
@@ -102,7 +105,6 @@ MPEGsystem::MPEGsystem(int Mpeg_FD)
 #ifdef USE_SYSTEM_TIMESTAMP
   timestamp = 0.0;
   timedrift = 0.0;
-  skip_timestamp = 0.0;
 #endif
 
   /* Search the MPEG for the first header */
@@ -404,19 +406,6 @@ Uint8 MPEGsystem::FillBuffer()
 
   assert(packet_size <= MPEG_BUFFER_SIZE);
 
-  if(skip_timestamp > timestamp){
-    int cur_seconds=int(timestamp)%60;
-
-    if (cur_seconds%5==0){
-      fprintf(stderr, "Skiping to %02d:%02d (%02d:%02d)\r",
-              int(skip_timestamp)/60, int(skip_timestamp)%60,
-              int(timestamp)/60, cur_seconds);
-    }
-    pointer += packet_size;
-    /* since we skip data, request more */
-    RequestBuffer();
-    return (1);
-  }
   switch(stream_id)
   {
     case 0:
@@ -484,16 +473,10 @@ Uint8 MPEGsystem::FillBuffer()
       }
 
       /* Insert the new data at the end of the stream */
-      stream->insert_packet(pointer, packet_size, timestamp);
+      stream->insert_packet(pointer, packet_size);
       pointer += packet_size;
     return(stream_id);
   }
-}
-void MPEGsystem::Skip(double time)
-{
-  if (skip_timestamp < timestamp)
-    skip_timestamp = timestamp;
-  skip_timestamp += time;
 }
 
 Uint32 MPEGsystem::Tell()
@@ -504,11 +487,6 @@ Uint32 MPEGsystem::Tell()
 
 void MPEGsystem::Rewind()
 {
-  Seek(0);
-}
-
-double MPEGsystem::Seek(int length)
-{
   request = 0;
 
   /* Force the system thread to die */
@@ -518,15 +496,15 @@ double MPEGsystem::Seek(int length)
   /* Reset the streams */
   reset_all_streams();
 
-  /* Get into the stream */
-  if(lseek(mpeg_fd, length, SEEK_SET) == (off_t) -1)
+  /* Get back to the beginning of the stream */
+  if(lseek(mpeg_fd, 0, SEEK_SET) == (long) -1)
   {
     if(errno != ESPIPE)
     {
       errorstream = true;
       SetError(strerror(errno));
     }
-    return (0);
+    return;
   }
 
   /* Reinitialize the read buffer */
@@ -542,7 +520,7 @@ double MPEGsystem::Seek(int length)
   {
     errorstream = true;
     SetError("Could not find the beginning of MPEG data\n");
-    return (0);
+    return;
   }
 
   request = PRE_BUFFERED_MAX;
@@ -558,10 +536,6 @@ double MPEGsystem::Seek(int length)
   while(request > 0 && !Eof())
     SDL_Delay(1);
 
-  /* Get current play time */
-  FillBuffer();
-
-  return(timestamp);
 }
 
 void MPEGsystem::Loop(bool toggle)
@@ -634,7 +608,7 @@ int MPEGsystem::SystemThread(void * udata)
     if(system->request > 0)
     {
       /* Read the buffer */
-      while (system->FillBuffer()==1) {};
+      system->FillBuffer();
       delay >>= 1;
     }
     else

@@ -210,13 +210,7 @@ void SMPEG_rewind( SMPEG* mpeg )
 /* Skip 'seconds' seconds of the MPEG */
 void SMPEG_skip( SMPEG* mpeg, float seconds )
 {
-  mpeg->obj->Skip(seconds);
-}
-
-/* Seek 'bytes' bytes of the MPEG */
-void SMPEG_seek( SMPEG* mpeg, int bytes )
-{
-  mpeg->obj->Seek(bytes);
+    mpeg->obj->Skip(seconds);
 }
 
 /* Render a particular frame in the MPEG video */

@@ -139,7 +139,6 @@ inline double CurrentTime( VidStream* vid_stream )
     } else {
         now = ReadSysClock() - vid_stream->realTimeStart;
     }
-
     return now;
 }
 
@@ -171,13 +170,7 @@ int timeSync( VidStream* vid_stream )
     }
 
     /* Update the current play time */
-    if(vid_stream->timestamp == -1) vid_stream->timestamp_used = true;
-    if(vid_stream->timestamp_mark < vid_stream->buffer 
-       && !vid_stream->timestamp_used){
-       mpeg->play_time = vid_stream->timestamp;
-       vid_stream->timestamp_used = true;
-    } else
-       mpeg->play_time += vid_stream->_oneFrameTime;
+    mpeg->play_time += vid_stream->_oneFrameTime;
 
     /* If we are looking for a particular frame... */
     if( vid_stream->_jumpFrame > -1 )
@@ -203,8 +196,9 @@ int timeSync( VidStream* vid_stream )
 
         /* Calculate the frame time relative to real time */
         time_behind = CurrentTime(vid_stream) - mpeg->Time();
+
 #ifdef DEBUG_MPEG_SCHEDULING
-printf("Frame %d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, mpeg->Time(), CurrentTime(vid_stream), time_behind);
+//printf("Frame %d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, mpeg->Time(), CurrentTime(vid_stream), time_behind);
 #endif
 
         /* Allow up to MAX_FUDGE_TIME of delay in output */

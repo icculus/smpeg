@@ -304,12 +304,6 @@ typedef struct vid_stream {
   int timestamp_index;
 #endif
 /* SL - end of added variables */
-/* begining of added variables for system stream based sync */
-  double timestamp;
-  unsigned int *timestamp_mark;
-  bool timestamp_used;
-/* begining of added variables */
-
 
 } VidStream;   
 
