@@ -1,4 +1,6 @@
 current:
+Ryan C. Gordon - Fri Feb 14 21:02:00 EST 2003
+ * Memory leak fix that I missed from before (thanks, Pete Shinners).
 Ryan C. Gordon - Sat Jan 25 19:20:58 EST 2003
  * Memory leak fixes from NUNOKAWA Masato and Robert Diel.
 Ryan C. Gordon - Wed Dec 18 16:47:52 EST 2002
