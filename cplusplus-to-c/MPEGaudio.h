@@ -165,7 +165,9 @@ typedef struct Mpegbitwindow Mpegbitwindow;
 #undef METH
 #define METH(name) Mpegbitwindow_##name
 //  Mpegbitwindow(){bitindex=point=0;};
-#define Mpegbitwindow_create() (calloc(sizeof(struct Mpegbitwindow)))
+//#define Mpegbitwindow_create() (Mpegbitwindow*)(calloc(sizeof(struct Mpegbitwindow)))
+Mpegbitwindow * METH(new) (_THIS);
+Mpegbitwindow * METH(init) (_THIS);
 
 //  void initialize(void)  {bitindex=point=0;};
 #define Mpegbitwindow_initialize(self) (self->bitindex = self->point = 0)
@@ -191,11 +193,13 @@ void METH(wrap) (_THIS);
 //      bitindex++;
 //      return r;
 //  }
+#if 0
 inline static int METH(getbit) (_THIS self) {
   register int r=(self->buffer[self->bitindex>>3]>>(7-(self->bitindex&7)))&1;
   self->bitindex++;
   return r;
 }
+#endif /* 0 */
 
 //  int getbits9(int bits)
 //  {
@@ -208,6 +212,7 @@ inline static int METH(getbit) (_THIS self) {
 //      bitindex+=bits;
 //      return (int)((unsigned int)(a>>(16-bits)));
 //  }
+#if 0
 inline static int METH(getbits9) (_THIS self, int bits)
 {
   register unsigned short a;
@@ -219,6 +224,7 @@ inline static int METH(getbits9) (_THIS self, int bits)
   self->bitindex+=bits;
   return (int)((unsigned int)(a>>(16-bits)));
 }
+#endif /* 0 */
 
 
 int METH(getbits) (_THIS self, int bits);
@@ -451,12 +457,22 @@ public:
 
 
 
+enum MPEGaudio_mpegversion  {mpeg1,mpeg2};
+typedef enum MPEGaudio_mpegversion MPEGaudio_mpegversion;
+
+enum MPEGaudio_mode    {fullstereo,joint,dual,single};
+typedef enum MPEGaudio_mode MPEGaudio_mode;
+
+enum MPEGaudio_frequency {frequency44100,frequency48000,frequency32000};
+typedef enum MPEGaudio_frequency MPEGaudio_frequency;
+
+
 
 /* MPEG audio state information. */
 
 struct MPEGaudio {
-//  struct MPEGerror MPEGerror;
-//  struct MPEGaudioaction MEPGaudioaction;
+  MPEGerror *error;
+  MPEGaudioaction *audioaction;
 
     bool sdl_audio;
     struct MPEGstream *mpeg;
@@ -488,9 +504,9 @@ struct MPEGaudio {
   /*************************/
   int last_speed;
   int layer,protection,bitrateindex,padding,extendedmode;
-  enum _mpegversion  {mpeg1,mpeg2}                               version;
-  enum _mode    {fullstereo,joint,dual,single}                   mode;
-  enum _frequency {frequency44100,frequency48000,frequency32000} frequency;
+  enum MPEGaudio_mpegversion   version;
+  enum MPEGaudio_mode          mode;
+  enum MPEGaudio_frequency     frequency;
 
   /***************************************/
   /* Interface for setting music quality */
@@ -624,7 +640,7 @@ void METH(destroy) (_THIS);
 
 /* MPEG actions */
 bool METH(GetAudioInfo) (_THIS, MPEG_AudioInfo *info);
-double METH(Time) (void);
+double METH(Time) (_THIS);
 void METH(Play) (_THIS);
 void METH(Stop) (_THIS);
 void METH(Rewind) (_THIS);
@@ -751,6 +767,27 @@ void METH(huffmandecoder_2) (_THIS, const HUFFMANCODETABLE *h,int *x,int *y,int 
   /********************/
   /* Playing raw data */
   /********************/
+
+
+
+
+
+
+
+  /*****************************/
+  /* Constant tables for layer */
+  /*****************************/
+/* XXX: SHIT */
+const int MPEGaudio_bitrate[2][3][15],
+          MPEGaudio_frequencies[2][3];
+const REAL MPEGaudio_scalefactorstable[64];
+const HUFFMANCODETABLE MPEGaudio_ht[HTN];
+const REAL MPEGaudio_filter[512];
+REAL MPEGaudio_hcos_64[16],
+     MPEGaudio_hcos_32[8],
+     MPEGaudio_hcos_16[4],
+     MPEGaudio_hcos_8[2],
+     MPEGaudio_hcos_4;
 
 
 

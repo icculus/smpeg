@@ -74,8 +74,10 @@ struct MPEG
     bool loop;
     bool pause;
 
-    MPEGerror *err;
+    struct MPEGerror *MPEGerror;
 };
+
+typedef struct MPEG MPEG;
 
 MPEG *MPEG_create();
 MPEG *MPEG_create_file(const char *path, bool SDLaudio);
@@ -110,7 +112,7 @@ void MPEG_ActualSpec(MPEG *self, const SDL_AudioSpec *actual);
 MPEGaudio *MPEG_GetAudio(MPEG *self);
 
 bool MPEG_GetVideoInfo(MPEG *self, MPEG_VideoInfo *info);
-bool MPEG_SetDisplay(MPEG *self, SDL_Surface *dst, SDL_Mutex *lock,
+bool MPEG_SetDisplay(MPEG *self, SDL_Surface *dst, SDL_mutex *lock,
 		     MPEG_DisplayCallback callback);
 void MPEG_MoveDisplay(MPEG *self, int x, int y);
 void MPEG_ScaleDisplayXY(MPEG *self, int w, int h);

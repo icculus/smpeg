@@ -118,6 +118,9 @@ typedef struct MPEGaction {
 MPEGaction *MPEGaction_init(_THIS);
 MPEGaction *MPEGaction_new();
 
+typedef struct MPEGaction MPEGaudioaction;
+typedef struct MPEGaction MPEGvideoaction;
+
 
 /*
 Pure virtuals:
