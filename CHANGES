@@ -1,4 +1,7 @@
 0.4.0:
+Sam Lantinga - Fri Apr 14 13:21:51 PDT 2000
+ * Added support for SDL asynchronous blitting
+ * Added support for FPS printing - see TIME_MPEG in video/MPEGvideo.cpp
 Hiroshi Yamashita - Tue Apr 11 13:00:01 PDT 2000
  * Tuned MPEG_BUFFER_SIZE for slower systems.
 Atsushi Yamagata - Tue Apr 11 12:50:45 PDT 2000

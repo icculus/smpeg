@@ -323,7 +323,7 @@ int main(int argc, char *argv[])
             switch (video_info->vfmt->BitsPerPixel) {
                 case 16:
                 case 32:
-                    video_bpp = 32; //video_info->vfmt->BitsPerPixel;
+                    video_bpp = video_info->vfmt->BitsPerPixel;
                     break;
                 default:
                     video_bpp = 16;
@@ -335,6 +335,7 @@ int main(int argc, char *argv[])
             if ( fullscreen ) {
                 video_flags = SDL_FULLSCREEN|SDL_DOUBLEBUF|SDL_HWSURFACE;
             }
+            video_flags |= SDL_ASYNCBLIT;
             screen = SDL_SetVideoMode(width, height, video_bpp, video_flags);
             if ( screen == NULL ) {
                 fprintf(stderr, "Unable to set %dx%d video mode: %s\n",

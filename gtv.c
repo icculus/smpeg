@@ -183,8 +183,21 @@ static void gtv_open_file( gchar* name, gpointer raw )
 
     if( info->has_video ) {
 	SDL_Surface* sdl_screen = NULL;
+        const SDL_VideoInfo *video_info;
+        int video_bpp;
 
-	sdl_screen = SDL_SetVideoMode( info->width * 2, info->height * 2, 16, 0 );
+        /* Get the "native" video mode */
+        video_info = SDL_GetVideoInfo();
+        switch (video_info->vfmt->BitsPerPixel) {
+            case 16:
+            case 32:
+                video_bpp = video_info->vfmt->BitsPerPixel;
+                break;
+            default:
+                video_bpp = 16;
+                break;
+        }
+	sdl_screen = SDL_SetVideoMode( info->width * 2, info->height * 2, video_bpp, SDL_ASYNCBLIT );
 	SMPEG_setdisplay( mpeg, sdl_screen, NULL, NULL );
 	gtk_object_set_data( GTK_OBJECT( raw ), "sdl_screen", sdl_screen );
 	gtv_double( NULL, raw );

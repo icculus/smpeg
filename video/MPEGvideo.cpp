@@ -106,7 +106,12 @@ int quietFlag = 1;
                0: as fast as possible
                N (N>0): N frames/sec  
                */
+#define TIME_MPEG
+#ifdef TIME_MPEG
+int framerate = 0;
+#else
 int framerate = -1;
+#endif
 
 /* Flag for high quality at the expense of speed */
 #ifdef QUALITY
@@ -194,6 +199,15 @@ int Play_MPEGvideo( void *udata )
     /* Get the time the playback started */
     mpeg->_stream->realTimeStart += ReadSysClock();
 
+#ifdef TIME_MPEG
+    int start_frames, stop_frames;
+    int total_frames;
+    Uint32 start_time, stop_time;
+    float total_time;
+
+    start_frames = mpeg->_stream->totNumFrames;
+    start_time = SDL_GetTicks();
+#endif
     while( mpeg->playing )
     {
         int mark = mpeg->_stream->totNumFrames;
@@ -209,6 +223,16 @@ int Play_MPEGvideo( void *udata )
 	  mpeg->playing = false;
         }
     }
+#ifdef TIME_MPEG
+    stop_time = SDL_GetTicks();
+    stop_frames = mpeg->_stream->totNumFrames;
+    total_frames = (stop_frames-start_frames);
+    total_time = (float)(stop_time-start_time)/1000.0;
+    if ( total_time > 0 ) {
+        printf("%d frames in %2.2f seconds (%2.2f FPS)\n",
+               total_frames, total_time, (float)total_frames/total_time);
+    }
+#endif
     return(0);
 }
 
