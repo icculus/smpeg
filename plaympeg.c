@@ -84,6 +84,7 @@ int main(int argc, char *argv[])
     int i, done, pause;
     int volume;
     float skip;
+    SDL_Surface *screen;
     SMPEG *mpeg;
     SMPEG_Info info;
     char *basefile;
@@ -301,7 +302,6 @@ int main(int argc, char *argv[])
         /* Set up video display if needed */
         if ( info.has_video && use_video ) {
             const SDL_VideoInfo *video_info;
-            SDL_Surface *screen;
             Uint32 video_flags;
             int video_bpp;
             int width, height;
@@ -334,6 +334,7 @@ int main(int argc, char *argv[])
                 video_flags = SDL_FULLSCREEN|SDL_DOUBLEBUF|SDL_HWSURFACE;
             }
             video_flags |= SDL_ASYNCBLIT;
+            video_flags |= SDL_RESIZABLE;
             screen = SDL_SetVideoMode(width, height, video_bpp, video_flags);
             if ( screen == NULL ) {
                 fprintf(stderr, "Unable to set %dx%d video mode: %s\n",
@@ -343,8 +344,8 @@ int main(int argc, char *argv[])
             if ( screen->flags & SDL_FULLSCREEN ) {
                 SDL_ShowCursor(0);
             }
-            SMPEG_scaleXY(mpeg, screen->w, screen->h);
             SMPEG_setdisplay(mpeg, screen, NULL, update);
+            SMPEG_scaleXY(mpeg, screen->w, screen->h);
         }
 
         /* Set any special playback parameters */
@@ -364,18 +365,33 @@ int main(int argc, char *argv[])
 
             while ( use_video && SDL_PollEvent(&event) ) {
                 switch (event.type) {
+                    case SDL_VIDEORESIZE: {
+                        SDL_Surface *old_screen = screen;
+                        SMPEG_pause(mpeg);
+                        screen = SDL_SetVideoMode(event.resize.w, event.resize.h, screen->format->BitsPerPixel, screen->flags);
+			if ( old_screen != screen ) {
+                            SMPEG_setdisplay(mpeg, screen, NULL, update);
+                        }
+                        SMPEG_scaleXY(mpeg, screen->w, screen->h);
+                        SMPEG_pause(mpeg);
+                    } break;
                     case SDL_KEYDOWN:
                         if ( (event.key.keysym.sym == SDLK_ESCAPE) || (event.key.keysym.sym == SDLK_q) ) {
 			  // Quit
 			  done = 1;
+                        } else if ( event.key.keysym.sym == SDLK_RETURN ) {
+			  // toggle fullscreen
+			  if ( event.key.keysym.mod & KMOD_ALT ) {
+                            SDL_WM_ToggleFullScreen(screen);
+                          }
                         } else if ( event.key.keysym.sym == SDLK_UP ) {
 			  // Volume up
 			  if ( volume < 100 ) {
-			    if ( SDL_GetModState() & KMOD_SHIFT ) {       // 10+
+			    if ( event.key.keysym.mod & KMOD_SHIFT ) {   // 10+
 			      volume += 10;
-			    } else if ( SDL_GetModState() & KMOD_CTRL ) { // 100+
+			    } else if ( event.key.keysym.mod & KMOD_CTRL ) { // 100+
 			      volume = 100;
-			    } else {                                      // 1+
+			    } else {                                     // 1+
 			      volume++;
 			    }
 			    if ( volume > 100 ) 
@@ -385,9 +401,9 @@ int main(int argc, char *argv[])
                         } else if ( event.key.keysym.sym == SDLK_DOWN ) {
 			  // Volume down
 			  if ( volume > 0 ) {
-			    if ( SDL_GetModState() & KMOD_SHIFT ) {
+			    if ( event.key.keysym.mod & KMOD_SHIFT ) {
 			      volume -= 10;
-			    } else if ( SDL_GetModState() & KMOD_CTRL ) {
+			    } else if ( event.key.keysym.mod & KMOD_CTRL ) {
 			      volume = 0;
 			    } else {
 			      volume--;
@@ -415,18 +431,18 @@ int main(int argc, char *argv[])
 			  }
 			} else if ( event.key.keysym.sym == SDLK_RIGHT ) {
 			  // Forward
-			  if ( SDL_GetModState() & KMOD_SHIFT ) {
+			  if ( event.key.keysym.mod & KMOD_SHIFT ) {
 
-			  } else if ( SDL_GetModState() & KMOD_CTRL ) {
+			  } else if ( event.key.keysym.mod & KMOD_CTRL ) {
 
 			  } else {
 			    
 			  }
                         } else if ( event.key.keysym.sym == SDLK_LEFT ) {
 			  // Reverse
-			  if ( SDL_GetModState() & KMOD_SHIFT ) {
+			  if ( event.key.keysym.mod & KMOD_SHIFT ) {
 
-			  } else if ( SDL_GetModState() & KMOD_CTRL ) {
+			  } else if ( event.key.keysym.mod & KMOD_CTRL ) {
 
 			  } else {
 

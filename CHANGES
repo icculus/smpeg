@@ -1,4 +1,8 @@
 0.4.0:
+Sam Lantinga - Fri Apr 28 15:57:25 PDT 2000
+ * Added support to plaympeg allowing the user to resize the window
+Sam Lantinga - Fri Apr 28 14:22:14 PDT 2000
+ * Added ALT-ENTER fullscreen toggle to plaympeg
 Sam Lantinga - Thu Apr 27 18:22:04 PDT 2000
  * Added support for arbitrary output scaling:
 	new API function SMPEG_scaleXY()
