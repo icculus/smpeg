@@ -24,6 +24,7 @@ libsmpeginclude_HEADERS =	\
 	MPEGaction.h		\
 	MPEGaudio.h		\
 	MPEGerror.h		\
+	MPEGfilter.h		\
 	MPEGring.h		\
 	MPEGlist.h		\
 	MPEGstream.h		\
