@@ -15,7 +15,7 @@ libsmpeg_la_SOURCES =		\
 	MPEG.cpp		\
 	MPEGring.cpp		\
 	MPEGlist.cpp		\
-	MPEGstream.cpp		\
+	MPEGstream.c		\
 	MPEGsystem.cpp		\
 	MPEGfilter.c		\
 	smpeg.cpp

@@ -624,8 +624,8 @@
 		};
 		F8508D4E03AD9BF301A8000A = {
 			isa = PBXFileReference;
-			name = MPEGstream.cpp;
-			path = ../MPEGstream.cpp;
+			name = MPEGstream.c;
+			path = ../MPEGstream.c;
 			refType = 2;
 		};
 		F8508D4F03AD9BF301A8000A = {
