@@ -41,6 +41,7 @@ public:
     virtual bool Seek(int length);
     virtual Uint32 TotalSize();
     virtual double TotalTime();
+    virtual double TimeElapsedAudio(int atByte);
 
     /* Skip "seconds" seconds */
     void Skip(double seconds);
