@@ -456,9 +456,10 @@ MPEGvideo:: SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
                 return false;
             }
         }
+
+        if ( ! InitPictImages(_stream, _w, _h, _dst) )
+            return false;
     }
-    if ( ! InitPictImages(_stream, _w, _h, _dst) )
-        return false;
     return true;
 }
 
