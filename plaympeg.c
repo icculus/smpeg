@@ -458,7 +458,6 @@ void update(SDL_Surface *screen, Sint32 x, Sint32 y, Uint32 w, Uint32 h)
 
 int main(int argc, char *argv[])
 {
-    int video_inited = 0, audio_inited = 0;
     int use_audio, use_video;
     int fullscreen;
     int scalesize;
@@ -475,6 +474,7 @@ int main(int argc, char *argv[])
     SDL_version sdlver;
     SMPEG_version smpegver;
     int fd;
+    char buf[32];
 
     /* Get the command line options */
     use_audio = 1;
@@ -564,26 +564,22 @@ int main(int argc, char *argv[])
     /* Play the mpeg files! */
     for ( ; argv[i]; ++i ) {
 	/* Initialize SDL */
-	if ( !video_inited && use_video ) {
-	  if ( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
+	if ( use_video ) {
+	  if ((SDL_Init(SDL_INIT_VIDEO) < 0) || !SDL_VideoDriverName(buf, 1)) {
 	    fprintf(stderr, "Warning: Couldn't init SDL video: %s\n",
 		    SDL_GetError());
 	    fprintf(stderr, "Will ignore video stream\n");
 	    use_video = 0;
 	  }
-	  else
-	    video_inited = 1;
 	}
 	
-	if ( !audio_inited && use_audio ) {
-	  if ( SDL_Init(SDL_INIT_AUDIO) < 0 ) {
+	if ( use_audio ) {
+	  if ((SDL_Init(SDL_INIT_AUDIO) < 0) || !SDL_AudioDriverName(buf, 1)) {
 	    fprintf(stderr, "Warning: Couldn't init SDL audio: %s\n",
 		    SDL_GetError());
 	    fprintf(stderr, "Will ignore audio stream\n");
 	    use_audio = 0;
 	  }
-	  else
-	    audio_inited = 1;
 	}
 	
         /* Create the MPEG stream */
@@ -700,6 +696,8 @@ int main(int argc, char *argv[])
             }
             SMPEG_setdisplay(mpeg, screen, NULL, update);
             SMPEG_scaleXY(mpeg, screen->w, screen->h);
+        } else {
+            SDL_QuitSubSystem(SDL_INIT_VIDEO);
         }
 
         /* Set any special playback parameters */

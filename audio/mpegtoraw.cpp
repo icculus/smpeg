@@ -356,21 +356,11 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
     /* Increment the current play time (assuming fixed frag size) */
     switch (audio->frags_playing++) {
       // Vivien: Well... the theorical way seems good to me :-)
-#if 1 /* This is how it theoretically should work */
         case 0:        /* The first audio buffer is being filled */
             break;
         case 1:        /* The first audio buffer is starting playback */
             audio->frag_time = SDL_GetTicks();
             break;
-#else /* This works much better (experimentation) */
-        case 0:        /* The first audio buffer is being filled */
-        case 1:        /* The first audio buffer is being filled */
-        case 2:        /* The first audio buffer is being filled */
-            break;
-        case 3:        /* The first audio buffer is starting playback */
-            audio->frag_time = SDL_GetTicks();
-            break;
-#endif
         default:    /* A buffer has completed, filling a new one */
             audio->frag_time = SDL_GetTicks();
             audio->play_time += ((double)len)/audio->rate_in_s;
