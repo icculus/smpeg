@@ -3,6 +3,7 @@
 SOL -	Added autoconf support
 MKV -	Added GTk mpeg player
 MKV -	Added OpenGL mpeg player
+SP  -	Exported the audio mixing function for flexible audio setup
 
 0.2.7:
 SOL -	Added volume change API
@@ -18,4 +19,4 @@ SOL -	Added 32-bpp support, fixed fullscreen offset bug
 Initial Key:
 SOL - Sam Lantinga (hercules@lokigames.com)
 MKV - Michael Vance (briareos@lokigames.com)
-
+SP  - Stephane Peter (megastep@lokigames.com)
