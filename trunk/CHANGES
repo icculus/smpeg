@@ -1,4 +1,6 @@
 0.4.1:
+Ray Kelm - Fri, 04 Aug 2000 20:58:00 -0400
+ * Added support for cross-compiling Windows DLL from Linux
 Joe Valenzuela - Wed Aug  9 12:05:13 PDT 2000
  * Added SMPEG_new_data() to play MPEG data already in memory
 Vivien Chappelier - Sun Jul 23 13:48:33 2000

@@ -49,6 +49,7 @@ dnl Check for tools
 AC_PROG_MAKE_SET
 AC_PROG_CC
 AC_PROG_CXX
+AC_LIBTOOL_WIN32_DLL
 AM_PROG_LIBTOOL
 AC_PROG_INSTALL
 
@@ -57,6 +58,11 @@ case "$target" in
     alpha*-*-linux*)
 	if test x$ac_cv_prog_gcc = xyes; then
             CFLAGS="$CFLAGS -mcpu=ev4 -Wa,-mall"
+        fi
+        ;;
+    *-*-cygwin* | *-*-mingw32*)
+        if test "$build" != "$target"; then # cross-compiling
+            ac_default_prefix=/usr/local/cross-tools/i386-mingw32msvc
         fi
         ;;
 esac
