@@ -407,6 +407,18 @@ extern unsigned int cacheMiss[8][8];
 #endif
 
 #if !defined(LITTLE_ENDIAN_ARCHITECTURE) && !defined(BIG_ENDIAN_ARCHITECTURE)
+#include </usr/include/endian.h>
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+#undef  BIG_ENDIAN_ARCHITECTURE
+#define LITTLE_ENDIAN_ARCHITECTURE 1
+#endif
+#if __BYTE_ORDER == __BIG_ENDIAN
+#undef  LITTLE_ENDIAN_ARCHITECTURE
+#define BIG_ENDIAN_ARCHITECTURE 1
+#endif
+#endif
+
+#if !defined(LITTLE_ENDIAN_ARCHITECTURE) && !defined(BIG_ENDIAN_ARCHITECTURE)
 #error Unknown endianism of architecture
 #endif
 
