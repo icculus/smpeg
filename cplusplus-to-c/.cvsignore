@@ -21,3 +21,5 @@ MPEGsystem.lo
 libsmpeg.la
 plaympeg
 gtv
+MPEGaction.lo
+MPEGerror.lo
