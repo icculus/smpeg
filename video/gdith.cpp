@@ -349,23 +349,18 @@ int timeSync( VidStream* vid_stream )
         /* Calculate the frame time relative to real time */
         time_behind = CurrentTime(vid_stream) - mpeg->Time();
 
-printf("Frame %d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, mpeg->Time(), CurrentTime(vid_stream), time_behind);
 #ifdef DEBUG_MPEG_SCHEDULING
 //printf("Frame %d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, mpeg->Time(), CurrentTime(vid_stream), time_behind);
 #endif
 
         /* Allow up to MAX_FUDGE_TIME of delay in output */
         if ( time_behind < -TIMESLICE ) {
-            double time_ahead = -time_behind;
-            /* This is necessary because the audio can loop before we do */
-            if ( time_ahead > vid_stream->_oneFrameTime ) {
-                time_ahead = vid_stream->_oneFrameTime;
-            }
+            time_behind = -time_behind;
             vid_stream->_skipCount = 0;
 #ifdef DEBUG_MPEG_SCHEDULING
 printf("Ahead!  Sleeping %f\n", time_behind-TIMESLICE);
 #endif
-            SDL_Delay((Uint32)((time_ahead-TIMESLICE)*1000));
+            SDL_Delay((Uint32)((time_behind-TIMESLICE)*1000));
         } else
         if ( time_behind < FUDGE_TIME ) {
             if ( vid_stream->_skipCount > 0 ) {
