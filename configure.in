@@ -112,7 +112,7 @@ if test x$enable_debug != xyes; then
 fi
 
 dnl Check for SDL
-SDL_VERSION=1.1.3
+SDL_VERSION=1.1.5
 AM_PATH_SDL($SDL_VERSION,
             :,
 	    AC_MSG_ERROR([*** SDL version $SDL_VERSION not found!])
