@@ -533,7 +533,7 @@ MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
         if ( SDL_LockYUVOverlay(yuv) == 0 ) {
 	  SDL_Rect dstrect;
 
-            memcpy(yuv->pixels, _stream->current->image, (_w*_h)+2*(_w*_h)/4);
+            memcpy(yuv->pixels, _stream->current->image->pixels, (_w*_h)+2*(_w*_h)/4);
             SDL_UnlockYUVOverlay(yuv);
             dstrect.x = _rect.x;
             dstrect.y = _rect.y;

@@ -1,5 +1,35 @@
 *************************************************************************
 *** Applied ***
+Date: Fri, 09 Jun 2000 22:46:21 +0200
+From: Vivien Chappelier <vivien.chappelier@enst-bretagne.fr>
+Subject: Re: Buffering problems
+
+Hi
+
+I've fixed the To End bug, and send you this before you go on weekend
+too :)
+Maybe I'll take a look if we can make it faster with seeking this
+week-end but I also have a few things to code for my encoder ;)
+
+this time the patch will be really small! :)
+
+see ya,
+Vivien.
+
+diff -Naur smpeg/video/MPEGvideo.cpp smpeg.patched/video/MPEGvideo.cpp
+--- smpeg/video/MPEGvideo.cpp	Fri Jun  9 22:20:47 2000
++++ smpeg.patched/video/MPEGvideo.cpp	Fri Jun  9 22:33:02 2000
+@@ -533,7 +533,7 @@
+         if ( SDL_LockYUVOverlay(yuv) == 0 ) {
+ 	  SDL_Rect dstrect;
+ 
+-            memcpy(yuv->pixels, _stream->current->image, (_w*_h)+2*(_w*_h)/4);
++            memcpy(yuv->pixels, _stream->current->image->pixels, (_w*_h)+2*(_w*_h)/4);
+             SDL_UnlockYUVOverlay(yuv);
+             dstrect.x = _rect.x;
+             dstrect.y = _rect.y;
+*************************************************************************
+*** Applied ***
 Date: Fri, 09 Jun 2000 00:30:56 +0900
 From: Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
 Subject: smpeg patch (frame count fix after seeking)

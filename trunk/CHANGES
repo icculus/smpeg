@@ -1,4 +1,6 @@
 0.4.0:
+Vivien Chappelier - Fri Jun  9 14:20:16 PDT 2000
+ * Fixed rendering the final frame in a video stream
 Hiroshi Yamashita - Thu Jun  8 12:03:42 PDT 2000
  * Fixed frame counter and FPS calculation after seek
  * Changed gtv so it actually changes the window size on doubling
