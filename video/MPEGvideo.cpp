@@ -516,7 +516,7 @@ MPEGvideo:: RenderFrame( int frame )
 {
     _stream->need_frameadjust = true;
 
-    if( _stream->totNumFrames > frame ) {
+    if( _stream->current_frame > frame ) {
         mpeg->rewind_stream();
 	mpeg->next_packet();
         Rewind();
@@ -524,7 +524,7 @@ MPEGvideo:: RenderFrame( int frame )
 
     _stream->_jumpFrame = frame;
 
-    while( (_stream->totNumFrames < frame) &&
+    while( (_stream->current_frame < frame) &&
            ! _stream->film_has_ended )
     {
         mpegVidRsrc( 0, _stream, 0 );

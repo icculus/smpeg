@@ -1,5 +1,56 @@
 *************************************************************************
 *** Applied ***
+Date: Tue, 14 Nov 2000 00:54:55 +0100 (CET)
+From: Vivien Chappelier <vivien.chappelier@enst-bretagne.fr>
+Subject: Re: [Fwd: smpeg ::Seek() function broken?]
+
+
+Hi!
+
+On Thu, 9 Nov 2000, Sam Lantinga wrote:
+
+> Vivien Chappelier wrote:
+> > 
+> > On Thu, 9 Nov 2000, Sam Lantinga wrote:
+> > >
+> > > Can you fix this?  It is broken in the current CVS.
+> Okay, no rush, I'd just like to get it fixed.
+
+Done.
+Here is a tiny patch that should fix this bug. Actually, the RenderFrame
+function rewinded both audio and video streams in MPEG systems, which
+caused the MPEG audio decoder to stop, thinking it had reached end of
+file. Thus the clock was stalled (as it is based on audio decoding).. and
+the video was slow with no sound ;)
+I fixed the RenderFrame function to rewind only when wanted frame is
+before *current* frame and not current total number of decoded frames.
+
+see ya,
+Vivien Chappelier.
+
+diff -Naur smpeg/video/MPEGvideo.cpp smpeg.seekfix/video/MPEGvideo.cpp
+--- smpeg/video/MPEGvideo.cpp	Sun Sep 24 02:48:44 2000
++++ smpeg.seekfix/video/MPEGvideo.cpp	Tue Nov 14 00:28:46 2000
+@@ -516,7 +516,7 @@
+ {
+     _stream->need_frameadjust = true;
+ 
+-    if( _stream->totNumFrames > frame ) {
++    if( _stream->current_frame > frame ) {
+         mpeg->rewind_stream();
+ 	mpeg->next_packet();
+         Rewind();
+@@ -524,7 +524,7 @@
+ 
+     _stream->_jumpFrame = frame;
+ 
+-    while( (_stream->totNumFrames < frame) &&
++    while( (_stream->current_frame < frame) &&
+            ! _stream->film_has_ended )
+     {
+         mpegVidRsrc( 0, _stream, 0 );
+*************************************************************************
+*** Applied ***
 Date: Mon, 13 Nov 2000 13:53:51 -0800
 From: "Joseph I . Valenzuela" <tsaotsao@lokigames.com>
 Subject: smpeg redux
