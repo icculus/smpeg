@@ -298,6 +298,9 @@ int Decode_MPEGaudio(void *udata)
         }
         audio->ring->WriteDone(audio->rawdatawriteoffset*2);
     }
+    /* Release the reader thread */
+    audio->ring->ReleaseThreads();
+
     return(0);
 }
 #endif /* THREADED_AUDIO */
