@@ -1,5 +1,231 @@
 *************************************************************************
 *** Applied ***
+Date: Fri, 2 Mar 2001 20:29:54 -0500
+From: Joe Drew <hoserhead@woot.net>
+Subject: Debian smpeg, smpeg-xmms packages, and the fix for audio not updating current time
+
+After some playing around and thinking, I know now why this happens. 
+
+TimeElapsed() is TotalTime modified for the audio case. However, for the 
+video/system stream case, it is the same: it extracts the time information
+from the MPEG header. The problem is, when playing MPEG video, the audio
+case isn't used, so when we recalculate the time elapsed on the audio
+stream, it actually returns the total time (that the video/system stream 
+gives it). So, the current_time for audio is set to the total length
+of the MPEG stream, and the system carries merrily on its little way.
+Of course, SMPEG notices that the video and audio are horribly out of sync,
+starts skipping frames, and now everything is out of whack.
+
+I think, therefore, that it only makes sense to calculate TimeElapsed for
+audio streams without video. That's what this patch does. I've tested
+it with mpg321 and smpeg-xmms, and it seems to work. I don't know if it
+will break on really odd MPEG streams; for the few MPEGs I have on my
+computer (from Heretic 2, really) it seems to work fine, though.
+
+Incidentally, TimeElapsed() was entirely worthless on video anyways; it
+would ALWAYS return the total time, regardless of what it was.
+
+As well, after looking through the code more, I found that setCurrentTime()
+was completely useless - ResetSynchro does the same job. So that's gone too.
+
+This patch is against current CVS.
+
+Please test it!
+
+...
+
+I'm now the smpeg and smpeg-xmms maintainer for Debian, so I'll be handling
+bugreports/etc for these packages. 
+
+Thinking about my fix (attached again, just in case you haven't gotten it:
+I haven't heard from either of you), it's pretty much a hack. I don't
+understand all the MPEG parsing code, but it's quite obvious to me that
+since mpeg video (apparently) keeps state information (ie, how far into
+the stream you are) in the packet headers, the stream object gets its
+timestamp set to that (correct) time. Everything is happy, then, because
+the right time is in all the right places.
+
+The bug is because either mpeg audio doesn't store state information, or
+we don't calculate it. In either case, it's beyond me. The patch I attach
+works, and smpeg-xmms works fine with it applied. Sam, if you feel comfortable
+putting it in, I'd appreciate it. It is definitely not the Correct fix, but
+for now the Correct fix is beyond my abilities. What's more, it does fix
+the bug, and doesn't impact those not hurt by it. I'd say it's worth applying
+just as a stop-gap measure. (It will be applied to the debian smpeg
+packages, regardless.)
+
+Thanks,
+Joe
+
+diff --recursive -u smpeg-0.4.2/MPEG.cpp smpeg-0.4.2.new/MPEG.cpp
+--- smpeg-0.4.2/MPEG.cpp	Fri Dec  1 18:58:20 2000
++++ smpeg-0.4.2.new/MPEG.cpp	Sun Feb 18 15:04:14 2001
+@@ -420,8 +420,14 @@
+     while(videostream->time() == -1)
+       videostream->next_packet();
+ 
++  /* Calculating current play time on audio only makes sense when there
++     is no video */  
++  if ( audioaction && !videoaction) {
++    audioaction->Rewind();
++    audioaction->ResetSynchro(system->TimeElapsedAudio(position));
++  }
+   /* And forget what we previouly buffered */
+-  if ( audioaction ) {
++  else if ( audioaction ) {
+     audioaction->Rewind();
+     audioaction->ResetSynchro(audiostream->time());
+   }
+diff --recursive -u smpeg-0.4.2/MPEGsystem.cpp smpeg-0.4.2.new/MPEGsystem.cpp
+--- smpeg-0.4.2/MPEGsystem.cpp	Mon Dec  4 15:25:36 2000
++++ smpeg-0.4.2.new/MPEGsystem.cpp	Sun Feb 18 14:47:50 2001
+@@ -1231,6 +1231,133 @@
+ 
+   SDL_mutexV(system_mutex);
+ 
++  return(time);
++}
++
++double MPEGsystem::TimeElapsedAudio(int atByte)
++{
++  off_t size, pos;
++  off_t file_ptr;
++  Uint8 * buffer, * p;
++  double time;
++  
++  if (atByte < 0)
++  {
++      return -1;
++  }
++  
++  /* Lock to avoid concurrent access to the stream */
++  SDL_mutexP(system_mutex);
++
++  /* Save current position */
++  if(data_reader.fromData == true) {
++	  /* from data, no lseek needed */
++	  pos = data_reader.offset;
++  } else {
++	  if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) < 0)
++	  {
++	    if(errno != ESPIPE)
++	    {
++	      errorstream = true;
++	      SetError(strerror(errno));
++	    }
++	    SDL_mutexV(system_mutex);
++	    return(false);
++	  }
++  }
++  file_ptr = 0;
++  buffer = new Uint8[MPEG_BUFFER_SIZE];
++
++  /* If audio, compute total time according to bitrate of the first header and total size */
++  /* Note: this doesn't work on variable bitrate streams */
++  if(stream_list[0]->streamid == AUDIO_STREAMID)
++  {
++    do
++    {
++      if(data_reader.fromData == true) {
++	      data_reader.offset += file_ptr;
++	      size = data_reader.offset;
++      }
++      else {
++	      if((size = lseek(mpeg_fd, file_ptr, SEEK_SET)) < 0)
++	      {
++		if(errno != ESPIPE)
++		{
++		  errorstream = true;
++		  SetError(strerror(errno));  
++		}
++		SDL_mutexV(system_mutex);
++		return(false);
++	      }
++      }
++    
++      if(data_reader.fromData == true) {
++	      char *dataptr = (char *) data_reader.data;
++	      int size = MPEG_BUFFER_SIZE;
++
++	      if(data_reader.offset + size > data_reader.size) {
++                  size = data_reader.size - data_reader.offset;
++	      }
++
++              if(size >= 0) {
++                  dataptr += size;
++      
++                  memcpy(buffer, dataptr, size);
++      
++                  data_reader.offset += size;
++             } else {
++		     break;
++	     }
++      } else {
++        if(read(mpeg_fd, buffer, MPEG_BUFFER_SIZE) < 0) break;
++      }
++
++      /* Search for a valid audio header */
++      for(p = buffer; p < buffer + MPEG_BUFFER_SIZE; p++)
++	if(audio_aligned(p, buffer + MPEG_BUFFER_SIZE - p)) break;
++    
++      file_ptr += MPEG_BUFFER_SIZE;
++    }
++    while(p >= MPEG_BUFFER_SIZE + buffer);
++
++    /* Extract time info from the first header */
++    Uint32 framesize;
++    double frametime;
++    Uint32 totalsize;
++
++    audio_header(p, &framesize, &frametime);
++    totalsize = TotalSize();
++    if(framesize)
++      //is there a better way to do this?
++      time = (frametime * (atByte ? atByte:totalsize)) / framesize;
++    else
++      time = 0;
++  }
++  else
++  //This is not a purely audio stream. This doesn't make sense!
++  {
++      time = -1;
++  }
++
++  delete buffer;
++
++  if(data_reader.fromData == true) {
++      data_reader.offset = pos;
++  } else {
++      /* Get back to saved position */
++      if((pos = lseek(mpeg_fd, pos, SEEK_SET)) < 0)
++      {
++        if(errno != ESPIPE)
++        {
++          errorstream = true;
++          SetError(strerror(errno));  
++        }
++        SDL_mutexV(system_mutex);
++        return(0);
++      }
++  }
++
++  SDL_mutexV(system_mutex);
+   return(time);
+ }
+ 
+diff --recursive -u smpeg-0.4.2/MPEGsystem.h smpeg-0.4.2.new/MPEGsystem.h
+--- smpeg-0.4.2/MPEGsystem.h	Mon Dec  4 14:41:58 2000
++++ smpeg-0.4.2.new/MPEGsystem.h	Sun Feb 18 14:23:59 2001
+@@ -35,6 +35,7 @@
+     bool Seek(int length);
+     Uint32 TotalSize();
+     double TotalTime();
++    double TimeElapsedAudio(int atByte);
+ 
+     /* Skip "seconds" seconds */
+     void Skip(double seconds);
+*************************************************************************
+*** Applied ***
 Date: Wed, 14 Feb 2001 14:54:26 +0100
 From: Michel Darricau <mdarricau@eprocess.fr>
 Subject: Re: RTSP/MPEG1 Player

@@ -1,6 +1,8 @@
 0.4.3:
-Sam Lantinga - Wed Apr  4 13:40:44 PDT 2001
+Sam Lantinga -
  * Updated for SDL 1.2.0
+Joe Drew - Wed Apr  4 13:40:44 PDT 2001
+ * Fixed bug where the audio was not updating the current time
 Michel Darricau - Wed Apr  4 13:31:40 PDT 2001
  * Added some changes for the popcorn MPEG library
 Nicolas Vignal - Wed Apr  4 13:25:28 PDT 2001

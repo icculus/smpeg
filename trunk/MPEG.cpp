@@ -426,8 +426,14 @@ bool MPEG::seekIntoStream(int position)
     while(videostream->time() == -1)
       videostream->next_packet();
 
+  /* Calculating current play time on audio only makes sense when there
+     is no video */  
+  if ( audioaction && !videoaction) {
+    audioaction->Rewind();
+    audioaction->ResetSynchro(system->TimeElapsedAudio(position));
+  }
   /* And forget what we previouly buffered */
-  if ( audioaction ) {
+  else if ( audioaction ) {
     audioaction->Rewind();
     audioaction->ResetSynchro(audiostream->time());
   }

@@ -1225,7 +1225,7 @@ double MPEGsystem::TotalTime()
     }
   }
 
-  delete buffer;
+  delete[] buffer;
 
   if(data_reader.fromData == true) {
       data_reader.offset = pos;
@@ -1245,6 +1245,133 @@ double MPEGsystem::TotalTime()
 
   SDL_mutexV(system_mutex);
 
+  return(time);
+}
+
+double MPEGsystem::TimeElapsedAudio(int atByte)
+{
+  off_t size, pos;
+  off_t file_ptr;
+  Uint8 * buffer, * p;
+  double time;
+  
+  if (atByte < 0)
+  {
+      return -1;
+  }
+  
+  /* Lock to avoid concurrent access to the stream */
+  SDL_mutexP(system_mutex);
+
+  /* Save current position */
+  if(data_reader.fromData == true) {
+	  /* from data, no lseek needed */
+	  pos = data_reader.offset;
+  } else {
+	  if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) < 0)
+	  {
+	    if(errno != ESPIPE)
+	    {
+	      errorstream = true;
+	      SetError(strerror(errno));
+	    }
+	    SDL_mutexV(system_mutex);
+	    return(false);
+	  }
+  }
+  file_ptr = 0;
+  buffer = new Uint8[MPEG_BUFFER_SIZE];
+
+  /* If audio, compute total time according to bitrate of the first header and total size */
+  /* Note: this doesn't work on variable bitrate streams */
+  if(stream_list[0]->streamid == AUDIO_STREAMID)
+  {
+    do
+    {
+      if(data_reader.fromData == true) {
+	      data_reader.offset += file_ptr;
+	      size = data_reader.offset;
+      }
+      else {
+	      if((size = lseek(mpeg_fd, file_ptr, SEEK_SET)) < 0)
+	      {
+		if(errno != ESPIPE)
+		{
+		  errorstream = true;
+		  SetError(strerror(errno));  
+		}
+		SDL_mutexV(system_mutex);
+		return(false);
+	      }
+      }
+    
+      if(data_reader.fromData == true) {
+	      char *dataptr = (char *) data_reader.data;
+	      int size = MPEG_BUFFER_SIZE;
+
+	      if(data_reader.offset + size > data_reader.size) {
+                  size = data_reader.size - data_reader.offset;
+	      }
+
+              if(size >= 0) {
+                  dataptr += size;
+      
+                  memcpy(buffer, dataptr, size);
+      
+                  data_reader.offset += size;
+             } else {
+		     break;
+	     }
+      } else {
+        if(read(mpeg_fd, buffer, MPEG_BUFFER_SIZE) < 0) break;
+      }
+
+      /* Search for a valid audio header */
+      for(p = buffer; p < buffer + MPEG_BUFFER_SIZE; p++)
+	if(audio_aligned(p, buffer + MPEG_BUFFER_SIZE - p)) break;
+    
+      file_ptr += MPEG_BUFFER_SIZE;
+    }
+    while(p >= MPEG_BUFFER_SIZE + buffer);
+
+    /* Extract time info from the first header */
+    Uint32 framesize;
+    double frametime;
+    Uint32 totalsize;
+
+    audio_header(p, &framesize, &frametime);
+    totalsize = TotalSize();
+    if(framesize)
+      //is there a better way to do this?
+      time = (frametime * (atByte ? atByte:totalsize)) / framesize;
+    else
+      time = 0;
+  }
+  else
+  //This is not a purely audio stream. This doesn't make sense!
+  {
+      time = -1;
+  }
+
+  delete buffer;
+
+  if(data_reader.fromData == true) {
+      data_reader.offset = pos;
+  } else {
+      /* Get back to saved position */
+      if((pos = lseek(mpeg_fd, pos, SEEK_SET)) < 0)
+      {
+        if(errno != ESPIPE)
+        {
+          errorstream = true;
+          SetError(strerror(errno));  
+        }
+        SDL_mutexV(system_mutex);
+        return(0);
+      }
+  }
+
+  SDL_mutexV(system_mutex);
   return(time);
 }
 
