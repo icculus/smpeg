@@ -1,4 +1,6 @@
 0.4.2:
+Sam Lantinga - Sat Dec  2 11:36:50 PST 2000
+ * Fixed crashes in gtv when trying to play MP3 files with no video
 Sam Lantinga - Fri Dec  1 20:39:39 PST 2000
  * Disabled the system thread by default.
    You can re-enable it by looking for USE_SYSTEM_THREAD in MPEGsystem.cpp
