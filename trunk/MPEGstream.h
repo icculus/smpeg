@@ -24,74 +24,86 @@
 
 #include "SDL_types.h"
 #include "MPEGerror.h"
+#include "MPEGvideo.h"
+#include "MPEGaudio.h"
+#include "MPEGlist.h"
 
 #define AUDIO_STREAMID  0xc0
 #define VIDEO_STREAMID  0xe0
 #define SYSTEM_STREAMID 0xbb
-#define PAD_STREAMID    0xbe
 
-class MPEGstream : public MPEGerror {
+struct MPEGstream_marker
+{
+    /* Data to mark part of the stream */
+    MPEGlist * marked_buffer;
+    Uint8 *marked_data;
+    Uint8 *marked_stop;  
+};
+
+class MPEGstream
+{
 public:
-    MPEGstream(Uint8 *Mpeg, Uint32 Size, Uint8 StreamID);
+    MPEGstream(class MPEGsystem * System, Uint8 Streamid);
+    ~MPEGstream();
 
-    /* Rewind the stream to the beginning and reset eof/error conditions */
+    /* Cleanup the buffers and reset the stream */
     void reset_stream(void);
+
+    /* Rewind the stream */
+    void rewind_stream(void);
 
     /* Go to the next packet in the stream */
     bool next_packet(bool recurse = true);
 
     /* Mark a position in the data stream */
-    bool mark_data(int offset);
+    MPEGstream_marker const * new_marker(int offset);
+
+    /* Jump to the marked position */
+    bool seek_marker(MPEGstream_marker const * marker);
 
     /* Jump to last successfully marked position */
-    bool seek_marker(void);
+    void delete_marker(MPEGstream_marker const * marker);
 
     /* Copy data from the stream to a local buffer */
-    Uint32 copy_data(Uint8 *area, Uint32 size, bool short_read = false);
+    Uint32 copy_data(Uint8 *area, Sint32 size, bool short_read = false);
 
     /* Copy a byte from the stream */
-    int copy_byte(void) {
-        /* Get new data if necessary */
-        if ( data == stop ) {
-            if ( ! next_packet() ) {
-                return (-1);
-            }
-        }
-        return(*data++);
-    }
+    int copy_byte(void);
 
     /* Check for end of file or an error in the stream */
-    bool eof(void) {
-        return(endofstream || errorstream);
-    }
+    bool eof(void) const;
+
+    /* Insert a new packet at the end of the stream */
+    void insert_packet(Uint8 * data, Uint32 size);
+
+    /* Check for unused buffers and free them */
+    void garbage_collect(void);
+
+    /* Set the looping flag */
+    void loop(bool toggle);
+
+    /* Check if the stream is looping */
+    bool is_looping() const;
+
+    /* Enable or disable the stream */
+    void enable(bool toggle);
+
+    Uint8 streamid;
 
 protected:
-    /* The actual memory mapped MPEG data */
-    Uint8 *mpeg;
-    Uint32 size;
-
-    /* Data specific to this particular stream */
-    Uint8 streamid;
-    Uint8 *packet;
-    Uint32 packetlen;
-    bool endofstream;
-    bool errorstream;
-
-    /* Data to mark part of the stream */
-    Uint8 *marked_packet;
-    Uint32 marked_packetlen;
-    Uint8 *marker;
-
-#ifdef USE_SYSTEM_TIMESTAMP
-    /* Current timestamp for this stream */
-    double timestamp;
-    double timedrift;
-#endif
-
-/* Caution: these may go away (e.g. stream is based on stdio) */
-public:
     Uint8 *data;
     Uint8 *stop;
+
+    Uint32 preread_size;
+
+    class MPEGsystem * system;
+    MPEGlist * br;
+    bool enabled;
+    bool looping;
+
+    SDL_mutex * mutex;
 };
 
 #endif /* _MPEGSTREAM_H_ */
+
+

@@ -26,12 +26,14 @@
 #define THREADED_AUDIO
 
 #include "SDL.h"
-#include "MPEGstream.h"
+#include "MPEGerror.h"
 #include "MPEGaction.h"
 
 #ifdef THREADED_AUDIO
 #include "MPEGring.h"
 #endif
+
+class MPEGstream;
 
 /* MPEG/WAVE Sound library
 
@@ -165,6 +167,7 @@ public:
     void Play(void);
     void Stop(void);
     void Rewind(void);
+    void Skip(float seconds);
     void Volume(int vol);
     MPEGstatus Status(void);
 
@@ -252,45 +255,13 @@ public:
 private:
   Uint8 _buffer[4096];
   int  bitindex;
-  bool fillbuffer(int size)
-  {
-      bitindex=0;
-      return(mpeg->copy_data(_buffer, size) > 0);
-  };
-  void sync(void)  {bitindex=(bitindex+7)&0xFFFFFFF8;};
-  bool issync(void){return (bitindex&7);};
-  int getbyte(void) {
-      int r=(unsigned char)_buffer[bitindex>>3];
-
-      bitindex+=8;
-      return r;
-  }
-  int getbit(void) {
-      register int r=(_buffer[bitindex>>3]>>(7-(bitindex&7)))&1;
-
-      bitindex++;
-      return r;
-  }
-  int getbits8(void) {
-      register unsigned short a;
-      { int offset=bitindex>>3;
-
-        a=(((unsigned char)_buffer[offset])<<8) | ((unsigned char)_buffer[offset+1]);
-      }
-      a<<=(bitindex&7);
-      bitindex+=8;
-      return (int)((unsigned int)(a>>8));
-  }
-  int getbits9(int bits) {
-      register unsigned short a;
-      { int offset=bitindex>>3;
-
-        a=(((unsigned char)_buffer[offset])<<8) | ((unsigned char)_buffer[offset+1]);
-      }
-      a<<=(bitindex&7);
-      bitindex+=bits;
-      return (int)((unsigned int)(a>>(16-bits)));
-  }
+  bool fillbuffer(int size);
+  void sync(void);
+  bool issync(void);
+  int getbyte(void);
+  int getbit(void);
+  int getbits8(void);
+  int getbits9(int bits);
   int getbits(int bits);
 
 

@@ -12,7 +12,9 @@ lib_LTLIBRARIES = libsmpeg.la
 libsmpeg_la_SOURCES =		\
 	MPEG.cpp		\
 	MPEGring.cpp		\
+	MPEGlist.cpp		\
 	MPEGstream.cpp		\
+	MPEGsystem.cpp		\
 	smpeg.cpp
 
 libsmpegincludedir = $(includedir)/smpeg
@@ -22,7 +24,9 @@ libsmpeginclude_HEADERS =	\
 	MPEGaudio.h		\
 	MPEGerror.h		\
 	MPEGring.h		\
+	MPEGlist.h		\
 	MPEGstream.h		\
+	MPEGsystem.h		\
 	MPEGvideo.h		\
 	smpeg.h
 
