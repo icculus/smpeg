@@ -77,7 +77,7 @@ AC_ARG_ENABLE(mixer,
               , enable_mixer=no)
 if test x$enable_mixer = xyes; then
     CFLAGS="$CFLAGS -DSDL_MIXER"
-    LIBS="$LIBS -lSDLmixer"
+    LIBS="$LIBS -lSDL_mixer"
 fi
 AC_ARG_WITH(mixer-prefix,
 [  --with-mixer-prefix=PFX   Prefix where SDL mixer is installed (optional)],
