@@ -1,4 +1,8 @@
 current:
+Ryan C. Gordon - Fri Jan  2 22:50:11 EST 2004
+ * Added some sanity checks.
+Ryan C. Gordon - Fri Jan  2 22:18:41 EST 2004
+ * Removed "Patches" file...it was screwing up my greps too much.
 Ryan C. Gordon - Fri Jan  2 22:16:47 EST 2004
  * SMPEG builds on Cygwin again.
 Ryan C. Gordon - Wed Dec 31 00:07:51 EST 2003
