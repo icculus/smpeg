@@ -1,0 +1,1779 @@
+*************************************************************************
+*** Applied ***
+Date: Sun, 05 Mar 2000 02:36:24 +0900
+From: Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
+Subject: smpeg-0.3.4 Report
+
+
+FreeBSD 3.4STABLE & SDL-1.0.6
+(gcc 2.95.2)
+
+patch attached. (smpeg034.diff)
+
+configure
+  SDL Version Req 1.1.1 -> 1.0.6
+
+ltmain.sh
+  FreeBSD -lc not need
+
+mpegtoraw.cpp
+  48Kh Audio Can't Play fix;
+
+MPEGaction.h
+MPEGaudio.h
+MPEGaudio.cpp
+smpeg.cpp
+smpeg.h
+plaympeg.c
+  Getting Audio Info.
+
+MPEG.cpp
+  I have Funny Hedaer MPEG1 Movie. that fix.
+  Video Start Code 0xe0 0xe2.
+
+header(od -cx)
+----------------------------------------
+0000000    R   I   F   F 200   9 314 002   R   M   P   3   d   a   t   a
+            4952    4646    3980    02cc    4d52    3350    6164    6174
+0000020  004   8 314 002  \0  \0 001 272   !  \0 001  \0 001 200   Q 215
+            3804    02cc    0000    ba01    0021    0001    8001    8d51
+0000040   \0  \0 001 273  \0  \f 200   Q 215 004 341 377 340 342 007 300
+            0000    bb01    0c00    5180    048d    ffe1    e2e0    c007
+0000060  300   .  \0  \0 001 276 007 334 017 377 377 377 377 377 377 377
+            2ec0    0000    be01    dc07    ff0f    ffff    ffff    ffff
+0000100  377 377 377 377 377 377 377 377 377 377 377 377 377 377 377 377
+            ffff    ffff    ffff    ffff    ffff    ffff    ffff    ffff
+*
+0004020  377 377 377 377  \0  \0 001 272   !  \0 001 002 305 200   Q 215
+            ffff    ffff    0000    ba01    0021    0201    80c5    8d51
+0004040   \0  \0 001 340 007 356   b 007   1  \0 001 024 007 021  \0 001
+            0000    e001    ee07    0762    0031    1401    1107    0100
+0004060   \b   K  \0  \0 001 263 024  \0 360 027 377 377 350 001 020 021
+            4b08    0000    b301    0014    17f0    ffff    01e8    1110
+0004100  021 022 022 022 023 023 023 023 024 024 024 024 024 025 025 025
+            1211    1212    1313    1313    1414    1414    1514    1515
+0004120  025 025 025 026 026 026 026 026 026 026 027 027 027 027 027 027
+            1515    1615    1616    1616    1616    1717    1717    1717
+0004140  027 027 030 030 030 031 030 030 030 031 032 032 032 032 031 033
+            1717    1818    1918    1818    1918    1a1a    1a1a    1b19
+
+-----------------------------------------------
+Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
+
+diff -Nru smpeg-0.3.4/MPEG.cpp smpeg-0.3.4.new/MPEG.cpp
+--- smpeg-0.3.4/MPEG.cpp	Wed Mar  1 23:47:51 2000
++++ smpeg-0.3.4.new/MPEG.cpp	Sun Mar  5 02:06:28 2000
+@@ -24,8 +24,8 @@
+                     audioaction_enabled = true;
+                 } else
+ #endif
+-                if ( (data[1] == VIDEO_STREAMID) && !videostream ) {
+-                    videostream = new MPEG(mpeg, size, data[1], sdlaudio);
++                if ( ((data[1] & 0xF0) == VIDEO_STREAMID)  && !videostream ) {
++                    videostream = new MPEG(mpeg, size, data[1]&0xF0, sdlaudio);
+                     if ( videostream->WasError() ) {
+                         SetError(videostream->TheError());
+                     }
+diff -Nru smpeg-0.3.4/MPEGaction.h smpeg-0.3.4.new/MPEGaction.h
+--- smpeg-0.3.4/MPEGaction.h	Fri Feb  4 02:45:56 2000
++++ smpeg-0.3.4.new/MPEGaction.h	Sun Mar  5 00:20:25 2000
+@@ -71,7 +71,12 @@
+ 
+ /* For getting info about the audio portion of the stream */
+ typedef struct MPEG_AudioInfo {
+-    int unused;
++    int mpegversion;
++    int mode;
++    int frequency;
++    int layer;
++    int bitrate;
++    int current_frame;
+ } MPEG_AudioInfo;
+ 
+ /* Audio action class */
+diff -Nru smpeg-0.3.4/MPEGaudio.h smpeg-0.3.4.new/MPEGaudio.h
+--- smpeg-0.3.4/MPEGaudio.h	Sat Mar  4 06:23:55 2000
++++ smpeg-0.3.4.new/MPEGaudio.h	Sat Mar  4 23:43:15 2000
+@@ -160,6 +160,7 @@
+     virtual ~MPEGaudio();
+ 
+     /* MPEG actions */
++    bool GetAudioInfo(MPEG_AudioInfo *info);
+     double Time(void);
+     void Play(void);
+     void Stop(void);
+diff -Nru smpeg-0.3.4/audio/MPEGaudio.cpp smpeg-0.3.4.new/audio/MPEGaudio.cpp
+--- smpeg-0.3.4/audio/MPEGaudio.cpp	Wed Mar  1 23:43:46 2000
++++ smpeg-0.3.4.new/audio/MPEGaudio.cpp	Sun Mar  5 00:24:15 2000
+@@ -235,3 +235,16 @@
+         return(MPEG_ERROR);
+     }
+ }
++
++bool
++MPEGaudio:: GetAudioInfo(MPEG_AudioInfo *info)
++{
++    if ( info ) {
++      info->mpegversion = version;
++      info->mode = mode;
++      info->frequency = frequencies[version][frequency];
++      info->layer = layer;
++      info->bitrate = bitrate[version][layer-1][bitrateindex];
++      info->current_frame = currentframe;
++    }
++}
+diff -Nru smpeg-0.3.4/audio/mpegtoraw.cpp smpeg-0.3.4.new/audio/mpegtoraw.cpp
+--- smpeg-0.3.4/audio/mpegtoraw.cpp	Sat Mar  4 06:24:49 2000
++++ smpeg-0.3.4.new/audio/mpegtoraw.cpp	Sat Mar  4 23:29:31 2000
+@@ -167,7 +167,7 @@
+     c = mpeg->copy_byte() >> 1;
+     padding = (c & 1);
+     c >>= 1;
+-    frequency = (_frequency) (c&2);
++    frequency = (_frequency) (c&3);
+     c >>= 2;
+     bitrateindex = (int) c;
+     if( bitrateindex == 15 )
+diff -Nru smpeg-0.3.4/configure smpeg-0.3.4.new/configure
+--- smpeg-0.3.4/configure	Sat Mar  4 10:56:25 2000
++++ smpeg-0.3.4.new/configure	Sat Mar  4 19:37:07 2000
+@@ -2184,7 +2184,7 @@
+     { echo "configure: error: SMPEG requires mmap() for file loading" 1>&2; exit 1; }
+ fi
+ 
+-SDL_VERSION=1.1.1
++SDL_VERSION=1.0.6
+ # Check whether --with-sdl-prefix or --without-sdl-prefix was given.
+ if test "${with_sdl_prefix+set}" = set; then
+   withval="$with_sdl_prefix"
+diff -Nru smpeg-0.3.4/ltmain.sh smpeg-0.3.4.new/ltmain.sh
+--- smpeg-0.3.4/ltmain.sh	Wed Nov 24 05:25:13 1999
++++ smpeg-0.3.4.new/ltmain.sh	Sat Mar  4 19:35:32 2000
+@@ -1993,7 +1993,7 @@
+       if test "$build_libtool_libs" = yes; then
+ 	if test -n "$rpath"; then
+ 	  case "$host" in
+-	  *-*-cygwin* | *-*-mingw* | *-*-os2* | *-*-beos*)
++	  *-*-cygwin* | *-*-mingw* | *-*-os2* | *-*-beos* | *-*-freebsd*)
+ 	    # these systems don't actually have a c library (as such)!
+ 	    ;;
+ 	  *)
+diff -Nru smpeg-0.3.4/plaympeg.c smpeg-0.3.4.new/plaympeg.c
+--- smpeg-0.3.4/plaympeg.c	Thu Mar  2 00:05:07 2000
++++ smpeg-0.3.4.new/plaympeg.c	Sun Mar  5 00:51:42 2000
+@@ -22,6 +22,8 @@
+ 
+ #include "smpeg.h"
+ 
++    SMPEG *mpeg;
++
+ void usage(char *argv0)
+ {
+     printf(
+@@ -56,7 +58,6 @@
+     int loop_play;
+     int i, done, pause;
+     int volume;
+-    SMPEG *mpeg;
+     SMPEG_Info info;
+     char *basefile;
+     SDL_version sdlver;
+@@ -163,7 +164,6 @@
+ 	}
+ 	
+ 	
+-	
+         /* Create the MPEG stream */
+         mpeg = SMPEG_new(argv[i], &info, use_audio);
+         if ( SMPEG_error(mpeg) ) {
+@@ -184,8 +184,10 @@
+         }
+         if ( info.has_audio && info.has_video ) {
+             printf("%s: MPEG system stream (audio/video)\n", basefile);
++	    printf("%s\n",info.ainfo_str);
+         } else if ( info.has_audio ) {
+             printf("%s: MPEG audio stream\n", basefile);
++	    printf("%s\n",info.ainfo_str);
+         } else if ( info.has_video ) {
+             printf("%s: MPEG video stream\n", basefile);
+         }
+diff -Nru smpeg-0.3.4/smpeg.cpp smpeg-0.3.4.new/smpeg.cpp
+--- smpeg-0.3.4/smpeg.cpp	Fri Feb  4 02:45:56 2000
++++ smpeg-0.3.4.new/smpeg.cpp	Sun Mar  5 01:40:36 2000
+@@ -65,6 +65,13 @@
+             info->has_audio = (mpeg->obj->mpeg->audiostream != NULL);
+             if ( info->has_audio ) {
+                 mpeg->obj->GetAudioInfo(&ainfo);
++		info->a_current_frame = ainfo.current_frame;
++		snprintf(info->ainfo_str,80,"MPEG%d layer%d %dkbit/s %dHz %s",
++			ainfo.mpegversion+1,
++			ainfo.layer,
++			ainfo.bitrate,
++			ainfo.frequency,
++			(ainfo.mode==3)?"mono":"stereo");
+             }
+             info->has_video = (mpeg->obj->mpeg->videostream != NULL);
+             if ( info->has_video ) {
+diff -Nru smpeg-0.3.4/smpeg.h smpeg-0.3.4.new/smpeg.h
+--- smpeg-0.3.4/smpeg.h	Sun Feb  6 01:54:09 2000
++++ smpeg-0.3.4.new/smpeg.h	Sun Mar  5 01:40:19 2000
+@@ -61,6 +61,8 @@
+     int height;
+     int current_frame;
+     double current_fps;
++    int  a_current_frame;
++    char ainfo_str[80];
+ } SMPEG_Info;
+ 
+ /* Possible MPEG status codes */
+*************************************************************************
+*** Applied ***
+smpeg-0.3.3-fixes
+by Bill Kendrick
+
+Apply CHANGES.patch to smpeg-0.3.3's "CHANGES" to see what's been changed.
+
+Enjoy!
+
+-bill!
+3/Feb/2000
+----------
+--- smpeg-0.3.3/smpeg.h Tue Dec 21 09:17:35 1999
++++ smpeg-0.3.3-patched/smpeg.h Sat Jan 22 17:28:15 2000
+@@ -30,6 +30,26 @@
+ extern "C" {
+ #endif
+
++#define SMPEG_MAJOR_VERSION      0
++#define SMPEG_MINOR_VERSION      3
++#define SMPEG_PATCHLEVEL         3
++
++typedef struct {
++        Uint8 major;
++        Uint8 minor;
++        Uint8 patch;
++} SMPEG_version;
++
++/* This macro can be used to fill a version structure with the compile-time
++ * version of the SDL library.
++ */
++#define SMPEG_VERSION(X)                                                \
++{                                                                       \
++        (X)->major = SMPEG_MAJOR_VERSION;                               \
++        (X)->minor = SMPEG_MINOR_VERSION;                               \
++        (X)->patch = SMPEG_PATCHLEVEL;                                  \
++}
++
+ /* This is the actual SMPEG object */
+ typedef struct _SMPEG SMPEG;
+----------
+35c35,37
+< "	--volume N or -v N Set audio volume to N (0-100)\n", argv0);
+---
+> "	--volume N or -v N Set audio volume to N (0-100)\n"
+> "	--help or -h\n"
+> "	--version or -V\n", argv0);
+53a56
+>     int video_inited = 0, audio_inited = 0;
+58,63c61,62
+< 
+<     /* Initialize SDL */
+<     if ( SDL_Init(SDL_INIT_AUDIO|SDL_INIT_VIDEO) < 0 ) {
+<         fprintf(stderr, "Couldn't init SDL: %s\n", SDL_GetError());
+<         exit(1);
+<     }
+---
+>     SDL_version sdlver;
+>     SMPEG_version smpegver;
+89a89,93
+> 	    if (i >= argc)
+> 	      {
+> 		fprintf(stderr, "Please specify volume when using --volume or -v\n");
+> 		exit(1);
+> 	      }
+96a101,110
+> 	} else
+>         if ((strcmp(argv[i], "--version") == 0) ||
+> 	    (strcmp(argv[i], "-V") == 0)) {
+>             SDL_VERSION(&sdlver);
+>             SMPEG_VERSION(&smpegver);
+> 	    printf("SDL version: %d.%d.%d\n"
+>                    "SMPEG version: %d.%d.%d\n",
+> 		   sdlver.major, sdlver.minor, sdlver.patch,
+> 		   smpegver.major, smpegver.minor, smpegver.patch);
+>             exit(0);
+137a152,176
+> 	/* Initialize SDL */
+> 	if (info.has_video && !video_inited && use_video) {
+> 	  if ( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
+> 	    fprintf(stderr, "Warning: Couldn't init SDL video: %s\n",
+> 		    SDL_GetError());
+> 	    fprintf(stderr, "Will ignore video stream\n");
+> 	    use_video = 0;
+> 	  }
+> 	  else
+> 	    video_inited = 1;
+> 	}
+> 	
+> 	if (info.has_audio && !audio_inited && use_audio) {
+> 	  if ( SDL_Init(SDL_INIT_AUDIO) < 0 ) {
+> 	    fprintf(stderr, "Warning: Couldn't init SDL audio: %s\n",
+> 		    SDL_GetError());
+> 	    fprintf(stderr, "Will ignore audio stream\n");
+> 	    use_audio = 0;
+> 	  }
+> 	  else
+> 	    audio_inited = 1;
+> 	}
+> 	
+> 	
+> 	
+*************************************************************************
+*** Applied ***
+From: Jesper Pedersen <jep@systematic.dk>
+Subject: Patch for SMPEG_pause() bug
+Date: Mon, 31 Jan 2000 15:12:52 +0100
+
+Hi Sam.
+
+I've attached my patch which include the fix for the SMPEG_pause() bug.
+
+BTW: I've noticed when another application is using my soundcard that
+the playback of a MPEG stream doesn't work with plaympeg :/
+(don't know whether this is a libSDL or libSMPEG bug yet)
+
+BTW: All my problems with screen-updates disappeared when 
+I upgraded to SDL-1.0.3: Keep up the good work !
+
+Cheers,
+
+ Jesper
+
+diff -u -N -r smpeg-0.3.3/MPEG.h smpeg-cvs/MPEG.h
+--- smpeg-0.3.3/MPEG.h	Thu Jan  6 22:02:23 2000
++++ smpeg-cvs/MPEG.h	Sat Jan 22 15:44:40 2000
+@@ -273,9 +273,9 @@
+             videoaction->MoveDisplay(x, y);
+         }
+     }
+-    void DoubleDisplay(bool toggle) {
++    void ScaleDisplay(int scale) {
+         if ( VideoEnabled() ) {
+-            videoaction->DoubleDisplay(toggle);
++            videoaction->ScaleDisplay(scale);
+         }
+     }
+     void RenderFrame(int frame, SDL_Surface *dst, int x, int y) {
+@@ -501,9 +501,9 @@
+             mpeg->MoveDisplay(x, y);
+         }
+     }
+-    void DoubleDisplay(bool toggle) {
++    void ScaleDisplay(int scale) {
+         if ( mpeg ) {
+-            mpeg->DoubleDisplay(toggle);
++            mpeg->ScaleDisplay(scale);
+         }
+     }
+     void RenderFrame(int frame, SDL_Surface *dst, int x, int y) {
+diff -u -N -r smpeg-0.3.3/MPEGaction.h smpeg-cvs/MPEGaction.h
+--- smpeg-0.3.3/MPEGaction.h	Tue Dec 21 18:17:35 1999
++++ smpeg-cvs/MPEGaction.h	Sun Jan 30 10:09:41 2000
+@@ -36,6 +36,7 @@
+         playing = false;
+         paused = false;
+         looping = false;
++	play_time = 0.0;
+     }
+     virtual void Loop(bool toggle) {
+         looping = toggle;
+@@ -106,7 +107,7 @@
+     virtual bool SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
+                                 MPEG_DisplayCallback callback) = 0;
+     virtual void MoveDisplay(int x, int y) = 0;
+-    virtual void DoubleDisplay(bool toggle) = 0;
++    virtual void ScaleDisplay(int scale) = 0;
+     virtual void RenderFrame(int frame, SDL_Surface *dst, int x, int y) = 0;
+     virtual void RenderFinal(SDL_Surface *dst, int x, int y) = 0;
+ protected:
+diff -u -N -r smpeg-0.3.3/MPEGvideo.h smpeg-cvs/MPEGvideo.h
+--- smpeg-0.3.3/MPEGvideo.h	Tue Dec 21 18:17:35 1999
++++ smpeg-cvs/MPEGvideo.h	Sat Jan 22 15:44:40 2000
+@@ -59,7 +59,7 @@
+     bool SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
+                                             MPEG_DisplayCallback callback);
+     void MoveDisplay(int x, int y);
+-    void DoubleDisplay(bool toggle);
++    void ScaleDisplay(int scale);
+     void RenderFrame(int frame, SDL_Surface *dst, int x, int y);
+     void RenderFinal(SDL_Surface *dst, int x, int y);
+ 
+@@ -78,7 +78,7 @@
+ 
+     MPEG_DisplayCallback _callback;
+ 
+-    int _double;        // play back at double size
++    int _scale;         // play back at '_scale' size
+     int _w;             // width of movie
+     int _h;             // height of movie
+     int _x;             // pixel x offset
+diff -u -N -r smpeg-0.3.3/gtv.c smpeg-cvs/gtv.c
+--- smpeg-0.3.3/gtv.c	Thu Oct 21 17:54:50 1999
++++ smpeg-cvs/gtv.c	Sat Jan 22 15:44:40 2000
+@@ -445,6 +445,7 @@
+ {
+     SMPEG* mpeg = NULL;
+     SDL_Surface* sdl_screen = NULL;
++    int scale = 1;
+ 
+     assert( raw );
+ 
+@@ -460,6 +461,7 @@
+ 
+ 	if( active ) {
+ 	    SMPEG_move( mpeg, 0, 0 );
++	    scale = 2;
+ 	} else {
+ 	    SMPEG_Info* info = NULL;
+ 
+@@ -468,9 +470,10 @@
+ 	    SMPEG_move( mpeg,
+ 			( sdl_screen->w - info->width ) / 2,
+ 			( sdl_screen->h - info->height ) / 2 );
++	    scale = 1;
+ 	}
+ 
+-	SMPEG_double( mpeg, active );
++	SMPEG_scale( mpeg, scale );
+ 	gtv_clear_screen( raw );
+     }
+ 
+diff -u -N -r smpeg-0.3.3/plaympeg.1 smpeg-cvs/plaympeg.1
+--- smpeg-0.3.3/plaympeg.1	Mon Jan  3 21:16:24 2000
++++ smpeg-cvs/plaympeg.1	Sat Jan 22 15:44:40 2000
+@@ -40,6 +40,9 @@
+ .TP
+ .B \-v N, \--volume N
+ Set the volume of the audio stream to N% (N in the range of 0 to 100)
++.TP
++.B \-s S, \--scale S
++Play the MPEG video stream at S size
+ .SH "SEE ALSO"
+ SMPEG home page at http://www.lokigames.com/development/smpeg.php3
+ .SH AUTHOR
+diff -u -N -r smpeg-0.3.3/plaympeg.c smpeg-cvs/plaympeg.c
+--- smpeg-0.3.3/plaympeg.c	Wed Jan 19 06:57:09 2000
++++ smpeg-cvs/plaympeg.c	Sun Jan 30 11:03:25 2000
+@@ -27,12 +27,13 @@
+     printf(
+ "Usage: %s [options] file ...\n"
+ "Where the options are one of:\n"
+-"	--noaudio	Don't play audio stream\n"
+-"	--novideo	Don't play video stream\n"
+-"	--fullscreen	Play MPEG in fullscreen mode\n"
+-"	--double or -2	Play MPEG at double size\n"
+-"	--loop or -l	Play MPEG over and over\n"
+-"	--volume N or -v N Set audio volume to N (0-100)\n", argv0);
++"	--noaudio	     Don't play audio stream\n"
++"	--novideo	     Don't play video stream\n"
++"	--fullscreen	     Play MPEG in fullscreen mode\n"
++"	--double or -2	     Play MPEG at double size\n"
++"	--loop or -l	     Play MPEG over and over\n"
++"	--volume N or -v N   Set audio volume to N (0-100)\n"
++"	--scale S or -s S    Play MPEG at size S (1-)\n", argv0);
+ }
+ 
+ void update(SDL_Surface *screen, Sint32 x, Sint32 y, Uint32 w, Uint32 h)
+@@ -48,9 +49,9 @@
+ {
+     int use_audio, use_video;
+     int fullscreen;
+-    int doublesize;
++    int scalesize;
+     int loop_play;
+-    int i, done;
++    int i, done, pause;
+     int volume;
+     SMPEG *mpeg;
+     SMPEG_Info info;
+@@ -66,7 +67,7 @@
+     use_audio = 1;
+     use_video = 1;
+     fullscreen = 0;
+-    doublesize = 0;
++    scalesize = 1;
+     loop_play = 0;
+     volume = 100;
+     for ( i=1; argv[i] && (argv[i][0] == '-'); ++i ) {
+@@ -80,7 +81,7 @@
+             fullscreen = 1;
+         } else
+         if ((strcmp(argv[i], "--double") == 0)||(strcmp(argv[i], "-2") == 0)) {
+-            doublesize = 1;
++            scalesize = 2;
+         } else
+         if ((strcmp(argv[i], "--loop") == 0) || (strcmp(argv[i], "-l") == 0)) {
+             loop_play = 1;
+@@ -90,6 +91,20 @@
+             if ( argv[i] ) {
+                 volume = atoi(argv[i]);
+             }
++	    if ( ( volume < 0 ) || ( volume > 100 ) ) {
++	      fprintf(stderr, "Volume must be between 0 and 100\n");
++	      volume = 100;
++	    }
++        } else
++        if ((strcmp(argv[i], "--scale") == 0)||(strcmp(argv[i], "-s") == 0)) {
++            ++i;
++            if ( argv[i] ) {
++                scalesize = atoi(argv[i]);
++            }
++	    if (( scalesize < 1 ) || ( scalesize > 2)) {
++	      fprintf(stderr, "Scale must be 1 or 2 (work in progress)\n");
++	      scalesize = 1;
++	    }
+         } else
+         if ((strcmp(argv[i], "--help") == 0) || (strcmp(argv[i], "-h") == 0)) {
+             usage(argv[0]);
+@@ -139,18 +154,22 @@
+         if ( info.has_video && use_video ) {
+             SDL_Surface *screen;
+             Uint32 video_flags;
++	    int height, width;
++
++	    width = info.width;
++	    height = info.height;
+ 
+-            if ( doublesize ) {
+-                SMPEG_double(mpeg, 1);
+-                info.width *= 2;
+-                info.height *= 2;
++            if ( scalesize != 1 ) {
++                SMPEG_scale(mpeg, scalesize);
++                width *= scalesize;
++                height *= scalesize;
+             }
+             video_flags = SDL_SWSURFACE;
+             if ( fullscreen ) {
+                 video_flags = SDL_FULLSCREEN|SDL_DOUBLEBUF|SDL_HWSURFACE;
+                 SDL_ShowCursor(0);
+             }
+-            screen = SDL_SetVideoMode(info.width, info.height, 0, video_flags);
++            screen = SDL_SetVideoMode(width, height, 0, video_flags);
+             SMPEG_setdisplay(mpeg, screen, NULL, update);
+         }
+ 
+@@ -162,15 +181,88 @@
+         /* Play it, and wait for playback to complete */
+         SMPEG_play(mpeg);
+         done = 0;
+-        while ( ! done && (SMPEG_status(mpeg) == SMPEG_PLAYING) ) {
++	pause = 0;
++        while ( ! done && ( pause || (SMPEG_status(mpeg) == SMPEG_PLAYING) ) ) {
+             SDL_Event event;
+ 
+             while ( SDL_PollEvent(&event) ) {
+                 switch (event.type) {
+                     case SDL_KEYDOWN:
+-                        if ( event.key.keysym.sym == SDLK_ESCAPE ) {
+-                            done = 1;
+-                        }
++                        if ( (event.key.keysym.sym == SDLK_ESCAPE) || (event.key.keysym.sym == SDLK_q) ) {
++			  // Quit
++			  done = 1;
++                        } else if ( event.key.keysym.sym == SDLK_UP ) {
++			  // Volume up
++			  if ( volume < 100 ) {
++			    if ( SDL_GetModState() & KMOD_SHIFT ) {       // 10+
++			      volume += 10;
++			    } else if ( SDL_GetModState() & KMOD_CTRL ) { // 100+
++			      volume = 100;
++			    } else {                                      // 1+
++			      volume++;
++			    }
++			    if ( volume > 100 ) 
++			      volume = 100;
++			    SMPEG_setvolume(mpeg, volume);
++			  }
++                        } else if ( event.key.keysym.sym == SDLK_DOWN ) {
++			  // Volume down
++			  if ( volume > 0 ) {
++			    if ( SDL_GetModState() & KMOD_SHIFT ) {
++			      volume -= 10;
++			    } else if ( SDL_GetModState() & KMOD_CTRL ) {
++			      volume = 0;
++			    } else {
++			      volume--;
++			    }
++			    if ( volume < 0 ) 
++			      volume = 0;
++			    SMPEG_setvolume(mpeg, volume);
++			  }
++                        } else if ( event.key.keysym.sym == SDLK_PAGEUP ) {
++			  // Full volume
++			  volume = 100;
++			  SMPEG_setvolume(mpeg, volume);
++                        } else if ( event.key.keysym.sym == SDLK_PAGEDOWN ) {
++			  // Volume off
++			  volume = 0;
++			  SMPEG_setvolume(mpeg, volume);
++                        } else if ( event.key.keysym.sym == SDLK_SPACE ) {
++			  // Toggle play / pause
++			  if ( SMPEG_status(mpeg) == SMPEG_PLAYING ) {
++			    SMPEG_pause(mpeg);
++			    pause = 1;
++			  } else {
++			    SMPEG_play(mpeg);
++			    pause = 0;
++			  }
++			} else if ( event.key.keysym.sym == SDLK_RIGHT ) {
++			  // Forward
++			  if ( SDL_GetModState() & KMOD_SHIFT ) {
++
++			  } else if ( SDL_GetModState() & KMOD_CTRL ) {
++
++			  } else {
++			    
++			  }
++                        } else if ( event.key.keysym.sym == SDLK_LEFT ) {
++			  // Reverse
++			  if ( SDL_GetModState() & KMOD_SHIFT ) {
++
++			  } else if ( SDL_GetModState() & KMOD_CTRL ) {
++
++			  } else {
++
++			  }
++                        } else if ( event.key.keysym.sym == SDLK_KP_MINUS ) {
++			  // Scale minus
++			  if ( scalesize > 1 ) {
++			    scalesize--;
++			  }
++                        } else if ( event.key.keysym.sym == SDLK_KP_PLUS ) {
++			  // Scale plus
++			  scalesize++;
++			}
+                         break;
+                     case SDL_QUIT:
+                         done = 1;
+diff -u -N -r smpeg-0.3.3/smpeg.cpp smpeg-cvs/smpeg.cpp
+--- smpeg-0.3.3/smpeg.cpp	Wed Nov 24 21:03:48 1999
++++ smpeg-cvs/smpeg.cpp	Sat Jan 22 15:44:40 2000
+@@ -135,10 +135,10 @@
+     mpeg->obj->Loop(repeat);
+ }
+ 
+-/* Set or clear pixel-doubled display on an SMPEG object */
+-void SMPEG_double( SMPEG* mpeg, int big )
++/* Scale pixel display on an SMPEG object */
++void SMPEG_scale( SMPEG* mpeg, int scale )
+ {
+-    mpeg->obj->DoubleDisplay(big);
++    mpeg->obj->ScaleDisplay(scale);
+ }
+ 
+ /* Move the video display area within the destination surface */
+diff -u -N -r smpeg-0.3.3/smpeg.h smpeg-cvs/smpeg.h
+--- smpeg-0.3.3/smpeg.h	Tue Dec 21 18:17:35 1999
++++ smpeg-cvs/smpeg.h	Sat Jan 22 15:44:40 2000
+@@ -95,8 +95,8 @@
+ /* Set or clear looping play on an SMPEG object */
+ extern void SMPEG_loop( SMPEG* mpeg, int repeat );
+ 
+-/* Set or clear pixel-doubled display on an SMPEG object */
+-extern void SMPEG_double( SMPEG* mpeg, int big );
++/* Scale pixel display on an SMPEG object */
++extern void SMPEG_scale( SMPEG* mpeg, int scale );
+ 
+ /* Move the video display area within the destination surface */
+ extern void SMPEG_move( SMPEG* mpeg, int x, int y );
+diff -u -N -r smpeg-0.3.3/video/16bit.cpp smpeg-cvs/video/16bit.cpp
+--- smpeg-0.3.3/video/16bit.cpp	Thu Oct 21 17:55:01 1999
++++ smpeg-cvs/video/16bit.cpp	Sun Jan 23 18:00:40 2000
+@@ -583,9 +583,9 @@
+ /*
+  *--------------------------------------------------------------
+  *
+- * Twox2Color16DitherImage --
++ * ScaleColor16DitherImage --
+  *
+- *        Converts image into 16 bit color at double size.
++ *        Converts image into 16 bit color at a scale size.
+  *
+  * Results:
+  *        None.
+@@ -606,9 +606,9 @@
+  * the horisontal doubling for free (almost).
+  */
+ 
+-void Twox2Color16DitherImageMod( unsigned char *lum, unsigned char *cr,
++void ScaleColor16DitherImageMod( unsigned char *lum, unsigned char *cr,
+                                  unsigned char *cb, unsigned char *out,
+-                                 int rows, int cols, int mod )
++                                 int rows, int cols, int mod, int scale )
+ {
+     unsigned int* row1 = (unsigned int*) out;
+     const int next_row = cols+(mod/2);
+@@ -618,13 +618,13 @@
+     int cr_r;
+     int crb_g;
+     int cb_b;
+-    int cols_2 = cols / 2;
++    int cols_2 = cols / scale;
+ 
+     lum2 = lum + cols;
+ 
+     mod = (next_row * 3) + (mod/2);
+ 
+-    y = rows / 2;
++    y = rows / scale;
+     while( y-- )
+     {
+         x = cols_2;
+@@ -678,9 +678,9 @@
+     }
+ }
+ 
+-void Twox2Color32DitherImageMod( unsigned char *lum, unsigned char *cr,
++void ScaleColor32DitherImageMod( unsigned char *lum, unsigned char *cr,
+                                  unsigned char *cb, unsigned char *out,
+-                                 int rows, int cols, int mod )
++                                 int rows, int cols, int mod, int scale )
+ {
+     unsigned int* row1 = (unsigned int*) out;
+     const int next_row = cols*2+mod;
+@@ -715,7 +715,7 @@
+                                        (rgb_2_pix[ L + cr_r ] |
+                                         rgb_2_pix[ L + crb_g ] |
+                                         rgb_2_pix[ L + cb_b ]);
+-            row1 += 2;
++            row1 += scale;
+ 
+             L = L_tab[ (int) *lum++ ];
+             row1[0] = row1[1] = row1[next_row] = row1[next_row+1] =
+@@ -761,30 +761,30 @@
+      framerate very much.  Optimization is better done in stream parsing.
+  */
+ #ifdef USE_INTERLACED_VIDEO
+-void Twox2Color16DitherImageModInterlace( unsigned char *lum, unsigned char *cr,
+-                                 unsigned char *cb, unsigned char *out,
+-                                 int rows, int cols, int mod, int start )
++void ScaleColor16DitherImageModInterlace( unsigned char *lum, unsigned char *cr,
++					  unsigned char *cb, unsigned char *out,
++					  int rows, int cols, int mod, int start, int scale )
+ {
+     unsigned long* row1;
+-    const int next_row = cols+(mod/2);
++    const int next_row = cols+(mod/scale);
+     unsigned long* row2;
+     unsigned char* lum2;
+     int x, y;
+     int cr_r;
+     int crb_g;
+     int cb_b;
+-    int cols_2 = cols / 2;
++    int cols_2 = cols / scale;
+ 
+     row1 = (unsigned long*) out;
+     // Uncomment this to enable even-odd scanline rendering (looks terrible)
+     //row1 += 2*start * next_row;
+     //lum += start * cols;
+-    row2 = row1 + 4*next_row;
+-    lum2 = lum + 2*cols;
++    row2 = row1 + 2*scale*next_row;
++    lum2 = lum + scale*cols;
+ 
+-    mod = ((cols + (mod/2)) * 3) + (mod/2);
++    mod = ((cols + (mod/scale)) * 3) + (mod/scale);
+ 
+-    y = ((rows-2) / 2);
++    y = ((rows-2) / scale);
+     while( y-- )
+     {
+         x = cols_2;
+diff -u -N -r smpeg-0.3.3/video/MPEGvideo.cpp smpeg-cvs/video/MPEGvideo.cpp
+--- smpeg-0.3.3/video/MPEGvideo.cpp	Fri Dec 24 00:59:56 1999
++++ smpeg-cvs/video/MPEGvideo.cpp	Sun Jan 30 10:28:25 2000
+@@ -137,7 +137,7 @@
+     _thread = NULL;
+     _x = 0;
+     _y = 0;
+-    _double = false;
++    _scale = 1;
+     _surf = NULL;
+     _mutex = NULL;
+     _stream = NULL;
+@@ -191,7 +191,6 @@
+ 
+     /* Get the time the playback started */
+     mpeg->_stream->realTimeStart = ReadSysClock();
+-    mpeg->play_time = 0.0;
+ 
+     while( mpeg->playing )
+     {
+@@ -213,7 +212,7 @@
+             }
+         }
+     }
+-	return(0);
++    return(0);
+ }
+ 
+ void
+@@ -255,6 +254,8 @@
+ 
+     mpeg->reset_stream();
+ 
++    play_time = 0.0;
++
+ #ifdef ANALYSIS 
+     init_stats();
+ #endif
+@@ -402,9 +403,9 @@
+ }
+ 
+ void
+-MPEGvideo:: DoubleDisplay( bool toggle )
++MPEGvideo:: ScaleDisplay( int scale )
+ {
+-    _double = toggle;
++    _scale = scale;
+ }
+ 
+ 
+diff -u -N -r smpeg-0.3.3/video/gdith.cpp smpeg-cvs/video/gdith.cpp
+--- smpeg-0.3.3/video/gdith.cpp	Tue Dec 21 18:17:35 1999
++++ smpeg-cvs/video/gdith.cpp	Sat Jan 22 15:44:40 2000
+@@ -430,33 +430,33 @@
+     if ( mpeg->_mutex )
+         SDL_mutexP( mpeg->_mutex );
+ 
+-    if( mpeg->_double )
++    if( mpeg->_scale != 1 )
+     {
+ #ifdef USE_INTERLACED_VIDEO
+         static int start = 1;
+         if ( mpeg->_surf->format->BytesPerPixel == 2 ) {
+-        	Twox2Color16DitherImageModInterlace( l, Cr, Cb, disp,
+-                  vid_stream->v_size, vid_stream->h_size,
+-                 (mpeg->_surf->pitch / 2) - (vid_stream->h_size * 2), start );
++	  ScaleColor16DitherImageModInterlace( l, Cr, Cb, disp,
++					       vid_stream->v_size, vid_stream->h_size,
++					       (mpeg->_surf->pitch / 2) - (vid_stream->h_size * mpeg->_scale), start, mpeg->_scale);
+ 	}
+         start = !start;
+ #else
+         if ( mpeg->_surf->format->BytesPerPixel == 2 ) {
+-            Twox2Color16DitherImageMod( l, Cr, Cb, disp,
+-                  vid_stream->v_size, vid_stream->h_size,
+-                 (mpeg->_surf->pitch / 2) - (vid_stream->h_size * 2) );
+-        }
++            ScaleColor16DitherImageMod( l, Cr, Cb, disp,
++					vid_stream->v_size, vid_stream->h_size,
++					(mpeg->_surf->pitch / 2) - (vid_stream->h_size * mpeg->_scale), mpeg->_scale);
++        } else
+         if ( mpeg->_surf->format->BytesPerPixel == 4 ) {
+-            Twox2Color32DitherImageMod( l, Cr, Cb, disp,
+-                  vid_stream->v_size, vid_stream->h_size,
+-                 (mpeg->_surf->pitch / 4) - (vid_stream->h_size * 2) );
++            ScaleColor32DitherImageMod( l, Cr, Cb, disp,
++					vid_stream->v_size, vid_stream->h_size,
++					(mpeg->_surf->pitch / 4) - (vid_stream->h_size * mpeg->_scale), mpeg->_scale);
+         }
+ #endif
+         if ( SDL_MUSTLOCK(mpeg->_surf) ) {
+             SDL_UnlockSurface(mpeg->_surf);
+         }
+         mpeg->_callback( mpeg->_surf, mpeg->_x, mpeg->_y,
+-                     vid_stream->h_size * 2, vid_stream->v_size * 2 );
++                     vid_stream->h_size * mpeg->_scale, vid_stream->v_size * mpeg->_scale );
+     }
+     else
+     {
+diff -u -N -r smpeg-0.3.3/video/proto.h smpeg-cvs/video/proto.h
+--- smpeg-0.3.3/video/proto.h	Thu Oct 21 17:55:01 1999
++++ smpeg-cvs/video/proto.h	Sat Jan 22 15:44:40 2000
+@@ -139,9 +139,9 @@
+ void Color32DitherImageMod P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod ));
+ void Color16DitherImageModInterlace P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod, int start ));
+ void Color32DitherImage P((unsigned char *lum , unsigned char *cr , unsigned char *cb , unsigned char *out , int rows , int cols ));
+-void Twox2Color16DitherImageMod P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod ));
+-void Twox2Color32DitherImageMod P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod ));
+-void Twox2Color16DitherImageModInterlace P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod, int start ));
++void ScaleColor16DitherImageMod P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod, int scale ));
++void ScaleColor32DitherImageMod P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod, int scale ));
++void ScaleColor16DitherImageModInterlace P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod, int start, int scale ));
+ void Twox2Color32DitherImage P((unsigned char *lum , unsigned char *cr , unsigned char *cb , unsigned char *out , int rows , int cols ));
+ 
+ /* ordered.c */
+*************************************************************************
+*** Applied ***
+From: Laurent Bonnaud <Laurent.Bonnaud@inpg.fr>
+Subject: Problems with crop table
+Date: 25 Jan 2000 11:32:22 +0100
+
+Hi,
+
+some time ago, when you released the first versions of smpeg, I
+reported a bug against the crop table which was too small for some
+MPEG1 streams, and you increased its size.
+
+With my recent tests, I found MPEG1 streams with crop values below
+-3500 !  So I suggest this patch:
+
+diff -rw smpeg-0.3.3.org/video/video.cpp smpeg-0.3.3/video/video.cpp
+169c170
+< #define MAX_NEG_CROP 2048
+---
+> #define MAX_NEG_CROP 4096
+
+
+In order to get rid of the problem once and for all, I tried to replace
+this table with an inline function.  With processors becoming always
+faster than memory, I even observed a small speedup on my system (K6-2
+and gcc -O2 -fstrict-aliasing with code optimization for K6).  Here is
+my quick hack:
+
+diff -rw smpeg-0.3.3.org/video/video.cpp smpeg-0.3.3/video/video.cpp
+172a174,184
+> inline unsigned char crop(int x)
+> {
+>   if(x<=0)
+>     return 0;
+>   if(x>=255)
+>     return 255;
+>   return x;
+> }
+> 
+> //#define crop(x) cm[x]
+> 
+2176c2188
+<       dest[0] = cm[sp[0]];
+---
+>       dest[0] = crop(sp[0]);
+2178c2190
+<       dest[1] = cm[sp[1]];
+---
+>       dest[1] = crop(sp[1]);
+2180c2192
+<       dest[2] = cm[sp[2]];
+---
+>       dest[2] = crop(sp[2]);
+2182c2194
+<       dest[3] = cm[sp[3]];
+---
+>       dest[3] = crop(sp[3]);
+2184c2196
+<       dest[4] = cm[sp[4]];
+---
+>       dest[4] = crop(sp[4]);
+2186c2198
+<       dest[5] = cm[sp[5]];
+---
+>       dest[5] = crop(sp[5]);
+2188c2200
+<       dest[6] = cm[sp[6]];
+---
+>       dest[6] = crop(sp[6]);
+2190c2202
+<       dest[7] = cm[sp[7]];
+---
+>       dest[7] = crop(sp[7]);
+2194c2206
+<       dest[0] = cm[sp[8]];
+---
+>       dest[0] = crop(sp[8]);
+2196c2208
+<       dest[1] = cm[sp[9]];
+---
+>       dest[1] = crop(sp[9]);
+2198c2210
+<       dest[2] = cm[sp[10]];
+---
+>       dest[2] = crop(sp[10]);
+2200c2212
+<       dest[3] = cm[sp[11]];
+---
+>       dest[3] = crop(sp[11]);
+2202c2214
+<       dest[4] = cm[sp[12]];
+---
+>       dest[4] = crop(sp[12]);
+2204c2216
+<       dest[5] = cm[sp[13]];
+---
+>       dest[5] = crop(sp[13]);
+2206c2218
+<       dest[6] = cm[sp[14]];
+---
+>       dest[6] = crop(sp[14]);
+2208c2220
+<       dest[7] = cm[sp[15]];
+---
+>       dest[7] = crop(sp[15]);
+2497,2504c2509,2516
+<           index[0] = cm[(int) rindex1[0] + (int) blockvals[0]];
+<           index[1] = cm[(int) rindex1[1] + (int) blockvals[1]];
+<           index[2] = cm[(int) rindex1[2] + (int) blockvals[2]];
+<           index[3] = cm[(int) rindex1[3] + (int) blockvals[3]];
+<           index[4] = cm[(int) rindex1[4] + (int) blockvals[4]];
+<           index[5] = cm[(int) rindex1[5] + (int) blockvals[5]];
+<           index[6] = cm[(int) rindex1[6] + (int) blockvals[6]];
+<           index[7] = cm[(int) rindex1[7] + (int) blockvals[7]];
+---
+>           index[0] = crop((int) rindex1[0] + (int) blockvals[0]);
+>           index[1] = crop((int) rindex1[1] + (int) blockvals[1]);
+>           index[2] = crop((int) rindex1[2] + (int) blockvals[2]);
+>           index[3] = crop((int) rindex1[3] + (int) blockvals[3]);
+>           index[4] = crop((int) rindex1[4] + (int) blockvals[4]);
+>           index[5] = crop((int) rindex1[5] + (int) blockvals[5]);
+>           index[6] = crop((int) rindex1[6] + (int) blockvals[6]);
+>           index[7] = crop((int) rindex1[7] + (int) blockvals[7]);
+2508,2515c2520,2527
+<           index[0] = cm[(int) rindex1[0] + (int) blockvals[8]];
+<           index[1] = cm[(int) rindex1[1] + (int) blockvals[9]];
+<           index[2] = cm[(int) rindex1[2] + (int) blockvals[10]];
+<           index[3] = cm[(int) rindex1[3] + (int) blockvals[11]];
+<           index[4] = cm[(int) rindex1[4] + (int) blockvals[12]];
+<           index[5] = cm[(int) rindex1[5] + (int) blockvals[13]];
+<           index[6] = cm[(int) rindex1[6] + (int) blockvals[14]];
+<           index[7] = cm[(int) rindex1[7] + (int) blockvals[15]];
+---
+>           index[0] = crop((int) rindex1[0] + (int) blockvals[8]);
+>           index[1] = crop((int) rindex1[1] + (int) blockvals[9]);
+>           index[2] = crop((int) rindex1[2] + (int) blockvals[10]);
+>           index[3] = crop((int) rindex1[3] + (int) blockvals[11]);
+>           index[4] = crop((int) rindex1[4] + (int) blockvals[12]);
+>           index[5] = crop((int) rindex1[5] + (int) blockvals[13]);
+>           index[6] = crop((int) rindex1[6] + (int) blockvals[14]);
+>           index[7] = crop((int) rindex1[7] + (int) blockvals[15]);
+2595,2602c2607,2614
+<             index[0] = cm[((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[0]];
+<             index[1] = cm[((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[1]];
+<             index[2] = cm[((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[2]];
+<             index[3] = cm[((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[3]];
+<             index[4] = cm[((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[4]];
+<             index[5] = cm[((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[5]];
+<             index[6] = cm[((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[6]];
+<             index[7] = cm[((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[7]];
+---
+>             index[0] = crop(((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[0]);
+>             index[1] = crop(((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[1]);
+>             index[2] = crop(((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[2]);
+>             index[3] = crop(((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[3]);
+>             index[4] = crop(((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[4]);
+>             index[5] = crop(((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[5]);
+>             index[6] = crop(((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[6]);
+>             index[7] = crop(((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[7]);
+2607,2614c2619,2626
+<             index[0] = cm[((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[8]];
+<             index[1] = cm[((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[9]];
+<             index[2] = cm[((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[10]];
+<             index[3] = cm[((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[11]];
+<             index[4] = cm[((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[12]];
+<             index[5] = cm[((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[13]];
+<             index[6] = cm[((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[14]];
+<             index[7] = cm[((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[15]];
+---
+>             index[0] = crop(((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[8]);
+>             index[1] = crop(((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[9]);
+>             index[2] = crop(((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[10]);
+>             index[3] = crop(((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[11]);
+>             index[4] = crop(((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[12]);
+>             index[5] = crop(((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[13]);
+>             index[6] = crop(((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[14]);
+>             index[7] = crop(((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[15]);
+2640,2647c2652,2659
+<             index[0] = cm[((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[0]];
+<             index[1] = cm[((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[1]];
+<             index[2] = cm[((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[2]];
+<             index[3] = cm[((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[3]];
+<             index[4] = cm[((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[4]];
+<             index[5] = cm[((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[5]];
+<             index[6] = cm[((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[6]];
+<             index[7] = cm[((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[7]];
+---
+>             index[0] = crop(((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[0]);
+>             index[1] = crop(((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[1]);
+>             index[2] = crop(((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[2]);
+>             index[3] = crop(((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[3]);
+>             index[4] = crop(((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[4]);
+>             index[5] = crop(((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[5]);
+>             index[6] = crop(((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[6]);
+>             index[7] = crop(((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[7]);
+2654,2661c2666,2673
+<             index[0] = cm[((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[8]];
+<             index[1] = cm[((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[9]];
+<             index[2] = cm[((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[10]];
+<             index[3] = cm[((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[11]];
+<             index[4] = cm[((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[12]];
+<             index[5] = cm[((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[13]];
+<             index[6] = cm[((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[14]];
+<             index[7] = cm[((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[15]];
+---
+>             index[0] = crop(((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[8]);
+>             index[1] = crop(((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[9]);
+>             index[2] = crop(((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[10]);
+>             index[3] = crop(((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[11]);
+>             index[4] = crop(((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[12]);
+>             index[5] = crop(((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[13]);
+>             index[6] = crop(((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[14]);
+>             index[7] = crop(((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[15]);
+2970,2977c2982,2989
+<           index[0] = cm[(int) rindex1[0] + (int) blockvals[0]];
+<           index[1] = cm[(int) rindex1[1] + (int) blockvals[1]];
+<           index[2] = cm[(int) rindex1[2] + (int) blockvals[2]];
+<           index[3] = cm[(int) rindex1[3] + (int) blockvals[3]];
+<           index[4] = cm[(int) rindex1[4] + (int) blockvals[4]];
+<           index[5] = cm[(int) rindex1[5] + (int) blockvals[5]];
+<           index[6] = cm[(int) rindex1[6] + (int) blockvals[6]];
+<           index[7] = cm[(int) rindex1[7] + (int) blockvals[7]];
+---
+>           index[0] = crop((int) rindex1[0] + (int) blockvals[0]);
+>           index[1] = crop((int) rindex1[1] + (int) blockvals[1]);
+>           index[2] = crop((int) rindex1[2] + (int) blockvals[2]);
+>           index[3] = crop((int) rindex1[3] + (int) blockvals[3]);
+>           index[4] = crop((int) rindex1[4] + (int) blockvals[4]);
+>           index[5] = crop((int) rindex1[5] + (int) blockvals[5]);
+>           index[6] = crop((int) rindex1[6] + (int) blockvals[6]);
+>           index[7] = crop((int) rindex1[7] + (int) blockvals[7]);
+2981,2988c2993,3000
+<           index[0] = cm[(int) rindex1[0] + (int) blockvals[8]];
+<           index[1] = cm[(int) rindex1[1] + (int) blockvals[9]];
+<           index[2] = cm[(int) rindex1[2] + (int) blockvals[10]];
+<           index[3] = cm[(int) rindex1[3] + (int) blockvals[11]];
+<           index[4] = cm[(int) rindex1[4] + (int) blockvals[12]];
+<           index[5] = cm[(int) rindex1[5] + (int) blockvals[13]];
+<           index[6] = cm[(int) rindex1[6] + (int) blockvals[14]];
+<           index[7] = cm[(int) rindex1[7] + (int) blockvals[15]];
+---
+>           index[0] = crop((int) rindex1[0] + (int) blockvals[8]);
+>           index[1] = crop((int) rindex1[1] + (int) blockvals[9]);
+>           index[2] = crop((int) rindex1[2] + (int) blockvals[10]);
+>           index[3] = crop((int) rindex1[3] + (int) blockvals[11]);
+>           index[4] = crop((int) rindex1[4] + (int) blockvals[12]);
+>           index[5] = crop((int) rindex1[5] + (int) blockvals[13]);
+>           index[6] = crop((int) rindex1[6] + (int) blockvals[14]);
+>           index[7] = crop((int) rindex1[7] + (int) blockvals[15]);
+3064,3071c3076,3083
+<             index[0] = cm[((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[0]];
+<             index[1] = cm[((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[1]];
+<             index[2] = cm[((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[2]];
+<             index[3] = cm[((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[3]];
+<             index[4] = cm[((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[4]];
+<             index[5] = cm[((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[5]];
+<             index[6] = cm[((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[6]];
+<             index[7] = cm[((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[7]];
+---
+>             index[0] = crop(((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[0]);
+>             index[1] = crop(((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[1]);
+>             index[2] = crop(((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[2]);
+>             index[3] = crop(((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[3]);
+>             index[4] = crop(((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[4]);
+>             index[5] = crop(((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[5]);
+>             index[6] = crop(((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[6]);
+>             index[7] = crop(((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[7]);
+3076,3083c3088,3095
+<             index[0] = cm[((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[8]];
+<             index[1] = cm[((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[9]];
+<             index[2] = cm[((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[10]];
+<             index[3] = cm[((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[11]];
+<             index[4] = cm[((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[12]];
+<             index[5] = cm[((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[13]];
+<             index[6] = cm[((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[14]];
+<             index[7] = cm[((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[15]];
+---
+>             index[0] = crop(((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[8]);
+>             index[1] = crop(((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[9]);
+>             index[2] = crop(((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[10]);
+>             index[3] = crop(((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[11]);
+>             index[4] = crop(((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[12]);
+>             index[5] = crop(((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[13]);
+>             index[6] = crop(((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[14]);
+>             index[7] = crop(((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[15]);
+3109,3116c3121,3128
+<             index[0] = cm[((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[0]];
+<             index[1] = cm[((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[1]];
+<             index[2] = cm[((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[2]];
+<             index[3] = cm[((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[3]];
+<             index[4] = cm[((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[4]];
+<             index[5] = cm[((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[5]];
+<             index[6] = cm[((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[6]];
+<             index[7] = cm[((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[7]];
+---
+>             index[0] = crop(((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[0]);
+>             index[1] = crop(((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[1]);
+>             index[2] = crop(((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[2]);
+>             index[3] = crop(((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[3]);
+>             index[4] = crop(((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[4]);
+>             index[5] = crop(((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[5]);
+>             index[6] = crop(((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[6]);
+>             index[7] = crop(((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[7]);
+3123,3130c3135,3142
+<             index[0] = cm[((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[8]];
+<             index[1] = cm[((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[9]];
+<             index[2] = cm[((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[10]];
+<             index[3] = cm[((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[11]];
+<             index[4] = cm[((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[12]];
+<             index[5] = cm[((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[13]];
+<             index[6] = cm[((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[14]];
+<             index[7] = cm[((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[15]];
+---
+>             index[0] = crop(((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[8]);
+>             index[1] = crop(((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[9]);
+>             index[2] = crop(((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[10]);
+>             index[3] = crop(((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[11]);
+>             index[4] = crop(((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[12]);
+>             index[5] = crop(((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[13]);
+>             index[6] = crop(((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[14]);
+>             index[7] = crop(((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[15]);
+3403,3410c3415,3422
+<       index[0] = cm[((int) (rindex1[0] + bindex1[0]) >> 1) + blockvals[0]];
+<       index[1] = cm[((int) (rindex1[1] + bindex1[1]) >> 1) + blockvals[1]];
+<       index[2] = cm[((int) (rindex1[2] + bindex1[2]) >> 1) + blockvals[2]];
+<       index[3] = cm[((int) (rindex1[3] + bindex1[3]) >> 1) + blockvals[3]];
+<       index[4] = cm[((int) (rindex1[4] + bindex1[4]) >> 1) + blockvals[4]];
+<       index[5] = cm[((int) (rindex1[5] + bindex1[5]) >> 1) + blockvals[5]];
+<       index[6] = cm[((int) (rindex1[6] + bindex1[6]) >> 1) + blockvals[6]];
+<       index[7] = cm[((int) (rindex1[7] + bindex1[7]) >> 1) + blockvals[7]];
+---
+>       index[0] = crop(((int) (rindex1[0] + bindex1[0]) >> 1) + blockvals[0]);
+>       index[1] = crop(((int) (rindex1[1] + bindex1[1]) >> 1) + blockvals[1]);
+>       index[2] = crop(((int) (rindex1[2] + bindex1[2]) >> 1) + blockvals[2]);
+>       index[3] = crop(((int) (rindex1[3] + bindex1[3]) >> 1) + blockvals[3]);
+>       index[4] = crop(((int) (rindex1[4] + bindex1[4]) >> 1) + blockvals[4]);
+>       index[5] = crop(((int) (rindex1[5] + bindex1[5]) >> 1) + blockvals[5]);
+>       index[6] = crop(((int) (rindex1[6] + bindex1[6]) >> 1) + blockvals[6]);
+>       index[7] = crop(((int) (rindex1[7] + bindex1[7]) >> 1) + blockvals[7]);
+3415,3422c3427,3434
+<       index[0] = cm[((int) (rindex1[0] + bindex1[0]) >> 1) + blockvals[8]];
+<       index[1] = cm[((int) (rindex1[1] + bindex1[1]) >> 1) + blockvals[9]];
+<       index[2] = cm[((int) (rindex1[2] + bindex1[2]) >> 1) + blockvals[10]];
+<       index[3] = cm[((int) (rindex1[3] + bindex1[3]) >> 1) + blockvals[11]];
+<       index[4] = cm[((int) (rindex1[4] + bindex1[4]) >> 1) + blockvals[12]];
+<       index[5] = cm[((int) (rindex1[5] + bindex1[5]) >> 1) + blockvals[13]];
+<       index[6] = cm[((int) (rindex1[6] + bindex1[6]) >> 1) + blockvals[14]];
+<       index[7] = cm[((int) (rindex1[7] + bindex1[7]) >> 1) + blockvals[15]];
+---
+>       index[0] = crop(((int) (rindex1[0] + bindex1[0]) >> 1) + blockvals[8]);
+>       index[1] = crop(((int) (rindex1[1] + bindex1[1]) >> 1) + blockvals[9]);
+>       index[2] = crop(((int) (rindex1[2] + bindex1[2]) >> 1) + blockvals[10]);
+>       index[3] = crop(((int) (rindex1[3] + bindex1[3]) >> 1) + blockvals[11]);
+>       index[4] = crop(((int) (rindex1[4] + bindex1[4]) >> 1) + blockvals[12]);
+>       index[5] = crop(((int) (rindex1[5] + bindex1[5]) >> 1) + blockvals[13]);
+>       index[6] = crop(((int) (rindex1[6] + bindex1[6]) >> 1) + blockvals[14]);
+>       index[7] = crop(((int) (rindex1[7] + bindex1[7]) >> 1) + blockvals[15]);
+
+-- 
+Laurent.
+*************************************************************************
+*** Applied ***
+Date: Tue, 04 Jan 2000 00:48:34 +0100
+From: Stefan Gybas <stefan@gybas.com>
+Subject: Byte order detection patch for ARM architecture
+
+Hi!
+
+Jim Studt <jim@federated.com> submitted this patch for the SMPEG Debian
+package so that the byte order on the ARM architecture will be properly
+detected. This is also a fallback for other architectures in case the
+other "#if defined ..." cases did not work.
+
+-- 
+Stefan Gybas
+
+--- smpeg-0.3.2.orig/video/video.h
++++ smpeg-0.3.2/video/video.h
+@@ -407,6 +407,18 @@
+ #endif
+ 
+ #if !defined(LITTLE_ENDIAN_ARCHITECTURE) && !defined(BIG_ENDIAN_ARCHITECTURE)
++#include </usr/include/endian.h>
++#if __BYTE_ORDER == __LITTLE_ENDIAN
++#undef  BIG_ENDIAN_ARCHITECTURE
++#define LITTLE_ENDIAN_ARCHITECTURE 1
++#endif
++#if __BYTE_ORDER == __BIG_ENDIAN
++#undef  LITTLE_ENDIAN_ARCHITECTURE
++#define BIG_ENDIAN_ARCHITECTURE 1
++#endif
++#endif
++
++#if !defined(LITTLE_ENDIAN_ARCHITECTURE) && !defined(BIG_ENDIAN_ARCHITECTURE)
+ #error Unknown endianism of architecture
+ #endif
+ 
+*************************************************************************
+*** Applied ***
+From: C Hanish Menon <hanish@innomedia.soft.net>
+Date: Fri, 10 Dec 1999 17:04:47 +0530
+Subject: A patch to allow playing of mpeg files _having headers wrapped around them_
+
+Hi
+
+Recently I downloaded the smpeg source and tried it out.
+
+We are also working on producing a MPEG player based on the Berkeley
+mpeg code and mpg123 or Xaudio or so. Recently I was busy with some
+other stuffs so I haven't looked into this much. We have tried to
+integrate a MMX based DCT algo into the Berkely code. I or my friend
+will get back to the list regarding this in a few days time. Till know
+we were trying it only internaly.
+
+As you people are also doing this and seem to have more info on
+this.(Like we were basing most of the mpeg stream info and all based on
+the available source code.) I am thinking of using smpeg source as the
+base if possible. However I am interested in getting some of the
+optimizations we did integrated into smpeg if possible. One of us will
+get back to the list regarding this once we take a stock of what and all
+we have done till now.
+
+
+For now when I tried the smpeg code on certain files which had RIFF
+header attached to them I found that the player didn't play them. I
+didn't have the RIFF header structure immidiately at hand so I worked
+out a _quick ugly fix_ which _never the less_ allows the player to play
+these or any other mpeg file with some header structure warped on top of
+it properly. It basically searchs the begining of the file for the id.
+
+
+
+---------
+Keep :-)
+HanishKVC
+http://hanishkvc.tripod.com/
+
+--- smpeg-0.3.1/MPEG.h	Mon Nov  1 00:23:16 1999
++++ smpeg-0.3.1.new/MPEG.h	Fri Dec 10 15:31:25 1999
+@@ -307,6 +307,8 @@
+ #include <sys/mman.h>
+ #include <fcntl.h>
+ 
++#define LENGTH_TO_CHECK_FOR_SYSTEM 0x50000	// Added by HanishKVC
++
+ class MPEGfile : public MPEGerror,
+                  public MPEGaudioaction, public MPEGvideoaction {
+ public:
+@@ -319,6 +321,11 @@
+         Init(MPEG_fp, autoclose);
+     }
+     void Init(FILE *MPEG_fp, bool autoclose, bool sdlaudio = true) {
++	// Added by HanishKVC
++	Uint8 *pAreaToCheck;
++	long int iOffsetToMatch;
++        const Uint8 PACKET_START_CODE[] = { 0x00, 0x00, 0x01, 0xba };
++	// End of HanishKVC 
+         /* Initialize everything to invalid values for cleanup */
+         mpeg_fp = MPEG_fp;
+         mpeg_area = (caddr_t)-1;
+@@ -334,6 +341,56 @@
+                 mpeg_size = statb.st_size;
+                 mpeg_area = mmap(NULL, mpeg_size, PROT_READ, MAP_SHARED,
+                                                      fileno(mpeg_fp), 0);
++		// Added by HanishKVC
++		if(memcmp(mpeg_area,PACKET_START_CODE,4) == 0)
++		{
++		  printf("DebugKVC: A Normal mpeg file\n");
++		}
++		else
++		{
++		  /*
++		  mpeg_area = mpeg_area+0x113e4;
++		  mpeg_size = mpeg_size-0x113e4;
++		  if(memcmp(mpeg_area,PACKET_START_CODE,4) == 0)
++		  {
++		    printf("DebugKVC: A RIFF format mpeg file\n");
++		  }
++		  else
++		  */
++		  printf("DebugKVC: A Not so normal mpeg file\n");
++		  iOffsetToMatch = pAreaToCheck = 0;
++		  while((pAreaToCheck = 
++			(Uint8*)memchr(mpeg_area+iOffsetToMatch,0xba,
++			LENGTH_TO_CHECK_FOR_SYSTEM-iOffsetToMatch)) != NULL)
++		  {
++		    pAreaToCheck = pAreaToCheck-3;
++		    iOffsetToMatch = pAreaToCheck-mpeg_area;
++		    printf("DebugKVC: Possible Location %x\n",iOffsetToMatch);
++		    if(memcmp(pAreaToCheck,PACKET_START_CODE,4) == 0)
++		    {
++		      printf("DebugKVC: System stream found\n");
++		      mpeg_size = mpeg_size-iOffsetToMatch;
++		      mpeg_area = pAreaToCheck;
++		      break;
++		    }
++		    else
++		    {
++		      printf("DebugKVC: Sorry spurious match\n");
++		      iOffsetToMatch = iOffsetToMatch+4; 
++		      // Actually I can skip 3 more chars as 0xba is not there 
++		      // anywhere else in the PACKET_START_CODE. I may be able
++		      // to do more optimizations to search, but as this search
++		      // occurs only once at the begining and that to in a small
++		      // data space, I think this dumb way should be sufficient.
++		    }
++		  } // of while
++		  if(pAreaToCheck == NULL)
++		  {
++		    printf("DebugKVC: Sorry no system stream\n");
++		    exit(1);
++		  }
++		}
++		// End of HanishKVC
+                 if ( mpeg_area != (caddr_t)-1 ) {
+                     mpeg = new MPEG((Uint8 *)mpeg_area, mpeg_size, 0, sdlaudio);
+                     if ( mpeg->WasError() ) {
+*************************************************************************
+*** Applied ***
+Subject: A little patch for smpeg
+Date: Tue, 12 Oct 1999 23:11:05 -0500 (CDT)
+From: Moses DeJong <dejong@cs.umn.edu>
+To: smpeg@lokigames.com
+
+
+When run with no arguments, smpeg really should print the usage
+message out. Here is a quick little patch to 0.2.7 to do just that.
+
+
+--- copy_plaympeg.c     Tue Oct 12 20:30:27 1999
++++ plaympeg.c  Tue Oct 12 20:33:21 1999
+@@ -99,6 +99,11 @@
+             fprintf(stderr, "Warning: Unknown option: %s\n", argv[i]);
+         }
+     }
++    /* If there were no arguments just print the usage */
++    if (argc == 1) {
++        usage(argv[0]);
++        exit(0);
++     }
+
+     /* Play the mpeg files! */
+     for ( ; argv[i]; ++i ) {
+
+Thanks
+Mo DeJong
+
+*************************************************************************
+*** Not applied ***
+--- smpeg-0.2.7elgaard.patch ---
+# This is a patch for smpeg-0.2.7 to update it to smpeg-0.2.7elgaard
+# 
+# To apply this patch:
+# STEP 1: Chdir to the source directory.
+# STEP 2: Run the 'applypatch' program with this patch file as input.
+#
+# If you do not have 'applypatch', it is part of the 'makepatch' package
+# that you can fetch from the Comprehensive Perl Archive Network:
+# http://www.perl.com/CPAN/authors/Johan_Vromans/makepatch-x.y.tar.gz
+# In the above URL, 'x' should be 2 or higher.
+#
+# To apply this patch without the use of 'applypatch':
+# STEP 1: Chdir to the source directory.
+# STEP 2: Run the 'patch' program with this file as input.
+#
+#### End of Preamble ####
+
+#### Patch data follows ####
+diff -c 'smpeg-0.2.7/MPEGaudio.h' 'smpeg-0.2.7elgaard/MPEGaudio.h'
+Index: ./MPEGaudio.h
+*** ./MPEGaudio.h	Fri Aug  6 23:33:11 1999
+--- ./MPEGaudio.h	Sat Oct  9 02:51:34 1999
+***************
+*** 32,38 ****
+  #ifdef THREADED_AUDIO
+  #include "MPEGring.h"
+  #endif
+- 
+  /* MPEG/WAVE Sound library
+  
+     (C) 1997 by Woo-jae Jung */
+--- 32,37 ----
+***************
+*** 208,219 ****
+  public:
+    void setforcetomono(bool flag);
+    void setdownfrequency(int value);
+- 
+    /******************************/
+    /* Frame management variables */
+    /******************************/
+  private:
+!   int decodedframe,currentframe,totalframe;
+  
+    /***************************************/
+    /* Variables made by MPEG-Audio header */
+--- 207,217 ----
+  public:
+    void setforcetomono(bool flag);
+    void setdownfrequency(int value);
+    /******************************/
+    /* Frame management variables */
+    /******************************/
+  private:
+!   int decodedframe,totalframe;
+  
+    /***************************************/
+    /* Variables made by MPEG-Audio header */
+diff -c 'smpeg-0.2.7/audio/MPEGaudio.cpp' 'smpeg-0.2.7elgaard/audio/MPEGaudio.cpp'
+Index: ./audio/MPEGaudio.cpp
+*** ./audio/MPEGaudio.cpp	Fri Aug  6 23:33:11 1999
+--- ./audio/MPEGaudio.cpp	Sat Oct  9 02:38:47 1999
+***************
+*** 18,30 ****
+  */
+  
+  /* A class based on the MPEG stream class, used to parse and play audio */
+- 
+  #include "MPEGaudio.h"
+  
+  #ifdef SDL_MIXER             /* From the SDL mixer example library */
+  #include "mixer.h"
+  #endif
+- 
+  
+  MPEGaudio:: MPEGaudio(MPEGstream *stream)
+  {
+--- 18,29 ----
+  */
+  
+  /* A class based on the MPEG stream class, used to parse and play audio */
+  #include "MPEGaudio.h"
++ extern  int currentframe;
+  
+  #ifdef SDL_MIXER             /* From the SDL mixer example library */
+  #include "mixer.h"
+  #endif
+  
+  MPEGaudio:: MPEGaudio(MPEGstream *stream)
+  {
+diff -c 'smpeg-0.2.7/audio/mpegtoraw.cpp' 'smpeg-0.2.7elgaard/audio/mpegtoraw.cpp'
+Index: ./audio/mpegtoraw.cpp
+*** ./audio/mpegtoraw.cpp	Fri Aug  6 23:33:11 1999
+--- ./audio/mpegtoraw.cpp	Sat Oct  9 02:55:58 1999
+***************
+*** 8,14 ****
+  #ifdef HAVE_CONFIG_H
+  #include "config.h"
+  #endif
+! 
+  #include <math.h>
+  #include <stdlib.h>
+  #include <string.h>
+--- 8,15 ----
+  #ifdef HAVE_CONFIG_H
+  #include "config.h"
+  #endif
+! extern int currentframe;
+! extern float audioFPS;
+  #include <math.h>
+  #include <stdlib.h>
+  #include <string.h>
+***************
+*** 161,166 ****
+--- 162,168 ----
+      c &= 0xf;
+      protection = c & 1;
+      layer = 4 - ((c >> 1) & 3);
++ 
+      version = (_mpegversion) ((c >> 3) ^ 1);
+  
+      c = mpeg->copy_byte() >> 1;
+***************
+*** 241,246 ****
+--- 243,249 ----
+  	                     -(protection?0:2)
+  	                     -4;
+      }
++     audioFPS = 1000.0*bitrate[version][layer-1][bitrateindex]/framesize/8.0;
+    }
+  
+    /* Fill the buffer with new data */
+***************
+*** 258,263 ****
+--- 261,267 ----
+  
+  bool MPEGaudio::run( int frames )
+  {
++   printf("frames=%d\n", frames);
+      for( ; frames; frames-- )
+      {
+          if( loadheader() == false ) {
+***************
+*** 326,332 ****
+              len = 0;
+          } else {
+              SDL_MixAudio(stream, rbuf, copylen, volume);
+!             ++audio->currentframe;
+              audio->ring->ReadDone();
+  //fprintf(stderr, "-");
+              len -= copylen;
+--- 330,336 ----
+              len = 0;
+          } else {
+              SDL_MixAudio(stream, rbuf, copylen, volume);
+!             ++currentframe;
+              audio->ring->ReadDone();
+  //fprintf(stderr, "-");
+              len -= copylen;
+***************
+*** 357,362 ****
+--- 361,368 ----
+      audio->rawdata = (Sint16 *)stream;
+      audio->rawdatawriteoffset = 0;
+      audio->run(len/audio->samplesperframe);
++     printf("len = %d, samplesperframe=%d\n", len , samplesperframe);
++ 
+      len -= audio->rawdatawriteoffset;
+      stream += audio->rawdatawriteoffset*2;
+  
+diff -c 'smpeg-0.2.7/plaympeg.c' 'smpeg-0.2.7elgaard/plaympeg.c'
+Index: ./plaympeg.c
+*** ./plaympeg.c	Fri Aug  6 23:33:12 1999
+--- ./plaympeg.c	Sat Oct  9 03:10:13 1999
+***************
+*** 22,27 ****
+--- 22,28 ----
+  
+  #include "smpeg.h"
+  
++ 
+  void usage(char *argv0)
+  {
+      printf(
+diff -c 'smpeg-0.2.7/video/gdith.cpp' 'smpeg-0.2.7elgaard/video/gdith.cpp'
+Index: ./video/gdith.cpp
+*** ./video/gdith.cpp	Thu Jul 15 20:39:57 1999
+--- ./video/gdith.cpp	Sat Oct  9 02:38:47 1999
+***************
+*** 91,96 ****
+--- 91,98 ----
+  
+  /* Frame Rate Info */
+  extern int framerate;
++ extern float audioFPS;
++ extern int currentframe; //elgaard, audio
+  
+  /* Video rates table */
+  /* Cheat on Vid rates, round to 30, and use 30 if illegal value 
+***************
+*** 276,283 ****
+  #define SLOW_START_INCREMENT    0.3
+  
+  /* Define this to debug the frame scheduler */
+! //#define DEBUG_MPEG_SCHEDULING
+! 
+  
+  int timeSync( VidStream* vid_stream )
+  {
+--- 278,284 ----
+  #define SLOW_START_INCREMENT    0.3
+  
+  /* Define this to debug the frame scheduler */
+! #define DEBUG_MPEG_SCHEDULING // elgaard
+  
+  int timeSync( VidStream* vid_stream )
+  {
+***************
+*** 309,317 ****
+              vid_stream->rate_deal = framerate;
+              break;
+          }
+          if ( vid_stream->rate_deal ) {
+              vid_stream->_oneFrameTime = 1.0 / vid_stream->rate_deal;
+!             vid_stream->_oneFrameTime *= 1.004;  /* Experimental */
+  //printf( "One frame time %f, %d fps\n", vid_stream->_oneFrameTime, vid_stream->rate_deal );
+          }
+      }
+--- 310,319 ----
+              vid_stream->rate_deal = framerate;
+              break;
+          }
++         //vid_stream->rate_deal = vid_stream->rate_deal - (vid_stream->totNumFrames - currentframe);
+          if ( vid_stream->rate_deal ) {
+              vid_stream->_oneFrameTime = 1.0 / vid_stream->rate_deal;
+!             //          vid_stream->_oneFrameTime *= 1.004;  /* Experimental */
+  //printf( "One frame time %f, %d fps\n", vid_stream->_oneFrameTime, vid_stream->rate_deal );
+          }
+      }
+***************
+*** 331,346 ****
+          double time_behind;
+  
+          /* Calculate the frame time relative to real time */
+!         time_behind = ReadSysClock() - vid_stream->_nowFrameTime;
+! 
+  #ifdef DEBUG_MPEG_SCHEDULING
+! //printf("Frame %d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, vid_stream->_nowFrameTime, ReadSysClock(), time_behind);
+  #endif
+  
+          /* Allow up to MAX_FUDGE_TIME of delay in output */
+          if ( time_behind < -TIMESLICE ) {
+              time_behind = -time_behind;
+!             vid_stream->_skipCount = 0;
+  #ifdef DEBUG_MPEG_SCHEDULING
+  printf("Ahead!  Sleeping %f\n", time_behind-TIMESLICE);
+  #endif
+--- 333,351 ----
+          double time_behind;
+  
+          /* Calculate the frame time relative to real time */
+! 	//        time_behind = ReadSysClock() - vid_stream->_nowFrameTime;
+! 	//        time_behind = -(vid_stream->totNumFrames - currentframe) *vid_stream->_oneFrameTime;	
+!         time_behind = -(vid_stream->totNumFrames*audioFPS - (int)((float)currentframe*vid_stream->rate_deal)) *vid_stream->_oneFrameTime/vid_stream->rate_deal;
+  #ifdef DEBUG_MPEG_SCHEDULING
+! printf("Frame %d/%d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, currentframe,vid_stream->_nowFrameTime, ReadSysClock(), time_behind);
+  #endif
+  
+          /* Allow up to MAX_FUDGE_TIME of delay in output */
+          if ( time_behind < -TIMESLICE ) {
+              time_behind = -time_behind;
+!             vid_stream->_skipCount = 0; //vid_stream->totNumFrames - currentframe ;
+!             // elgaard
+!             //vid_stream->_skipCount = 0;
+  #ifdef DEBUG_MPEG_SCHEDULING
+  printf("Ahead!  Sleeping %f\n", time_behind-TIMESLICE);
+  #endif
+***************
+*** 370,375 ****
+--- 375,381 ----
+  printf("Way too far behind, losing time sync...\n");
+  #endif
+  #if 0 // This results in smoother video, but sync's terribly on slow machines
++ // elgaard, was 0
+                  vid_stream->_nowFrameTime = ReadSysClock() - (MAX_FUDGE_TIME*2);
+  #endif
+              }
+diff -c 'smpeg-0.2.7/video/video.cpp' 'smpeg-0.2.7elgaard/video/video.cpp'
+Index: ./video/video.cpp
+*** ./video/video.cpp	Tue Jun 22 23:50:44 1999
+--- ./video/video.cpp	Sat Oct  9 02:38:47 1999
+***************
+*** 175,180 ****
+--- 175,182 ----
+    if ANALYSIS has been defined.
+  */
+  
++ int  currentframe;
++ float audioFPS=40.0;
+  #ifdef ANALYSIS
+  
+  
+#### End of Patch data ####
+
+#### ApplyPatch data follows ####
+# Data version        : 1.0
+# Date generated      : Sat Oct  9 03:11:25 1999
+# Generated by        : makepatch 2.00
+# Recurse directories : Yes
+# Excluded files      : (\A|/)Makefile\Z
+#                       (\A|/)GNUmake\Z
+# p 'MPEGaudio.h' 10062 939430294 0100644
+# p 'audio/MPEGaudio.cpp' 5805 939429527 0100644
+# p 'audio/mpegtoraw.cpp' 8373 939430558 0100644
+# p 'plaympeg.c' 5111 939431413 0100644
+# p 'video/gdith.cpp' 16046 939429527 0100644
+# p 'video/video.cpp' 125492 939429527 0100644
+#### End of ApplyPatch data ####
+
+#### End of Patch kit [created: Sat Oct  9 03:11:25 1999] ####
+#### Checksum: 320 9807 48717 ####

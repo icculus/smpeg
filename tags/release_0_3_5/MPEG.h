@@ -1,0 +1,457 @@
+/*
+    SMPEG - SDL MPEG Player Library
+    Copyright (C) 1999  Loki Entertainment Software
+
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Library General Public
+    License as published by the Free Software Foundation; either
+    version 2 of the License, or (at your option) any later version.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Library General Public License for more details.
+
+    You should have received a copy of the GNU Library General Public
+    License along with this library; if not, write to the Free
+    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+*/
+
+/* A class used to parse and play MPEG streams */
+
+#ifndef _MPEG_H_
+#define _MPEG_H_
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "SDL.h"
+
+#include "MPEGerror.h"
+#include "MPEGstream.h"
+#include "MPEGaction.h"
+#include "MPEGaudio.h"
+#include "MPEGvideo.h"
+
+/* The main MPEG class - parses system streams and creates other streams
+ A few design notes:
+   Making this derived from MPEGstream allows us to do system stream
+   parsing.  We create an additional MPEG object for each type of 
+   stream in the MPEG file because each needs a separate pointer to
+   the MPEG data.  The MPEG stream then creates an accessor object to
+   do all the data parsing for that stream type.  It's a little odd,
+   but seemed like the best way do implement stream parsing.
+ */
+class MPEG : public MPEGstream, public MPEGaudioaction,public MPEGvideoaction {
+public:
+    MPEG(Uint8 *Mpeg, Uint32 Size, Uint8 StreamID = 0, bool sdlaudio = true);
+    virtual ~MPEG();
+
+    /* Enable/Disable audio and video */
+    bool AudioEnabled(void) {
+        return(audioaction_enabled);
+    }
+    void EnableAudio(bool enabled) {
+        if ( enabled && ! audioaction ) {
+            enabled = false;
+        }
+        audioaction_enabled = enabled;
+
+        /* Stop currently playing stream, if necessary */
+        if ( audioaction && ! audioaction_enabled ) {
+            audioaction->Stop();
+        } 
+        /* Set the video time source */
+        if ( videoaction ) {
+            if ( audioaction_enabled ) {
+                videostream->videoaction->SetTimeSource(audiostream->audioaction);
+            } else {
+                videostream->videoaction->SetTimeSource(NULL);
+            }
+        }
+    }
+    bool VideoEnabled(void) {
+        return(videoaction_enabled);
+    }
+    void EnableVideo(bool enabled) {
+        if ( enabled && ! videoaction ) {
+            enabled = false;
+        }
+        videoaction_enabled = enabled;
+
+        /* Stop currently playing stream, if necessary */
+        if ( videoaction && ! videoaction_enabled ) {
+            videoaction->Stop();
+        } 
+    }
+
+    /* MPEG actions */
+    void Loop(bool toggle) {
+        if ( videoaction ) {
+            videoaction->Loop(toggle);
+        }
+        if ( audioaction ) {
+            audioaction->Loop(toggle);
+        }
+    }
+    void Play(void) {
+        if ( VideoEnabled() ) {
+            videoaction->Play();
+        }
+        if ( AudioEnabled() ) {
+            audioaction->Play();
+        }
+    }
+    void Stop(void) {
+        if ( VideoEnabled() ) {
+            videoaction->Stop();
+        }
+        if ( AudioEnabled() ) {
+            audioaction->Stop();
+        }
+    }
+    void Rewind(void) {
+        if ( VideoEnabled() ) {
+            videoaction->Rewind();
+        }
+        if ( AudioEnabled() ) {
+            audioaction->Rewind();
+        }
+    }
+    void Pause(void) {
+        if ( VideoEnabled() ) {
+            videoaction->Pause();
+        }
+        if ( AudioEnabled() ) {
+            audioaction->Pause();
+        }
+    }
+    MPEGstatus Status(void) {
+        MPEGstatus status;
+
+        status = MPEG_STOPPED;
+        if ( VideoEnabled() ) {
+            switch (videoaction->Status()) {
+                case MPEG_PLAYING:
+                    status = MPEG_PLAYING;
+                    break;
+            }
+        }
+        if ( AudioEnabled() ) {
+            switch (audioaction->Status()) {
+                case MPEG_PLAYING:
+                    status = MPEG_PLAYING;
+                    break;
+            }
+        }
+        return(status);
+    }
+
+    /* MPEG audio actions */
+    bool GetAudioInfo(MPEG_AudioInfo *info) {
+        if ( AudioEnabled() ) {
+            return(audioaction->GetAudioInfo(info));
+        }
+        return(false);
+    }
+    void Volume(int vol) {
+        if ( AudioEnabled() ) {
+            return(audioaction->Volume(vol));
+        }
+    }
+    bool WantedSpec(SDL_AudioSpec *wanted) {
+        if( audiostream ) {
+            return(GetAudio()->WantedSpec(wanted));
+        }
+        return(false);
+    }
+    void ActualSpec(const SDL_AudioSpec *actual) {
+        if( audiostream ) {
+            GetAudio()->ActualSpec(actual);
+        }
+    }
+    MPEGaudio *GetAudio(void) { // Simple accessor used in the C interface
+        if ( audiostream == this ) {
+            return audio;
+        } else {
+            return(audiostream->GetAudio());
+        }
+    }
+
+    /* MPEG video actions */
+    bool GetVideoInfo(MPEG_VideoInfo *info) {
+        if ( VideoEnabled() ) {
+            return(videoaction->GetVideoInfo(info));
+        }
+        return(false);
+    }
+    bool SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
+                                MPEG_DisplayCallback callback) {
+        if ( VideoEnabled() ) {
+            return(videoaction->SetDisplay(dst, lock, callback));
+        }
+        return(false);
+    }
+    void MoveDisplay(int x, int y) {
+        if ( VideoEnabled() ) {
+            videoaction->MoveDisplay(x, y);
+        }
+    }
+    void ScaleDisplay(int scale) {
+        if ( VideoEnabled() ) {
+            videoaction->ScaleDisplay(scale);
+        }
+    }
+    void RenderFrame(int frame, SDL_Surface *dst, int x, int y) {
+        if ( VideoEnabled() ) {
+            videoaction->RenderFrame(frame, dst, x, y);
+        }
+    }
+    void RenderFinal(SDL_Surface *dst, int x, int y) {
+        if ( VideoEnabled() ) {
+            videoaction->RenderFinal(dst, x, y);
+        }
+    }
+
+protected:
+    /* We need to have separate audio and video streams */
+public:
+    MPEG *audiostream;
+    MPEG *videostream;
+
+protected:
+    MPEGaudio *audio;
+    MPEGvideo *video;
+    MPEGaudioaction *audioaction;
+    bool audioaction_enabled;
+    MPEGvideoaction *videoaction;
+    bool videoaction_enabled;
+};
+
+/* This class is system dependent in the way it uses memory mapping */
+#ifdef unix
+#include <stdio.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+
+#define LENGTH_TO_CHECK_FOR_SYSTEM 0x50000	// Added by HanishKVC
+
+class MPEGfile : public MPEGerror,
+                 public MPEGaudioaction, public MPEGvideoaction {
+public:
+    MPEGfile(const char *file, bool sdlaudio = true) {
+        FILE *newfp;
+        newfp = fopen(file, "rb");
+        Init(newfp, true, sdlaudio);
+    }
+    MPEGfile(FILE *MPEG_fp, bool autoclose = false) {
+        Init(MPEG_fp, autoclose);
+    }
+    void Init(FILE *MPEG_fp, bool autoclose, bool sdlaudio = true) {
+	// Added by HanishKVC
+	Uint8 *mpeg_start;
+	int mpeg_offset;
+        const Uint8 PACKET_START_CODE[] = { 0x00, 0x00, 0x01, 0xba };
+	// End of HanishKVC 
+        /* Initialize everything to invalid values for cleanup */
+        mpeg_fp = MPEG_fp;
+        mpeg_area = (caddr_t)-1;
+        mpeg = NULL;
+        error = NULL;
+
+        /* Memory map the file and create an MPEG object */
+        if ( MPEG_fp ) {
+            struct stat statb;
+
+            mpeg_fp = MPEG_fp;
+            if ( fstat(fileno(mpeg_fp), &statb) == 0 ) {
+                mpeg_size = statb.st_size;
+                mpeg_area = mmap(NULL, mpeg_size, PROT_READ, MAP_SHARED,
+                                                     fileno(mpeg_fp), 0);
+		// Added by HanishKVC
+                mpeg_start = (Uint8 *)mpeg_area;
+		mpeg_offset = 0;
+		if ( (memcmp(mpeg_start, PACKET_START_CODE, 3) != 0) &&
+                     (mpeg_start[0] != 0xFF /* MP3 audio */) ) {
+		  //printf("DebugKVC: A Not so normal mpeg file\n");
+		  while((mpeg_start = 
+			(Uint8*)memchr((Uint8 *)mpeg_area+mpeg_offset,0xba,
+			mpeg_size-mpeg_offset)) != NULL)
+		  {
+		    mpeg_start = mpeg_start-3;
+		    mpeg_offset = mpeg_start-(Uint8 *)mpeg_area;
+		    //printf("DebugKVC: Possible Location %x\n",mpeg_offset);
+		    if ( memcmp(mpeg_start, PACKET_START_CODE, 3) == 0 ) {
+		      //printf("DebugKVC: System stream found\n");
+		      break;
+		    } else {
+		      //printf("DebugKVC: Sorry spurious match\n");
+		      mpeg_offset = mpeg_offset+4; 
+		      // Actually I can skip 3 more chars as 0xba is not there 
+		      // anywhere else in the PACKET_START_CODE. I may be able
+		      // to do more optimizations to search, but as this search
+		      // occurs only once at the begining and that to in a small
+		      // data space, I think this dumb way should be sufficient.
+		    }
+		  } // of while
+		}
+		// End of HanishKVC
+                if ( mpeg_area != (caddr_t)-1 ) {
+		    if ( mpeg_start ) {
+                        mpeg = new MPEG(mpeg_start,
+                                        mpeg_size-mpeg_offset, 0, sdlaudio);
+                        if ( mpeg->WasError() ) {
+                            SetError(mpeg->TheError());
+                            delete mpeg;
+                            mpeg = NULL;
+                        }
+                    } else {
+                        SetError("Unable to find MPEG start code");
+                    }
+                } else {
+                    SetError("Memory map of MPEG failed");
+                }
+            } else {
+                SetError("Unable to stat() MPEG file");
+            }
+        } else {
+            SetError("Unable to open MPEG file");
+        }
+        close_fp = autoclose;
+    }
+    virtual ~MPEGfile() {
+        if ( mpeg ) {
+            delete mpeg;
+        }
+        if ( mpeg_area != (caddr_t)-1 ) {
+            munmap((caddr_t)mpeg_area, mpeg_size);
+        }
+        if ( close_fp && mpeg_fp ) {
+            fclose(mpeg_fp);
+        }
+    }
+
+    /* Enable/Disable audio and video */
+    bool AudioEnabled(void) {
+        if ( mpeg ) {
+            return(mpeg->AudioEnabled());
+        }
+        return(false);
+    }
+    void EnableAudio(bool enabled) {
+        if ( mpeg ) mpeg->EnableAudio(enabled);
+    }
+    bool VideoEnabled(void) {
+        if ( mpeg ) {
+            return(mpeg->VideoEnabled());
+        }
+        return(false);
+    }
+    void EnableVideo(bool enabled) {
+        if ( mpeg ) mpeg->EnableVideo(enabled);
+    }
+
+    /* MPEG actions */
+    void Loop(bool toggle) {
+        if ( mpeg ) mpeg->Loop(toggle);
+    }
+    void Play(void) {
+        if ( mpeg ) mpeg->Play();
+    }
+    void Stop(void) {
+        if ( mpeg ) mpeg->Stop();
+    }
+    void Rewind(void) {
+        if ( mpeg ) mpeg->Rewind();
+    }
+    void Pause(void) {
+        if ( mpeg ) mpeg->Pause();
+    }
+    MPEGstatus Status(void) {
+        MPEGstatus status;
+
+        status = MPEG_ERROR;
+        if ( mpeg ) {
+            status = mpeg->Status();
+        }
+        return(status);
+    }
+
+    /* MPEG audio actions */
+    bool GetAudioInfo(MPEG_AudioInfo *info) {
+        if ( mpeg ) {
+            return(mpeg->GetAudioInfo(info));
+        }
+        return(false);
+    }
+    void Volume(int vol) {
+        if ( mpeg ) {
+            return(mpeg->Volume(vol));
+        }
+    }
+    bool WantedSpec(SDL_AudioSpec *wanted) {
+        if( mpeg ) {
+            return(mpeg->WantedSpec(wanted));
+        }
+    }
+    void ActualSpec(const SDL_AudioSpec *actual) {
+        if( mpeg ) {
+            mpeg->ActualSpec(actual);
+        }
+    }
+    MPEGaudio *GetAudio(void) {
+        if( mpeg ) {
+            return mpeg->GetAudio();
+        }
+    }
+
+    /* MPEG video actions */
+    bool GetVideoInfo(MPEG_VideoInfo *info) {
+        if ( mpeg ) {
+            return(mpeg->GetVideoInfo(info));
+        }
+        return(false);
+    }
+    bool SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
+                                MPEG_DisplayCallback callback) {
+        if ( mpeg ) {
+            return(mpeg->SetDisplay(dst, lock, callback));
+        }
+        return(false);
+    }
+    void MoveDisplay(int x, int y) {
+        if ( mpeg ) {
+            mpeg->MoveDisplay(x, y);
+        }
+    }
+    void ScaleDisplay(int scale) {
+        if ( mpeg ) {
+            mpeg->ScaleDisplay(scale);
+        }
+    }
+    void RenderFrame(int frame, SDL_Surface *dst, int x, int y) {
+        if ( mpeg ) {
+            mpeg->RenderFrame(frame, dst, x, y);
+        }
+    }
+    void RenderFinal(SDL_Surface *dst, int x, int y) {
+        if ( mpeg ) {
+            mpeg->RenderFinal(dst, x, y);
+        }
+    }
+
+protected:
+    FILE *mpeg_fp;
+    bool close_fp;
+    void  *mpeg_area;
+    size_t mpeg_size;
+public:
+    MPEG *mpeg;
+};
+#else
+#error Non-mmap implementation not completed
+#endif /* unix */
+
+#endif /* _MPEG_H_ */
