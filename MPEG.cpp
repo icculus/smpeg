@@ -421,13 +421,18 @@ bool MPEG::seekIntoStream(int position)
       videostream->next_packet();
 
   /* And forget what we previouly buffered */
+  /* {video, audio}action is the same object as video, but under a different
+     interface (through polymorphism.) We need to use {video,audio} here
+     instead. -JD */
   if ( audioaction ) {
     audioaction->Rewind();
     audioaction->ResetSynchro(audiostream->time());
+    audio->setPlayTime(system->TimeElapsed(position));
   }
   if ( videoaction ) {
     videoaction->Rewind();
     videoaction->ResetSynchro(videostream->time());
+    video->setPlayTime(system->TimeElapsed(position));
   }
 
   return(true);

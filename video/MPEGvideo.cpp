@@ -593,4 +593,10 @@ MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
     MoveDisplay(saved_x, saved_y);
 }
 
+void 
+MPEGvideo:: setPlayTime(double time)
+{
+    play_time = time;
+}
+
 /* EOF */
