@@ -438,6 +438,10 @@ MPEGvideo:: SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
       SDL_FreeYUVOverlay(_image);
     }
     _image = SDL_CreateYUVOverlay(_srcrect.w, _srcrect.h, SDL_YV12_OVERLAY, dst);
+    if ( _image == NULL ) {
+        return false;
+    }
+
     if ( !_dstrect.w || !_dstrect.h ) {
         _dstrect.w = dst->w;
         _dstrect.h = dst->h;
@@ -502,6 +506,7 @@ MPEGvideo:: SetDisplayRegion(int x, int y, int w, int h)
     {
       SDL_FreeYUVOverlay(_image);
       _image = SDL_CreateYUVOverlay(_srcrect.w, _srcrect.h, SDL_YV12_OVERLAY, _dst);
+      /* !!! FIXME: Uhh...what if this one fails? */
     }
 
     SDL_mutexV( _mutex );
