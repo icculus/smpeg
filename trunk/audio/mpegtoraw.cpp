@@ -244,6 +244,14 @@ bool MPEGaudio::loadheader()
     }
   }
 
+#ifdef DEBUG_AUDIO
+  static int printed = 0;
+  if ( ! printed ) {
+    printf("MPEG audio stream layer %d, at %d Hz %s\n", layer, frequencies[version][frequency], (mode == single) ? "mono" : "stereo");
+    printed = 1;
+  }
+#endif
+
   /* Fill the buffer with new data */
   if(!fillbuffer(framesize-4))
     return false;

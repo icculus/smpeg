@@ -134,11 +134,7 @@ public:
       register unsigned short a;
       { int offset=bitindex>>3;
 
-#if SDL_BYTEORDER == SDL_LIL_ENDIAN
         a=(((unsigned char)buffer[offset])<<8) | ((unsigned char)buffer[offset+1]);
-#else
-        a=((unsigned short *)buffer)[offset/2];
-#endif
       }
       a<<=(bitindex&7);
       bitindex+=bits;
@@ -278,11 +274,7 @@ private:
       register unsigned short a;
       { int offset=bitindex>>3;
 
-#if SDL_BYTEORDER == SDL_LIL_ENDIAN
         a=(((unsigned char)_buffer[offset])<<8) | ((unsigned char)_buffer[offset+1]);
-#else
-        a=((unsigned short *)_buffer)[offset/2];
-#endif
       }
       a<<=(bitindex&7);
       bitindex+=8;
@@ -292,11 +284,7 @@ private:
       register unsigned short a;
       { int offset=bitindex>>3;
 
-#if SDL_BYTEORDER == SDL_LIL_ENDIAN
         a=(((unsigned char)_buffer[offset])<<8) | ((unsigned char)_buffer[offset+1]);
-#else
-        a=((unsigned short *)_buffer)[offset/2];
-#endif
       }
       a<<=(bitindex&7);
       bitindex+=bits;

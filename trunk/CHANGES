@@ -1,4 +1,6 @@
 0.3.4:
+Sam Lantinga - Fri Mar  3 13:25:10 PST 2000
+ * Fixed MP3 audio on big-endian systems
 Sam Lantinga - Wed Mar  1 07:02:17 PST 2000
  * The control panel for the gtv player is placed in the upper left.
 Sam Lantinga - Wed Mar  1 00:26:49 PST 2000

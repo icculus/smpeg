@@ -1,3 +1,2 @@
 
-* Some MP3 files have strange audio artifacts on big-endian systems
 * The FPS calculation is broken for looping videos
