@@ -1,0 +1,170 @@
+0.4.0:
+Vivien Chappelier - Fri Jun  9 14:20:16 PDT 2000
+ * Fixed rendering the final frame in a video stream
+Hiroshi Yamashita - Thu Jun  8 12:03:42 PDT 2000
+ * Fixed frame counter and FPS calculation after seek
+ * Changed gtv so it actually changes the window size on doubling
+Vivien Chappelier - Mon Jun  5 18:47:47 PDT 2000
+ * Fixed audio synchronization when seeking in an MPEG stream
+Sam Lantinga - Sat Jun  3 20:13:42 PDT 2000
+ * Ported (easily) to BeOS
+Sam Lantinga - Sat Jun  3 19:40:41 PDT 2000
+ * Added aggresive optimizations by default, use --enable-debug to disable
+Mo DeJong - Sat Jun  3 19:37:00 PDT 2000
+ * Replaced target check for -lm with a simple library check
+Sam Lantinga - Wed May 31 15:00:19 PDT 2000
+ * Various gtv improvements - centered video, audio on by default, etc.
+Robert Dean - Wed May 31 10:13:02 PDT 2000
+ * Added drag-n-drop support to gtv (drag movies onto the control window)
+Mo DeJong - Tue May 30 15:23:19 PDT 2000
+ * Fixed an audio deadlock when stopping playback
+Markus Overhumer - Tue May 30 15:16:30 PDT 2000
+ * Some cleanups for compiling on Win32 with VC++
+Vivien Chappelier - Fri May 26 10:53:44 PDT 2000
+ * Added a movable progress slidebar to gtv
+Vivien, Manuel - Wed May 17 17:36:39 PDT 2000
+ * Added support for timestamp synchronization in the MPEG stream
+Vivien, Damien - Mon May  8 11:06:08 PDT 2000
+ * Added support for seeking in the MPEG stream
+Sam Lantinga - Fri Apr 28 15:57:25 PDT 2000
+ * Added support to plaympeg allowing the user to resize the window
+Sam Lantinga - Fri Apr 28 14:22:14 PDT 2000
+ * Added ALT-ENTER fullscreen toggle to plaympeg
+Sam Lantinga - Thu Apr 27 18:22:04 PDT 2000
+ * Added support for arbitrary output scaling:
+	new API function SMPEG_scaleXY()
+ * Added -scale wxh option to plaympeg
+Sam Lantinga - Mon Apr 24 16:11:58 PDT 2000
+ * A much improved semaphore based ring buffer implementation
+Sam Lantinga, Ryan Gordon - Mon Apr 24 14:12:59 PDT 2000
+ * plaympeg can now play files containing colons
+Sam Lantinga - Tue Apr 18 17:12:16 PDT 2000
+ * Adjusted the audio startup timing based on experimentation
+Hiroshi Yamashita - Tue Apr 18 15:48:14 PDT 2000
+ * Improved audio synchronization with longer movies (double rate_deal)
+Sam Lantinga - Fri Apr 14 13:21:51 PDT 2000
+ * Added support for SDL asynchronous blitting
+ * Added support for FPS printing - see TIME_MPEG in video/MPEGvideo.cpp
+Hiroshi Yamashita - Tue Apr 11 13:00:01 PDT 2000
+ * Tuned MPEG_BUFFER_SIZE for slower systems.
+Atsushi Yamagata - Tue Apr 11 12:50:45 PDT 2000
+ * Added locale setting for gtv.
+Hiroshi Yamashita - Tue Apr 11 09:59:11 PDT 2000
+ * Fixed audio popping and floating point exceptions in layer2 audio.
+Sam Lantinga - Tue Apr 11 06:55:53 PDT 2000
+ * Ported to Win32.
+Sam Lantinga - Sun Apr  9 16:42:47 PDT 2000
+ * Use SDL 1.1.3 for hardware accelerated YUV overlay support.
+Vivien Chappelier - Thu Apr  6 12:40:36 PDT 2000
+ * Added MPEG streaming support - now plays many more MPEG streams.
+
+0.3.5:
+Sam Lantinga - Wed Apr  5 13:50:32 PDT 2000
+ * MMX code is disabled by default, as it appears to be slower than C code.
+Sam Lantinga - Thu Mar  9 19:51:13 PST 2000
+ * Fixed a hang in MP3 playback if track plays all the way to the end.
+Sam Lantinga - Wed Mar  8 11:01:16 PST 2000
+ * Added 16-bit MMX dither/IDCT code from the NIST MPEG-2/DVD player.
+   (http://home.germany.net/100-5083/)
+ * Added 32-bit MMX dither code from the kmpg MPEG-1 player.
+   (http://www.rhrk.uni-kl.de/~mvogt/linux/kmpg/)
+Sam Lantinga - Wed Mar  8 07:25:33 PST 2000
+ * Added the math library to configure.in
+Hiroshi Yamashita - Mon Mar  6 07:48:35 PST 2000
+ * Added audio information to the MPEG info.
+ * Added support for videos starting with Video Start Code 0xe0 0xe2.
+ * Added a fix for FreeBSD to ltmain.sh.
+Sam Lantinga - Mon Mar  6 08:27:35 PST 2000
+ * Fixed a potential starting crash in plaympeg.
+
+0.3.4:
+Sam Lantinga - Fri Mar  3 13:40:43 PST 2000
+ * Split RPM into runtime and development packages.
+ * Added smpeg-config script to tell where the development runtime is installed.
+Sam Lantinga - Fri Mar  3 13:25:10 PST 2000
+ * Fixed MP3 audio on big-endian systems.
+Sam Lantinga - Wed Mar  1 07:02:17 PST 2000
+ * The control panel for the gtv player is placed in the upper left.
+Sam Lantinga - Wed Mar  1 00:26:49 PST 2000
+ * If the audio couldn't be opened, the error is propogated to the user.
+Sam Lantinga - Wed Mar  1 00:18:42 PST 2000
+ * The audio decoder thread now runs while the movie is paused.
+Sam Lantinga - Tue Feb 29 15:22:52 PST 2000
+ * Added a hack to seek past raw video data in a system stream.
+Sam Lantinga - Tue Feb 29 10:57:14 PST 2000
+ * Fixed pause and loop, with and without audio.
+Sam Lantinga - Mon Feb 28 20:28:24 PST 2000
+ * Removed special SDL mixer support - not necessary.  See README.SDL_mixer.
+Sam Lantinga - Mon Feb 28 12:45:59 PST 2000
+ * Fixed a problem where audio stopped playing before the end of the movie.
+Sam Lantinga - Thu Feb 10 13:17:29 PST 2000
+ * Don't crash if a picture block comes before a sequence header block.
+Sam Lantinga - Sat Feb  5 08:56:25 PST 2000
+ * Remove autogenerated files from CVS.
+Bill Kendrick - Thu Feb 03 16:57:27 PST 2000
+ * Does not init. audio or video unless necessary for the MPEG being played.
+ * If audio or video are unavailable, does not exit, just skips (or plays
+   whichever stream it can).
+Bill Kendrick - Sat Jan 22 17:32:00 PST 2000
+ * Added --version to plaympeg and made usage help more complete.
+Sam Lantinga - Mon Jan 24 12:57:54 PST 2000
+ * Disabled consistency checks by default, now plays more video streams
+Laurent Bonnaud - Tue Jan 25 13:46:32 PST 2000
+ * Speeded up cropping by using an inline function
+
+0.3.3:
+Sam Lantinga - Mon Jan 17 19:52:32 PST 2000
+ * Updated for the new SDL mixer library release (1.0.3)
+Sam Lantinga - Tue Jan 11 16:17:50 PST 2000
+ * Fixed so SMPEG compiles on stock RedHat 5.2 systems
+Stephane Peter, Sam Lantinga - Thu Jan  10 15:22:33 PST 2000
+ * Fixed playing mono MP3 files on stereo audio output
+Sam Lantinga - Thu Jan  6 13:02:32 PST 2000
+ * SMPEG now detects MP3 files again (broken by RIFF searching code)
+ * gtv is now included by default when building an RPM
+Sam Lantinga - Mon Jan  3 20:54:32 PST 2000
+ * Changelog entries are now Y2K safe. ;-)
+ * SMPEG now handles pad packets in the initial system stream
+Jim Studt - Mon Jan  3 20:57:52 PST 2000
+ * Fixed endian detection on unknown Linux systems (ARM)
+Sam Lantinga - Mon Jan  3 21:09:01 PST 2000
+ * plaympeg now hides the mouse cursor in fullscreen mode
+
+0.3.2:
+SOL -   Updated autoconf for SDL 1.0
+SOL -   Fixed audio decoding thread - releases waiting audio threads
+SOL -	Fixed audio playback of MPEG videos when using external mixer
+KVC -	Handle RIFF encoded MPEG streams
+SOL -	Handle system streams that encode packets without a header
+Stefan Gybas - Contributed a man page for gtv.
+
+0.3.1:
+SOL -   Fixed endlessly looping "mpegVidRsrc ParseMacroBlock" problem
+SOL -   Changed parseblock assertion so it doesn't halt playback
+SOL -   Fixed crashing bug in ParseReconBlock() with corrupt videos
+SOL -   Fixed audio synchronization problem with looping movies
+
+0.3.0:
+SOL -	Added audio synchronization support.
+SOL -	Added autoconf support.
+MKV -	Added GTk mpeg player.
+MKV -	Added OpenGL mpeg player.
+SP  -	Exported the audio mixing function for flexible audio setup.
+Mo DeJong - plaympeg now prints out usage if given no arguments.
+Stefan Gybas - Contributed a man page for plaympeg.
+
+0.2.7:
+SOL -	Added volume change API
+
+0.2.6:
+SOL -	Fixed possible crash when starting audio playback.
+SOL -	Fixed SMPEG on PPC - may still be buggy, but plays most MPEGs.
+
+0.2.5:
+SOL -	Added --fullscreen command line option to plaympeg.
+SOL -	Added 32-bpp support, fixed fullscreen offset bug.
+
+Initial Key:
+SOL - Sam Lantinga (hercules@lokigames.com)
+MKV - Michael Vance (briareos@lokigames.com)
+SP  - Stephane Peter (megastep@lokigames.com)
