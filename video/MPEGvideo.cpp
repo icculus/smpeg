@@ -125,7 +125,7 @@ int qualityFlag = 0;
 
 /*--------------------------------------------------------------*/
 
-MPEGvideo:: MPEGvideo(MPEGstream *stream)
+MPEGvideo::MPEGvideo(MPEGstream *stream)
 {
     Uint32 start_code;
 

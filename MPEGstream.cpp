@@ -81,7 +81,7 @@ MPEGstream:: next_packet(bool recurse)
 
     /* Check to see what kind of packet this is */
     while ( packet < (mpeg+size) ) {
-        if ( memcmp(packet, PACKET_START_CODE, 4) == 0 )
+        if ( memcmp(packet, PACKET_START_CODE, 3) == 0 )
             break;
         ++packet;
     }
@@ -89,28 +89,31 @@ MPEGstream:: next_packet(bool recurse)
         errorstream = true;
         return(false);
     }
-    packet += 4;
 
-    /* The system stream timestamp is not very useful to us since we
-       don't coordinate the audio and video threads very tightly, and
-       we read in large amounts of data at once in the video stream.
-       BUT... if you need it, here it is.
-     */
+    if ( memcmp(packet, PACKET_START_CODE, 4) == 0 ) {
+        packet += 4;
+
+        /* The system stream timestamp is not very useful to us since we
+           don't coordinate the audio and video threads very tightly, and
+           we read in large amounts of data at once in the video stream.
+           BUT... if you need it, here it is.
+         */
 #ifdef USE_SYSTEM_TIMESTAMP
 #define FLOAT_0x10000 (double)((Uint32)1 << 16)
 #define STD_SYSTEM_CLOCK_FREQ 90000L
-    { Uint8 hibit; Uint32 lowbytes;
-      hibit = (packet[0]>>3)&0x01;
-      lowbytes = (((Uint32)packet[0] >> 1) & 0x03) << 30;
-      lowbytes |= (Uint32)packet[1] << 22;
-      lowbytes |= ((Uint32)packet[2] >> 1) << 15;
-      lowbytes |= (Uint32)packet[3] << 7;
-      lowbytes |= ((Uint32)packet[4]) >> 1;
-      timestamp = (double)hibit*FLOAT_0x10000*FLOAT_0x10000+(double)lowbytes;
-      timestamp /= STD_SYSTEM_CLOCK_FREQ;
-    }
+        { Uint8 hibit; Uint32 lowbytes;
+          hibit = (packet[0]>>3)&0x01;
+          lowbytes = (((Uint32)packet[0] >> 1) & 0x03) << 30;
+          lowbytes |= (Uint32)packet[1] << 22;
+          lowbytes |= ((Uint32)packet[2] >> 1) << 15;
+          lowbytes |= (Uint32)packet[3] << 7;
+          lowbytes |= ((Uint32)packet[4]) >> 1;
+          timestamp = (double)hibit*FLOAT_0x10000*FLOAT_0x10000+(double)lowbytes;
+          timestamp /= STD_SYSTEM_CLOCK_FREQ;
+        }
 #endif
-    packet += 8;
+        packet += 8;
+    }
 
     /* Get the stream id, and packet length */
     stream_id = packet[3];

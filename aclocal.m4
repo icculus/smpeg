@@ -1,4 +1,4 @@
-dnl aclocal.m4 generated automatically by aclocal 1.4
+dnl aclocal.m4 generated automatically by aclocal 1.4a
 
 dnl Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
@@ -74,7 +74,7 @@ dnl
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <SDL/SDL.h>
+#include "SDL.h"
 
 char*
 my_strdup (char *str)
@@ -148,7 +148,7 @@ int main ()
           LIBS="$LIBS $SDL_LIBS"
           AC_TRY_LINK([
 #include <stdio.h>
-#include <SDL/SDL.h>
+#include "SDL.h"
 ],      [ return 0; ],
         [ echo "*** The test program compiled, but did not run. This usually means"
           echo "*** that the run-time linker is not finding SDL or finding the wrong"
@@ -627,6 +627,8 @@ dnl AM_INIT_AUTOMAKE(package,version, [no-define])
 
 AC_DEFUN(AM_INIT_AUTOMAKE,
 [AC_REQUIRE([AC_PROG_INSTALL])
+dnl We require 2.13 because we rely on SHELL being computed by configure.
+AC_PREREQ([2.13])
 PACKAGE=[$1]
 AC_SUBST(PACKAGE)
 VERSION=[$2]
