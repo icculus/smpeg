@@ -112,6 +112,7 @@ public:
     MPEGsystem * system;
 
 protected:
+    char *mpeg_mem;       // Used to copy MPEG passed in as memory
     SDL_RWops *source;
     MPEGaudioaction *audioaction;
     MPEGvideoaction *videoaction;
