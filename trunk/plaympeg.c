@@ -99,6 +99,11 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Warning: Unknown option: %s\n", argv[i]);
         }
     }
+    /* If there were no arguments just print the usage */
+    if (argc == 1) {
+        usage(argv[0]);
+        exit(0);
+     }
 
     /* Play the mpeg files! */
     for ( ; argv[i]; ++i ) {
