@@ -83,8 +83,7 @@ typedef Uint8 UINT8;
 
 /* Set ring buffer size. */
 
-//#define RING_BUF_SIZE 5
-#define RING_BUF_SIZE 3
+#define RING_BUF_SIZE 5
 
 /* Macros for picture code type. */
 
@@ -152,10 +151,14 @@ extern const int scan[][8];
 /* Structure with reconstructed pixel values. */
 
 typedef struct pict_image {
+#ifdef USE_ATI
+  struct vhar128_image *image;
+#else
   unsigned char *image;                  /* YV12 format image  */
   unsigned char *luminance;              /* Luminance plane.   */
   unsigned char *Cr;                     /* Cr plane.          */
   unsigned char *Cb;                     /* Cb plane.          */
+#endif
   unsigned short int *mb_qscale;         /* macroblock info    */
   int locked;                            /* Lock flag.         */
   TimeStamp show_time;                   /* Presentation time. */
@@ -230,7 +233,11 @@ typedef struct macroblock {
 /* Block structure. */
 
 typedef struct block {
+#ifdef USE_ATI
+  long int dct_recon[6][130];            /* Reconstructed dct runs & levels */
+#else
   short int dct_recon[8][8];             /* Reconstructed dct coeff matrix. */
+#endif
   short int dct_dc_y_past;               /* Past lum. dc dct coefficient.   */
   short int dct_dc_cr_past;              /* Past cr dc dct coefficient.     */
   short int dct_dc_cb_past;              /* Past cb dc dct coefficient.     */
@@ -316,6 +323,11 @@ typedef struct vid_stream {
 /* begining of added variables */
   bool need_frameadjust;
   int  current_frame;
+
+#ifdef USE_ATI
+  unsigned int ati_handle;
+#endif
+
 } VidStream;   
 
 /* Declaration of global display pointer. */

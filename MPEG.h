@@ -56,8 +56,8 @@ public:
     virtual ~MPEG();
 
     /* Initialize the MPEG */
-    void MPEG::Init(int Mpeg_FD, bool Sdlaudio);
-    void MPEG::Init(void *data, int size, bool Sdlaudio);
+    void Init(int Mpeg_FD, bool Sdlaudio);
+    void Init(void *data, int size, bool Sdlaudio);
 
     /* Enable/Disable audio and video */
     bool AudioEnabled(void);

@@ -197,10 +197,18 @@ void ParseReconBlock( int n, VidStream* vid_stream )
 
     int diff;
     int size, level=0, i, run, pos, coeff;
+#ifdef USE_ATI
+    long int *reconptr;
+#else
     short int *reconptr;
+#endif
     unsigned char *iqmatrixptr, *niqmatrixptr;
     int qscale;
 
+#ifdef USE_ATI
+    reconptr = DCT_recon[n];
+    memset(reconptr, 0, 130*sizeof(reconptr[0]));
+#else
     reconptr = DCT_recon[0];
 
 #if 0
@@ -221,6 +229,7 @@ void ParseReconBlock( int n, VidStream* vid_stream )
     }
 #else
     memset(reconptr, 0, 64*sizeof(reconptr[0]));
+#endif
 #endif
 
     if (vid_stream->mblock.mb_intra) {
@@ -271,6 +280,16 @@ void ParseReconBlock( int n, VidStream* vid_stream )
         }
         flush_bits(flushed);
 
+#ifdef USE_ATI
+	if ( (n == 0) && ((vid_stream->mblock.mb_address -
+                           vid_stream->mblock.past_intra_addr) > 1) ) {
+	  DCT_dc_y_past = diff;
+	  } else {
+	  DCT_dc_y_past += diff;
+        }
+	*reconptr++ = 0;
+	*reconptr++ = DCT_dc_y_past;
+#else
         if ( (n == 0) && ((vid_stream->mblock.mb_address -
                            vid_stream->mblock.past_intra_addr) > 1) ) {
           coeff = diff + 1024;
@@ -278,7 +297,7 @@ void ParseReconBlock( int n, VidStream* vid_stream )
           coeff = diff + DCT_dc_y_past;
         }
         DCT_dc_y_past = coeff;
-
+#endif
       } else { /* n = 4 or 5 */
     
     /*
@@ -313,6 +332,28 @@ void ParseReconBlock( int n, VidStream* vid_stream )
         }
         flush_bits(flushed);
     
+#ifdef USE_ATI
+	*reconptr++ = 0;
+
+	if(n == 5) {
+          if (vid_stream->mblock.mb_address -
+              vid_stream->mblock.past_intra_addr > 1) {
+	    DCT_dc_cr_past = diff;
+	  } else {
+	    DCT_dc_cr_past += diff;
+	  }
+	  *reconptr++ = DCT_dc_cr_past;
+	} else {
+          if (vid_stream->mblock.mb_address -
+              vid_stream->mblock.past_intra_addr > 1) {
+	    DCT_dc_cb_past = diff;
+	  } else {
+	    DCT_dc_cb_past += diff;
+	  }
+	  *reconptr++ = DCT_dc_cb_past;
+	}
+#else
+
       /* We test 5 first; a result of the mixup of Cr and Cb */
         coeff = diff;
         if (n == 5) {
@@ -332,20 +373,25 @@ void ParseReconBlock( int n, VidStream* vid_stream )
           }
           DCT_dc_cb_past = coeff;
         }
+#endif
       }
       
+#ifndef USE_ATI
       *reconptr = coeff;
 #ifdef USE_MMX
       if ( mmx_available ) {
         *reconptr <<= 4;
       }
-#endif
-      i = 0; 
+#endif /* USE_MMX */
+#endif /* USE_ATI */
+
       pos = 0;
       coeffCount = (coeff != 0);
-    
+
+      i = 0; 
+
       if (vid_stream->picture.code_type != 4) {
-    
+
         qscale = vid_stream->slice.quant_scale;
         iqmatrixptr = vid_stream->intra_quant_matrix[0];
     
@@ -353,7 +399,7 @@ void ParseReconBlock( int n, VidStream* vid_stream )
       
           DECODE_DCT_COEFF_NEXT(run, level);
 
-          if (run >= END_OF_BLOCK) break;
+	  if (run >= END_OF_BLOCK) break;
 
           i = i + run + 1;
 
@@ -369,21 +415,33 @@ void ParseReconBlock( int n, VidStream* vid_stream )
                      ((int) (*(iqmatrixptr+pos)))) >> 4; 
             coeff -= (1 - (coeff & 1));
           }
+
+#ifdef USE_ATI
+	  *reconptr++ = run;
+	  *reconptr++ = coeff;
+#else
+
 #ifdef USE_MMX
           if ( mmx_available )
             coeff *= 16;
 #endif
+
 #ifdef QUANT_CHECK
           printf ("coeff: %d\n", coeff);
 #endif
 
           reconptr[pos] = coeff;
           coeffCount++;
-
+#endif /* USE_ATI */
         }
 
 #ifdef QUANT_CHECK
 	printf ("\n");
+#endif
+
+#ifdef USE_ATI
+	/* mark end of block */
+	*reconptr++ = 0xFFFFFFFF;
 #endif
 
 #ifdef ANALYSIS 
@@ -397,11 +455,12 @@ void ParseReconBlock( int n, VidStream* vid_stream )
 	goto end;
       }
     } else { /* non-intra-coded macroblock */
-      
+
       niqmatrixptr = vid_stream->non_intra_quant_matrix[0];
       qscale = vid_stream->slice.quant_scale;
-      
+
       DECODE_DCT_COEFF_FIRST(run, level);
+
       i = run;
 
       pos = zigzag_direct[i&0x3f];
@@ -416,6 +475,12 @@ void ParseReconBlock( int n, VidStream* vid_stream )
                  ((int) (*(niqmatrixptr+pos)))) >> 4; 
 	coeff = (coeff-1) | 1; /* equivalent to: if ((coeff&1)==0) coeff = coeff - 1; */
       }
+
+#ifdef USE_ATI
+      *reconptr++ = run;
+      *reconptr++ = coeff;
+#else
+
 #ifdef USE_MMX
       if ( mmx_available )
         coeff *= 16;
@@ -425,6 +490,7 @@ void ParseReconBlock( int n, VidStream* vid_stream )
       if (coeff) {
           coeffCount = 1;
       }
+#endif /* USE_ATI */
 
       if (vid_stream->picture.code_type != 4) {
     
@@ -449,13 +515,25 @@ void ParseReconBlock( int n, VidStream* vid_stream )
                      ((int) (*(niqmatrixptr+pos)))) >> 4; 
             coeff = (coeff-1) | 1; /* equivalent to: if ((coeff&1)==0) coeff = coeff - 1; */
           }
+
+#ifdef USE_ATI
+	  *reconptr++ = run;
+	  *reconptr++ = coeff;
+#else
+
 #ifdef USE_MMX
           if ( mmx_available )
             coeff *= 16;
 #endif
           reconptr[pos] = coeff;
           coeffCount++;
+#endif /* USE_ATI */
         } /* end while */
+
+#ifdef USE_ATI
+	/* mark end of block */
+	*reconptr++ = 0xFFFFFFFF; 
+#endif
 
 #ifdef ANALYSIS
         {
@@ -471,6 +549,10 @@ void ParseReconBlock( int n, VidStream* vid_stream )
     }
     
   end:
+
+#ifdef USE_ATI
+    return;
+#else
 
     if( ! vid_stream->_skipFrame || (vid_stream->picture.code_type != B_TYPE) )
     {
@@ -508,6 +590,7 @@ void ParseReconBlock( int n, VidStream* vid_stream )
     if ( mmx_available ) {
       __asm__ ("emms");
     }
+#endif
 #endif
 }
     

@@ -11,7 +11,6 @@
 #include <unistd.h>
 #include "glmovie.h"
 
-static void glmpeg_create_window( unsigned int, unsigned int );
 static void glmpeg_update( SDL_Surface*, Sint32, Sint32, Uint32, Uint32 );
 
 int main( int argc, char* argv[] )
@@ -43,7 +42,7 @@ int main( int argc, char* argv[] )
     SDL_WM_GrabInput(SDL_GRAB_ON);
     screen = SDL_SetVideoMode(640, 480, 0, SDL_OPENGL|SDL_FULLSCREEN);
     if ( !screen ) {
-	fprintf( stderr, "glmovie: Couldn't set 640x480 GL vide mode\n", SDL_GetError());
+	fprintf( stderr, "glmovie: Couldn't set 640x480 GL vide mode: %s\n", SDL_GetError());
         SDL_Quit();
         return 1;
     }

@@ -389,6 +389,7 @@ static void gtv_info( GtkWidget* item, gpointer raw )
     gint ignored = 0;
     GtkWidget* text = NULL;
     SMPEG_Info* info = NULL;
+    int hh,mm,ss;
 
     dialog = create_file_info_dialog( );
     ok = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( dialog ), "ok" ) );
@@ -399,14 +400,17 @@ static void gtv_info( GtkWidget* item, gpointer raw )
 
     /* Actually stuff some data in there. */
     info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
-    g_snprintf( buffer, 1024, "Filename: %s\nStream: %s\nVideo: %dx%d resolution\nAudio: %s\nSize: %d\n",
+    hh = info->total_time / 3600;
+    mm = (info->total_time - hh * 3600)/60;
+    ss = ((int)info->total_time % 60);
+    g_snprintf( buffer, 1024, "Filename: %s\nStream: %s\nVideo: %dx%d resolution\nAudio: %s\nSize: %d\nTime %d:%02d:%02d\n",
 		(gchar*) gtk_object_get_data( GTK_OBJECT( raw ), "filename_buffer" ),
 		( info->has_audio && info->has_video ) ? "system" :
 		( info->has_video ? "video" :
 		( info->has_audio ? "audio" : "not MPEG" ) ),
 		info->width, info->height,
 		( info->has_audio ? info->audio_string : "none" ),
-		info->total_size );
+		info->total_size , hh,mm,ss);
     text = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( dialog ), "text" ) );
     gtk_editable_insert_text( GTK_EDITABLE( text ), buffer, strlen( buffer ), &ignored );
 
@@ -863,9 +867,8 @@ static void gtv_drag_data_received(GtkWidget * widget,
                                    guint time)
 {
     gchar *temp, *string;
-    gint i = 1;
 
-    string = selection_data->data;
+    string = (gchar *)selection_data->data;
 
     /* remove newline at end of line, and the file:// url header
        at the begining, copied this code from the xmms source */

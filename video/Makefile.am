@@ -17,6 +17,8 @@ libvideo_la_SOURCES =		\
 	util.h			\
 	video.cpp		\
 	video.h			\
+	vhar128.cpp		\
+	vhar128.h		\
 	mmxflags_asm.S		\
 	mmxidct_asm.S
 

@@ -1,5 +1,1235 @@
 *************************************************************************
 *** Applied ***
+Date: Mon, 25 Sep 2000 20:37:43 +0200
+From: Vivien Chappelier <vivien.chappelier@enst-bretagne.fr>
+Subject: Re: [SMPEG] ati hardware acceleration
+
+Hi!
+
+        I've done a few test on ATI code performance and I've got some bad
+news...
+It seems that hardware decoding sample code provided by ATI is nearly
+equivalent to SMPEG software decoding (with MMX) ...! From what I saw
+dissasembling their code a few (I think this is legal in Europe), this
+is not really surprising as there are many level of calls before
+accessing the hardware, especially there is one function call for each
+access to a register!!!
+Moreover, reading from the ATI overlay seems really slow (not too
+surprising, reading from video memory is rarely accelerated.. I noticed
+this too with TV capture software for my ATI All-in-Wonder 128).
+Conclusion:
+        * we should probably implement ATI overlay in SDL too, now that there
+is support for it, and render directly.
+        * we should really contact ATI to see if they're still interested in
+providing MPEG decoding acceleration under Linux, and maybe ask them to
+involve more, and provide better software. Showing them that SMPEG is
+now working with their SDK should help getting better relationship with
+them :)
+
+I attached the new patch, integrating latest CVS updates concerning
+overlays, along with my performance tests.
+
+I've been thinking of rewriting the aticce.o to be used with more
+kernels, not only 2.2.10, as this probably won't break the NDA, since
+the CCE is used for DRI and Xv projects, which are public (NDA, article
+2, (i) : "is or becomes (through no improper action or inaction of the
+receiving party or any affiliate, agent, consultant or employee)
+generally known by the public").
+I need to check if, firstly, I'm skilled enough for that :), secondly I
+have the right to do that. But, first of all, I'd like your point of
+view on this question.
+Maybe I could work with ATI too if they are interrested :)
+
+Now I'm waiting for you to test all this, tell me what you think of it,
+and what you're planning for the future :)
+
+see ya,
+Vivien Chappelier.
+
+diff -Naur smpeg/configure.in smpeg.patched/configure.in
+--- smpeg/configure.in	Wed Sep  6 10:12:01 2000
++++ smpeg.patched/configure.in	Fri Sep 22 20:12:47 2000
+@@ -142,6 +142,23 @@
+     fi
+ fi
+ 
++dnl Check for ATI vha support
++AC_ARG_ENABLE(ati,
++[  --enable-ati            enable ATI Rage128 hardware acceleration [default=no]],
++              , enable_ati=no)
++if test x$enable_ati = xyes; then
++    use_ati=yes
++    AC_CHECK_LIB(r128hap, ATIHAP_StartCCE, LIBS="$LIBS -lr128hap", use_ati=no)
++    AC_CHECK_LIB(r128vha, VHA_Init, LIBS="$LIBS -lr128vha", use_ati=no)
++    AC_CHECK_LIB(r128ov, CreateOVSurface, LIBS="$LIBS -lr128ov", use_ati=no)
++    AC_MSG_CHECKING(for ATI Rage128 hardware acceleration)
++    AC_MSG_RESULT($use_ati)
++
++    if test x$use_ati = xyes; then
++        CFLAGS="$CFLAGS -DUSE_ATI"
++    fi
++fi
++
+ dnl Check for system timestamp sync
+ AC_ARG_ENABLE(timestamp-sync,
+ [  --enable-timestamp-sync  enable system timestamp sync [default=yes]],
+diff -Naur smpeg/video/Makefile.am smpeg.patched/video/Makefile.am
+--- smpeg/video/Makefile.am	Mon Apr 10 04:50:55 2000
++++ smpeg.patched/video/Makefile.am	Sun Sep 24 17:29:01 2000
+@@ -17,6 +17,7 @@
+ 	util.h			\
+ 	video.cpp		\
+ 	video.h			\
++	vhar128.c		\
+ 	mmxflags_asm.S		\
+ 	mmxidct_asm.S
+ 
+diff -Naur smpeg/video/gdith.cpp smpeg.patched/video/gdith.cpp
+--- smpeg/video/gdith.cpp	Sun Sep 24 02:48:44 2000
++++ smpeg.patched/video/gdith.cpp	Mon Sep 25 20:04:55 2000
+@@ -54,6 +54,10 @@
+ #include "dither.h"
+ #include "SDL_timer.h"
+ 
++#ifdef USE_ATI
++#include "vhar128.h"
++#endif
++
+ #ifdef __STDC__
+ #include <stdlib.h>
+ #include <string.h>
+@@ -318,6 +326,9 @@
+     Uint8 *pixels[3];
+ 
+     /* Fill in an SDL YV12 overlay structure for the source */
++#ifdef USE_ATI
++    vhar128_lockimage(vid_stream->ati_handle, vid_stream->current->image, &src);
++#else
+     src.format = SDL_YV12_OVERLAY;
+     src.w = _w;
+     src.h = _h;
+@@ -331,10 +342,15 @@
+     pixels[2] = vid_stream->current->image + pitches[0] * _h +
+                                              pitches[1] * _h / 2;
+     src.pixels = pixels;
++#endif
+ 
+     _filter->callback(_image, &src, &_srcrect, &info, _filter->data );
++
++#ifdef USE_ATI
++    vhar128_unlockimage(vid_stream->ati_handle, vid_stream->current->image, &src);
++#endif
+   }
+-  
++
+   /* Now display the image */
+   if ( _mutex )
+     SDL_mutexP( _mutex );
+diff -Naur smpeg/video/parseblock.cpp smpeg.patched/video/parseblock.cpp
+--- smpeg/video/parseblock.cpp	Fri Apr 14 10:57:34 2000
++++ smpeg.patched/video/parseblock.cpp	Fri Sep 22 20:12:47 2000
+@@ -197,10 +197,18 @@
+ 
+     int diff;
+     int size, level=0, i, run, pos, coeff;
++#ifdef USE_ATI
++    long int *reconptr;
++#else
+     short int *reconptr;
++#endif
+     unsigned char *iqmatrixptr, *niqmatrixptr;
+     int qscale;
+ 
++#ifdef USE_ATI
++    reconptr = DCT_recon[n];
++    memset(reconptr, 0, 130*sizeof(reconptr[0]));
++#else
+     reconptr = DCT_recon[0];
+ 
+ #if 0
+@@ -222,6 +230,7 @@
+ #else
+     memset(reconptr, 0, 64*sizeof(reconptr[0]));
+ #endif
++#endif
+ 
+     if (vid_stream->mblock.mb_intra) {
+ 
+@@ -271,6 +280,16 @@
+         }
+         flush_bits(flushed);
+ 
++#ifdef USE_ATI
++	if ( (n == 0) && ((vid_stream->mblock.mb_address -
++                           vid_stream->mblock.past_intra_addr) > 1) ) {
++	  DCT_dc_y_past = diff;
++	  } else {
++	  DCT_dc_y_past += diff;
++        }
++	*reconptr++ = 0;
++	*reconptr++ = DCT_dc_y_past;
++#else
+         if ( (n == 0) && ((vid_stream->mblock.mb_address -
+                            vid_stream->mblock.past_intra_addr) > 1) ) {
+           coeff = diff + 1024;
+@@ -278,7 +297,7 @@
+           coeff = diff + DCT_dc_y_past;
+         }
+         DCT_dc_y_past = coeff;
+-
++#endif
+       } else { /* n = 4 or 5 */
+     
+     /*
+@@ -313,6 +332,28 @@
+         }
+         flush_bits(flushed);
+     
++#ifdef USE_ATI
++	*reconptr++ = 0;
++
++	if(n == 5) {
++          if (vid_stream->mblock.mb_address -
++              vid_stream->mblock.past_intra_addr > 1) {
++	    DCT_dc_cr_past = diff;
++	  } else {
++	    DCT_dc_cr_past += diff;
++	  }
++	  *reconptr++ = DCT_dc_cr_past;
++	} else {
++          if (vid_stream->mblock.mb_address -
++              vid_stream->mblock.past_intra_addr > 1) {
++	    DCT_dc_cb_past = diff;
++	  } else {
++	    DCT_dc_cb_past += diff;
++	  }
++	  *reconptr++ = DCT_dc_cb_past;
++	}
++#else
++
+       /* We test 5 first; a result of the mixup of Cr and Cb */
+         coeff = diff;
+         if (n == 5) {
+@@ -332,20 +373,25 @@
+           }
+           DCT_dc_cb_past = coeff;
+         }
++#endif
+       }
+       
++#ifndef USE_ATI
+       *reconptr = coeff;
+ #ifdef USE_MMX
+       if ( mmx_available ) {
+         *reconptr <<= 4;
+       }
+-#endif
+-      i = 0; 
++#endif /* USE_MMX */
++#endif /* USE_ATI */
++
+       pos = 0;
+       coeffCount = (coeff != 0);
+-    
++
++      i = 0; 
++
+       if (vid_stream->picture.code_type != 4) {
+-    
++
+         qscale = vid_stream->slice.quant_scale;
+         iqmatrixptr = vid_stream->intra_quant_matrix[0];
+     
+@@ -353,7 +399,7 @@
+       
+           DECODE_DCT_COEFF_NEXT(run, level);
+ 
+-          if (run >= END_OF_BLOCK) break;
++	  if (run >= END_OF_BLOCK) break;
+ 
+           i = i + run + 1;
+ 
+@@ -369,23 +415,35 @@
+                      ((int) (*(iqmatrixptr+pos)))) >> 4; 
+             coeff -= (1 - (coeff & 1));
+           }
++
++#ifdef USE_ATI
++	  *reconptr++ = run;
++	  *reconptr++ = coeff;
++#else
++
+ #ifdef USE_MMX
+           if ( mmx_available )
+             coeff *= 16;
+ #endif
++
+ #ifdef QUANT_CHECK
+           printf ("coeff: %d\n", coeff);
+ #endif
+ 
+           reconptr[pos] = coeff;
+           coeffCount++;
+-
++#endif /* USE_ATI */
+         }
+ 
+ #ifdef QUANT_CHECK
+ 	printf ("\n");
+ #endif
+ 
++#ifdef USE_ATI
++	/* mark end of block */
++	*reconptr++ = 0xFFFFFFFF;
++#endif
++
+ #ifdef ANALYSIS 
+         {
+           extern unsigned int *mbCoeffPtr;
+@@ -397,11 +455,12 @@
+ 	goto end;
+       }
+     } else { /* non-intra-coded macroblock */
+-      
++
+       niqmatrixptr = vid_stream->non_intra_quant_matrix[0];
+       qscale = vid_stream->slice.quant_scale;
+-      
++
+       DECODE_DCT_COEFF_FIRST(run, level);
++
+       i = run;
+ 
+       pos = zigzag_direct[i&0x3f];
+@@ -416,6 +475,12 @@
+                  ((int) (*(niqmatrixptr+pos)))) >> 4; 
+ 	coeff = (coeff-1) | 1; /* equivalent to: if ((coeff&1)==0) coeff = coeff - 1; */
+       }
++
++#ifdef USE_ATI
++      *reconptr++ = run;
++      *reconptr++ = coeff;
++#else
++
+ #ifdef USE_MMX
+       if ( mmx_available )
+         coeff *= 16;
+@@ -425,6 +490,7 @@
+       if (coeff) {
+           coeffCount = 1;
+       }
++#endif /* USE_ATI */
+ 
+       if (vid_stream->picture.code_type != 4) {
+     
+@@ -449,14 +515,26 @@
+                      ((int) (*(niqmatrixptr+pos)))) >> 4; 
+             coeff = (coeff-1) | 1; /* equivalent to: if ((coeff&1)==0) coeff = coeff - 1; */
+           }
++
++#ifdef USE_ATI
++	  *reconptr++ = run;
++	  *reconptr++ = coeff;
++#else
++
+ #ifdef USE_MMX
+           if ( mmx_available )
+             coeff *= 16;
+ #endif
+           reconptr[pos] = coeff;
+           coeffCount++;
++#endif /* USE_ATI */
+         } /* end while */
+ 
++#ifdef USE_ATI
++	/* mark end of block */
++	*reconptr++ = 0xFFFFFFFF; 
++#endif
++
+ #ifdef ANALYSIS
+         {
+           extern unsigned int *mbCoeffPtr;
+@@ -472,6 +550,10 @@
+     
+   end:
+ 
++#ifdef USE_ATI
++    return;
++#else
++
+     if( ! vid_stream->_skipFrame || (vid_stream->picture.code_type != B_TYPE) )
+     {
+         if( coeffCount == 1 )
+@@ -508,6 +590,7 @@
+     if ( mmx_available ) {
+       __asm__ ("emms");
+     }
++#endif
+ #endif
+ }
+     
+diff -Naur smpeg/video/proto.h smpeg.patched/video/proto.h
+--- smpeg/video/proto.h	Wed Sep  6 10:12:01 2000
++++ smpeg.patched/video/proto.h	Fri Sep 22 20:12:47 2000
+@@ -69,7 +69,7 @@
+ void DestroyVidStream P((VidStream *astream ));
+ PictImage *NewPictImage P(( VidStream *vid_stream ));
+ bool InitPictImages P(( VidStream *vid_stream, int w, int h, SDL_Surface *dst ));
+-void DestroyPictImage P((PictImage *apictimage ));
++void DestroyPictImage P(( VidStream *vid_stream, PictImage *apictimage ));
+ VidStream *mpegVidRsrc P((TimeStamp time_stamp,VidStream *vid_stream, int first  ));
+ void SetBFlag P((BOOLEAN val ));
+ void SetPFlag P((BOOLEAN val ));
+diff -Naur smpeg/video/vhar128.c smpeg.patched/video/vhar128.c
+--- smpeg/video/vhar128.c	Thu Jan  1 01:00:00 1970
++++ smpeg.patched/video/vhar128.c	Sun Sep 24 17:36:39 2000
+@@ -0,0 +1,272 @@
++#ifdef USE_ATI
++#include <stdio.h>
++#include <vha.h>
++#include <r128hap.h>
++#include <ovly.h>
++#include "vhar128.h"
++
++/* #define  DEBUG_R128VHA */
++
++#define I_FRAME 1
++#define P_FRAME 2
++#define B_FRAME 3
++#define D_FRAME 4
++
++struct vhar128_image {
++  OVDESCRIPTION * overlay;
++};
++
++struct private_yuvhwdata {
++  OVSURFACE * surface;
++};
++
++/* Translate error code to something readable */
++static void vhar128_perror(char * string, int error_code)
++{
++  switch(error_code)
++  {
++    case VHAERR_INVALIDPARAMS:
++      fprintf(stderr, "%s: (ATI) Invalid parameters\n", string);
++      break; 
++    case VHAERR_UNSUPPORTED:
++      fprintf(stderr, "%s: (ATI) Unsupported feature\n", string);
++      break; 
++    case VHAERR_INVALIDHANDLE:
++      fprintf(stderr, "%s: (ATI) Invalid handle\n", string);
++      break; 
++    case VHAERR_OUTOFMEMORY:
++      fprintf(stderr, "%s: (ATI) Out of memory\n", string);
++      break; 
++    case VHA_OK:
++      fprintf(stderr, "%s: (ATI) Success\n", string);
++      break; 
++    default:
++      fprintf(stderr, "%s: (ATI) Undocumented error\n", string);
++      break;
++  }
++}
++
++/* Check and initialize hardware */
++unsigned int vhar128_new()
++{
++    VHA_HARDWAREQUERY vhaQuery;
++
++    /* Initialize hardware access */
++    ATIHAP_InitHWAccess();
++
++    /* Query hardware information */
++    memset(&vhaQuery, 0, sizeof(VHA_HARDWAREQUERY));
++    vhaQuery.uSize = sizeof(VHA_HARDWAREQUERY);
++    vhaQuery.uCards = 0;
++    vhaQuery.ulCodedWidth = 0;
++    vhaQuery.ulCodedHeight = 0;
++    VHA_HardwareQuery(&vhaQuery);
++
++#ifdef DEBUG_R128VHA
++    printf("VHA_HardwareQuery :\n");
++    printf("uHandle = %d\n", vhaQuery.uHandle);
++    if(vhaQuery.ulHWCaps & VHA_HWCAPS_IDCTMC)
++      printf("Hardware supports iScan, iDCT, and MC.\n");
++    if(vhaQuery.ulHWCaps & VHA_HWCAPS_SUBPIC)
++      printf("Hardware supports Sub-picture.\n");
++    printf("ulMinOvlyBuffer = %d\n", vhaQuery.ulMinOvlyBuffer);
++    printf("ulMaxOvlyBuffer = %d\n", vhaQuery.ulMaxOvlyBuffer);
++#endif
++
++    return(vhaQuery.uHandle);
++}
++
++/* Create a new overlay */
++struct vhar128_image * vhar128_newimage(unsigned int handle, unsigned long width, unsigned long height)
++{
++  struct vhar128_image * image;
++
++  image = (struct vhar128_image *) malloc(sizeof *image);
++  
++  image->overlay = (OVDESCRIPTION *) malloc(sizeof *image->overlay);
++  memset(image->overlay, 0, sizeof(OVDESCRIPTION));
++  image->overlay->uSize = sizeof(OVDESCRIPTION);
++  image->overlay->ulOVFormat = OV_FORMAT_YUV12;
++  image->overlay->uWidth = width;
++  image->overlay->uHeight = height;
++  CreateOVSurface(handle, image->overlay);
++
++  return(image);
++}
++
++/* Lock overlay */
++void vhar128_lockimage(unsigned int handle, struct vhar128_image * image, SDL_Overlay * ov)
++{
++    struct private_yuvhwdata * hwdata;
++
++#ifdef DEBUG_R128VHA
++    /* show locked overlay */
++    SetOVSurface(handle, image->overlay);
++#endif
++
++    hwdata = (struct private_yuvhwdata *) malloc(sizeof *hwdata);
++    hwdata->surface = (OVSURFACE *) malloc(sizeof *hwdata->surface);
++    hwdata->surface->uSize = sizeof(OVSURFACE);
++
++    LockOVSurface(handle, image->overlay, hwdata->surface);
++
++    /* create an SDL_Overlay from the information in the ATI overlay */
++    ov->format = SDL_YV12_OVERLAY;
++    ov->w = image->overlay->uWidth;
++    ov->h = image->overlay->uHeight;
++    ov->planes = 3;
++    ov->pitches = (Uint16 *) malloc(ov->planes * sizeof(Uint16));
++    ov->pitches[0] = hwdata->surface->uPitchPlane1;
++    ov->pitches[1] = hwdata->surface->uPitchPlane3;
++    ov->pitches[2] = hwdata->surface->uPitchPlane2;
++    ov->pixels = (Uint8 **) malloc(ov->planes * sizeof(void *));
++    ov->pixels[0] = (Uint8 *) hwdata->surface->pSurfPlane1;
++    ov->pixels[1] = (Uint8 *) hwdata->surface->pSurfPlane3;
++    ov->pixels[2] = (Uint8 *) hwdata->surface->pSurfPlane2;
++    ov->hwdata = hwdata;
++}
++
++/* Unlock the overlay */
++void vhar128_unlockimage(unsigned int handle, struct vhar128_image * image, SDL_Overlay * ov)
++{
++  UnlockOVSurface(handle, image->overlay, ov->hwdata->surface);
++  free(ov->pitches);
++  free(ov->pixels);
++  free(ov->hwdata->surface);
++  free(ov->hwdata);
++}
++
++/* Destroy the overlay */
++void vhar128_destroyimage(unsigned int handle, struct vhar128_image * image)
++{
++  DestroyOVSurface(handle, image->overlay);
++  free(image->overlay);
++  free(image);
++}
++
++/* Setup hardware decoding */
++int vhar128_init(unsigned int handle, unsigned long width, unsigned long height, struct vhar128_image *ring[], int ring_size)
++{
++    VHA_INIT vhaInit;
++    register int i;
++
++    memset(&vhaInit, 0, sizeof(VHA_INIT));
++
++    /* obtain yv12 offset and send it to vha */
++    for(i = 0; i < ring_size; i++)
++    {
++      vhaInit.yv12[i].ulOffsetY = ring[i]->overlay->OVOffset.ulOfsPlane1;
++      vhaInit.yv12[i].ulOffsetU = ring[i]->overlay->OVOffset.ulOfsPlane2;
++      vhaInit.yv12[i].ulOffsetV = ring[i]->overlay->OVOffset.ulOfsPlane3;
++      vhaInit.yv12[i].ulPitchY  = ring[i]->overlay->OVOffset.uPitchPlane1;
++      vhaInit.yv12[i].ulPitchUV = ring[i]->overlay->OVOffset.uPitchPlane2;
++    }
++    vhaInit.ulNumYV12Buffer = ring_size;
++    vhaInit.uSize = sizeof(VHA_INIT);
++    vhaInit.ulHWSupports = VHA_HWCAPS_IDCTMC;
++    vhaInit.ulCodedWidth = width;
++    vhaInit.ulCodedHeight = height;
++
++#ifdef DEBUG_R128VHA
++    /* set region for showing ATI overlay on the screen */
++    {
++      RCTL rSrc, rDst, rView;
++
++      rView.left = rView.top = 0;
++      rView.right = width;
++      rView.bottom = height;
++      rSrc.left = rSrc.top = 0;
++      rSrc.right = width;
++      rSrc.bottom = height;
++      rDst.left = 0;
++      rDst.top = 0;
++      rDst.right = width;
++      rDst.bottom = height;
++      
++      UpdateOVPosition(handle, &rSrc, &rDst, &rView, OV_SHOW);
++
++      SetOVSurface(handle, ring[0]->overlay);
++    }
++#endif
++
++    return(VHA_Init(handle, &vhaInit));
++}
++
++/* Setup decoding of a new picture */
++int vhar128_newdecode(unsigned int handle, int back, int forw, int current)
++{
++  VHA_NEWDECODE vhaND;
++  int retval;
++
++  memset(&vhaND, 0, sizeof(VHA_NEWDECODE));
++  vhaND.uSize = sizeof(VHA_NEWDECODE);
++  vhaND.BackwardRefFrame[0] = vhaND.BackwardRefFrame[1] = back;
++  vhaND.ForwardRefFrame[0] = vhaND.ForwardRefFrame[1] = forw;
++  vhaND.DecodeFrame = current;
++  vhaND.PictureStructure = VHA_PS_FRAME_PICTURE;
++
++  if((retval = VHA_NewDecode(handle, &vhaND)) != VHA_OK)
++    vhar128_perror("vhar128_newdecode", retval);
++
++  return(retval);
++}
++
++/* Send a macroblock to the hardware */
++int vhar128_macroblock(unsigned int handle, int mb_x, int mb_y, int intra, int back, int forw, int mv_back_x, int mv_back_y, int mv_forw_x, int mv_forw_y, long runlevel[6][130])
++{
++  VHA_MACROBLOCK vhaMB;
++  int retval;
++
++  memset(&vhaMB, 0, sizeof(VHA_MACROBLOCK));
++  vhaMB.ulSize = sizeof(VHA_MACROBLOCK);
++
++  memcpy(vhaMB.RunLevel, runlevel, 6*130*sizeof(long));
++
++  vhaMB.mb_x = mb_x;
++  vhaMB.mb_y = mb_y;
++  vhaMB.mbType = (intra)?VHA_MBT_INTRA:0;
++  if(forw) vhaMB.mbType |= VHA_MBT_MOTION_FORWARD;
++  if(back) vhaMB.mbType |= VHA_MBT_MOTION_BACKWARD;
++  vhaMB.PredictionType = VHA_PT_FRAME_BASED;
++  vhaMB.ScanType = SCAN_ZIG_ZAG;
++  vhaMB.dct_type = 0;
++  vhaMB.vector[0][0][0] = mv_forw_x;
++  vhaMB.vector[0][0][1] = mv_forw_y;
++  vhaMB.vector[0][1][0] = mv_back_x;
++  vhaMB.vector[0][1][1] = mv_back_y;
++
++  if((retval = VHA_Macroblock(handle, &vhaMB)) != VHA_OK)
++    vhar128_perror("vhar128_macroblock", retval);
++
++  return(retval);
++}
++
++/* Flush all macroblocks */
++int vhar128_flush(unsigned int handle)
++{
++  VHA_DECODECOMMAND vhaDC;
++  int retval;
++
++  memset(&vhaDC, 0, sizeof(VHA_DECODECOMMAND));
++  vhaDC.uSize = sizeof(VHA_DECODECOMMAND);
++  vhaDC.ulCommand = VHA_CMD_FLUSH;
++
++  if((retval = VHA_DecodeCommand(handle, &vhaDC)) != VHA_OK)
++    vhar128_perror("vhar128_flush", retval);
++
++  return(retval);
++}
++
++/* Close hardware decoding */
++void vhar128_close(unsigned int handle)
++{
++    VHA_Close(handle);
++}
++
++/* Close hardware access */
++void vhar128_delete()
++{
++    ATIHAP_CloseHWAccess();    
++}
++
++#endif
+diff -Naur smpeg/video/vhar128.h smpeg.patched/video/vhar128.h
+--- smpeg/video/vhar128.h	Thu Jan  1 01:00:00 1970
++++ smpeg.patched/video/vhar128.h	Mon Sep 25 20:04:28 2000
+@@ -0,0 +1,30 @@
++/* ATI Rage128 video hardware acceleration */
++#ifndef _VHAR128_H_
++#define _VHAR128_H_
++
++#include "SDL.h"
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++struct vhar128_image;
++
++unsigned int vhar128_new();
++int vhar128_init(unsigned int handle, unsigned long width, unsigned long height, struct vhar128_image *ring[], int ring_size);
++int vhar128_newdecode(unsigned int handle, int back, int forw, int current);
++int vhar128_macroblock(unsigned int handle, int mb_x, int mb_y, int intra, int back, int forw, int mv_back_x, int mv_back_y, int mv_forw_x, int mv_forw_y, long runlevel[6][130]);
++
++int vhar128_flush(unsigned int handle);
++void vhar128_close(unsigned int handle);
++void vhar128_delete();
++
++struct vhar128_image * vhar128_newimage(unsigned int handle, unsigned long width, unsigned long height);
++void vhar128_lockimage(unsigned int handle, struct vhar128_image * image, SDL_Overlay * surface);
++void vhar128_unlockimage(unsigned int handle, struct vhar128_image * image, SDL_Overlay * surface);
++void vhar128_destroyimage(unsigned int handle, struct vhar128_image * image);
++
++#ifdef __cplusplus
++};
++#endif
++#endif /* _VHAR128_H_ */
+diff -Naur smpeg/video/video.cpp smpeg.patched/video/video.cpp
+--- smpeg/video/video.cpp	Wed Sep  6 10:12:02 2000
++++ smpeg.patched/video/video.cpp	Sun Sep 24 02:18:17 2000
+@@ -49,8 +49,17 @@
+ 
+ /* We use FULL_COLOR_DITHER code for SMPEG */
+ #define DISABLE_DITHER
++
++/* Correct bad motion information */
+ #define LOOSE_MPEG
+ 
++/* If hardware accelerated, prevent use of dither code */
++#ifdef USE_ATI
++#ifndef DISABLE_DITHER
++#define DISABLE_DITHER
++#endif
++#endif
++
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -61,8 +70,12 @@
+ #include "util.h"
+ #include "proto.h"
+ 
++#ifdef USE_ATI
++#include "vhar128.h"
++#endif
+ 
+ /* Declarations of functions. */
++#ifndef USE_ATI
+ static void ReconIMBlock( VidStream*, int bnum );
+ static void ReconPMBlock( VidStream*, int bnum,
+         int recon_right_for, int recon_down_for, int zflag );
+@@ -74,6 +87,7 @@
+ static void ReconSkippedBlock( unsigned char *source, unsigned char *dest,
+       int row, int col, int row_size, int right, int down,
+       int right_half, int down_half, int width );
++#endif /* USE_ATI */
+ static void DoPictureDisplay( VidStream* );
+ static int ParseSeqHead( VidStream* );
+ static int ParseGOP( VidStream* );
+@@ -750,6 +764,11 @@
+     /* Reset everything for start of display */
+     ResetVidStream(vs);
+ 
++#ifdef USE_ATI
++    /* Initialize Rage128 hardware */
++    vs->ati_handle = vhar128_new();
++#endif
++
+     /* Return structure. */
+ 
+     return vs;
+@@ -868,7 +887,7 @@
+     {
+         if( astream->ring[i] != NULL )
+         {
+-            DestroyPictImage( astream->ring[i] );
++            DestroyPictImage( astream, astream->ring[i] );
+             astream->ring[i] = NULL;
+         }
+     }
+@@ -876,6 +895,14 @@
+     if( astream->ditherFlags != NULL )
+         free( astream->ditherFlags );
+ 
++#ifdef USE_ATI
++    vhar128_close(astream->ati_handle);
++#endif
++
++#ifdef USE_ATI
++    vhar128_delete();
++#endif
++
+     free( (char*) astream );
+ }
+ 
+@@ -908,10 +935,14 @@
+     pi = (PictImage *) malloc(sizeof(PictImage));
+ 
+     /* Create a YV12 image (Y + V + U) */
++#ifdef USE_ATI
++    pi->image = vhar128_newimage(vid_stream->ati_handle, w, h);
++#else
+     pi->image = (unsigned char *) malloc(w*h*12/8);
+     pi->luminance = (unsigned char *)pi->image;
+     pi->Cr = pi->luminance + (w*h);
+     pi->Cb = pi->luminance + (w*h) + (w*h)/4;
++#endif
+   
+     /* Alloc space for filter info */
+     pi->mb_qscale = (unsigned short int *) malloc(vid_stream->mb_width * vid_stream->mb_height * sizeof(unsigned int));
+@@ -932,12 +963,23 @@
+     vid_stream->current = vid_stream->past = vid_stream->future = NULL;
+     for (i = 0; i < RING_BUF_SIZE; i++) {
+         if ( vid_stream->ring[i] ) {
+-            DestroyPictImage(vid_stream->ring[i]);
++            DestroyPictImage(vid_stream, vid_stream->ring[i]);
+         }
+         vid_stream->ring[i] = NewPictImage( vid_stream, w, h, dst );
+         if ( ! vid_stream->ring[i] )
+             return false;
+     }
++
++#ifdef USE_ATI
++    struct vhar128_image * ring[RING_BUF_SIZE];
++
++    for (i = 0; i < RING_BUF_SIZE; i++) {
++      ring[i] = vid_stream->ring[i]->image;
++    }
++
++    vhar128_init(vid_stream->ati_handle, w, h, ring, RING_BUF_SIZE);
++#endif
++
+     return true;
+ }
+ 
+@@ -956,9 +998,13 @@
+  *
+  *--------------------------------------------------------------
+  */
+-void DestroyPictImage( PictImage* apictimage )
++void DestroyPictImage( VidStream* vid_stream, PictImage* apictimage )
+ {
++#ifdef USE_ATI
++  vhar128_destroyimage(vid_stream->ati_handle, apictimage->image);
++#else
+   if (apictimage->image != NULL) free(apictimage->image);
++#endif
+ 
+   free(apictimage->mb_qscale);
+   free(apictimage);
+@@ -1696,6 +1742,7 @@
+     }
+     vid_stream->picture.user_data = get_ext_data(vid_stream);
+   }
++
+   /* Find a pict image structure in ring buffer not currently locked. */
+ 
+   i = 0;
+@@ -1719,6 +1766,34 @@
+ 
+   vid_stream->mblock.past_mb_addr = -1;
+ 
++#ifdef USE_ATI
++  int back, forw, current;
++
++  back = forw = -1;
++  current = i;
++
++  /* Look for indexes of future and past frames */
++  for(i = 0; i < RING_BUF_SIZE; i++)
++  {
++    if(vid_stream->future == vid_stream->ring[i]) forw = i;
++    if(vid_stream->past == vid_stream->ring[i]) back = i;
++  }
++
++  /* Start decoding a new frame */
++  switch(vid_stream->picture.code_type)
++  {
++    case B_TYPE:
++      vhar128_newdecode(vid_stream->ati_handle, forw, back, current);
++    break;
++    case P_TYPE:
++      vhar128_newdecode(vid_stream->ati_handle, -1, forw, current);
++    break;
++    case I_TYPE:
++      vhar128_newdecode(vid_stream->ati_handle, -1, -1, current);
++    break;
++  }
++#endif
++
+   return PARSE_OK;
+ }
+ 
+@@ -1783,9 +1858,15 @@
+ 
+   /* Reset past dct dc y, cr, and cb values. */
+ 
++#ifdef USE_ATI
++  vid_stream->block.dct_dc_y_past = 0;
++  vid_stream->block.dct_dc_cr_past = 0;
++  vid_stream->block.dct_dc_cb_past = 0;
++#else
+   vid_stream->block.dct_dc_y_past = 1024 << 3;
+   vid_stream->block.dct_dc_cr_past = 1024 << 3;
+   vid_stream->block.dct_dc_cb_past = 1024 << 3;
++#endif
+ 
+   return PARSE_OK;
+ }
+@@ -1829,6 +1910,16 @@
+   mbSizeCount = bitCountRead();
+ #endif
+ 
++#ifdef USE_ATI
++  /* Empty macroblock */
++  vid_stream->block.dct_recon[0][0] = 0xFFFFFFFF;
++  vid_stream->block.dct_recon[1][0] = 0xFFFFFFFF;
++  vid_stream->block.dct_recon[2][0] = 0xFFFFFFFF;
++  vid_stream->block.dct_recon[3][0] = 0xFFFFFFFF;
++  vid_stream->block.dct_recon[4][0] = 0xFFFFFFFF;
++  vid_stream->block.dct_recon[5][0] = 0xFFFFFFFF;
++#endif
++
+   /*
+    * Parse off macroblock address increment and add to macroblock address.
+    */
+@@ -2112,7 +2203,8 @@
+         } else {
+           zero_block_flag = 1;
+         }
+-        
++
++#ifndef USE_ATI
+         /* If macroblock is intra coded... */
+         if (vid_stream->mblock.mb_intra) {
+           ReconIMBlock(vid_stream, i);
+@@ -2126,7 +2218,20 @@
+           ReconBMBlock(vid_stream, i, recon_right_back, recon_down_back,
+                        zero_block_flag);
+         }
++#endif
+       }
++
++#ifdef USE_ATI
++      vhar128_macroblock(vid_stream->ati_handle,
++			 (vid_stream->mblock.mb_address % vid_stream->mb_width) << 4,
++			 (vid_stream->mblock.mb_address / vid_stream->mb_width) << 4,
++			 vid_stream->mblock.mb_intra,
++			 mb_motion_back, mb_motion_forw,
++			 recon_right_back, recon_down_back,
++			 recon_right_for, recon_down_for,
++			 vid_stream->block.dct_recon);
++#endif
++
+ #ifndef DISABLE_DITHER
+     }
+   }
+@@ -2171,7 +2276,8 @@
+   return PARSE_OK;
+ }
+ 
+-
++/* software decoder follows */
++#ifndef USE_ATI
+ /*
+  *--------------------------------------------------------------
+  *
+@@ -2209,7 +2315,6 @@
+   mb_row = vid_stream->mblock.mb_address / vid_stream->mb_width;
+   mb_col = vid_stream->mblock.mb_address % vid_stream->mb_width;
+ 
+-
+   /* If block is luminance block... */
+ 
+   if (bnum < 4) {
+@@ -3301,6 +3406,7 @@
+   unsigned char *index, *rindex1, *bindex1;
+   short int *blockvals;
+   int forw_row_start, back_row_start, forw_col_start, back_col_start;
++
+ #ifdef LOOSE_MPEG
+   int lmaxx = vid_stream->mb_width*16-1;
+   int lmaxy = vid_stream->mb_height*16-1;
+@@ -3693,6 +3799,7 @@
+   }
+ }
+ 
++#endif /* USE_ATI */
+ 
+ /*
+  *--------------------------------------------------------------
+@@ -3742,6 +3849,16 @@
+     row = mb_row << 4;
+     col = mb_col << 4;
+ 
++#ifdef USE_ATI
++    vhar128_macroblock(vid_stream->ati_handle,
++		       col,
++		       row,
++		       0,    /* skipped block are empty non-intra blocks */
++		       1, 0, /* P frames are based on past picture       */
++		       0, 0, /* backward motion is null                  */
++		       0, 0, /* forward  motion is null                  */
++		       vid_stream->block.dct_recon);
++#else
+ 
+     /* For each row in macroblock luminance plane... */
+ 
+@@ -3818,6 +3935,7 @@
+       vid_stream->ditherFlags[addr] = 0;
+     }
+ #endif
++#endif /* USE_ATI */
+   }
+ 
+   vid_stream->mblock.recon_right_for_prev = 0;
+@@ -3876,6 +3994,7 @@
+   int c_illegal_back = 0;
+ #endif
+ 
++
+   /* Calculate row sizes for luminance and Cr/Cb macroblock areas. */
+ 
+   row_size = vid_stream->mb_width << 4;
+@@ -3901,6 +4020,24 @@
+     recon_down_back = vid_stream->mblock.recon_down_back_prev;
+   }
+ 
++#ifdef USE_ATI
++
++  /* For each skipped macroblock do ... */
++  for (addr = vid_stream->mblock.past_mb_addr + 1;
++       addr < vid_stream->mblock.mb_address; addr++) {
++    
++    vhar128_macroblock(vid_stream->ati_handle,
++		       (addr % vid_stream->mb_width) << 4,
++		       (addr / vid_stream->mb_width) << 4,
++		       0,                                  /* skipped blocks are empty non-intra blocks */
++		       vid_stream->mblock.bpict_past_back, 
++		       vid_stream->mblock.bpict_past_forw,
++		       recon_right_back, recon_down_back,  /* backward motion */
++		       recon_right_for, recon_down_for,    /* forward  motion */
++		       vid_stream->block.dct_recon);
++  }
++
++#else
+ 
+   /* If only one motion vector, do display copy, else do full
+      calculation. 
+@@ -4135,7 +4272,7 @@
+     }
+ 
+ #endif
+-    
++
+     /* If forward predicted, calculate prediction values. */
+     
+     if (vid_stream->mblock.bpict_past_forw) {
+@@ -4317,9 +4454,11 @@
+     }
+ #endif
+   }
++#endif /* USE_ATI */
+ }
+ 
+ 
++#ifndef USE_ATI
+ 
+ /*
+  *--------------------------------------------------------------
+@@ -4484,7 +4623,7 @@
+   }
+ }
+ 
+-
++#endif /* USE_ATI */
+ 
+ /*
+  *--------------------------------------------------------------
+@@ -4514,6 +4653,11 @@
+     PrintOneStat();
+ #endif
+     CollectStats();
++#endif
++
++#ifdef USE_ATI
++    /* Flush the macroblocks to the hardware decoder */
++    vhar128_flush( vid_stream->ati_handle );
+ #endif
+ 
+     /* Update past and future references if needed. */
+diff -Naur smpeg/video/video.h smpeg.patched/video/video.h
+--- smpeg/video/video.h	Wed Sep  6 10:12:02 2000
++++ smpeg.patched/video/video.h	Fri Sep 22 20:12:47 2000
+@@ -83,8 +83,7 @@
+ 
+ /* Set ring buffer size. */
+ 
+-//#define RING_BUF_SIZE 5
+-#define RING_BUF_SIZE 3
++#define RING_BUF_SIZE 5
+ 
+ /* Macros for picture code type. */
+ 
+@@ -152,10 +151,14 @@
+ /* Structure with reconstructed pixel values. */
+ 
+ typedef struct pict_image {
++#ifdef USE_ATI
++  struct vhar128_image *image;
++#else
+   unsigned char *image;                  /* YV12 format image  */
+   unsigned char *luminance;              /* Luminance plane.   */
+   unsigned char *Cr;                     /* Cr plane.          */
+   unsigned char *Cb;                     /* Cb plane.          */
++#endif
+   unsigned short int *mb_qscale;         /* macroblock info    */
+   int locked;                            /* Lock flag.         */
+   TimeStamp show_time;                   /* Presentation time. */
+@@ -230,7 +233,11 @@
+ /* Block structure. */
+ 
+ typedef struct block {
++#ifdef USE_ATI
++  long int dct_recon[6][130];            /* Reconstructed dct runs & levels */
++#else
+   short int dct_recon[8][8];             /* Reconstructed dct coeff matrix. */
++#endif
+   short int dct_dc_y_past;               /* Past lum. dc dct coefficient.   */
+   short int dct_dc_cr_past;              /* Past cr dc dct coefficient.     */
+   short int dct_dc_cb_past;              /* Past cb dc dct coefficient.     */
+@@ -316,6 +323,11 @@
+ /* begining of added variables */
+   bool need_frameadjust;
+   int  current_frame;
++
++#ifdef USE_ATI
++  unsigned int ati_handle;
++#endif
++
+ } VidStream;   
+ 
+ /* Declaration of global display pointer. */
+*************************************************************************
+*** Applied ***
+Date: Sat, 19 Aug 2000 00:22:25 +0900
+From: Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
+Subject: lseek problem latest smpeg on FreeBSD
+
+Hi.
+
+I have problem on latest smpeg & FreeBSD.
+It's difference in the spec of lseek.
+
+FreeBSD's lseek has 64bit off_t type.
+
+patch attached(smpg0817.diff)
+
+MPEGsystem.cpp Uint32 -> off_t.
+and plaympeg.c gtv.c small change.
+
+Thanks.
+-----------------------------------------------
+Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
+
+Index: MPEGsystem.cpp
+===================================================================
+RCS file: /home/ncvs/smpeg/MPEGsystem.cpp,v
+retrieving revision 1.1.1.1
+diff -u -r1.1.1.1 MPEGsystem.cpp
+--- MPEGsystem.cpp	2000/08/18 12:39:45	1.1.1.1
++++ MPEGsystem.cpp	2000/08/18 15:07:36
+@@ -946,8 +946,8 @@
+ 
+ Uint32 MPEGsystem::TotalSize()
+ {
+-  Uint32 size;
+-  Uint32 pos;
++  off_t size;
++  off_t pos;
+ 
+   if(data_reader.fromData == true)
+   {
+@@ -1002,8 +1002,8 @@
+ 
+ double MPEGsystem::TotalTime()
+ {
+-  Uint32 size, pos;
+-  Uint32 file_ptr;
++  off_t size, pos;
++  off_t file_ptr;
+   Uint8 * buffer, * p;
+   Uint8 c;
+   double time;
+@@ -1304,7 +1304,7 @@
+         system->data_reader.offset = 0;
+       } else {
+ 	      /* Get back to the beginning of the stream if possible */
+-	      if(lseek(system->mpeg_fd, 0, SEEK_SET) == (long) -1)
++	      if(lseek(system->mpeg_fd, 0, SEEK_SET) == (off_t) -1)
+ 	      {
+ 		if(errno != ESPIPE)
+ 		{
+Index: gtv.c
+===================================================================
+RCS file: /home/ncvs/smpeg/gtv.c,v
+retrieving revision 1.1.1.1
+diff -u -r1.1.1.1 gtv.c
+--- gtv.c	2000/08/18 12:39:45	1.1.1.1
++++ gtv.c	2000/08/18 12:43:27
+@@ -382,6 +382,7 @@
+     gint ignored = 0;
+     GtkWidget* text = NULL;
+     SMPEG_Info* info = NULL;
++    int hh,mm,ss;
+ 
+     dialog = create_file_info_dialog( );
+     ok = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( dialog ), "ok" ) );
+@@ -392,14 +393,17 @@
+ 
+     /* Actually stuff some data in there. */
+     info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
+-    g_snprintf( buffer, 1024, "Filename: %s\nStream: %s\nVideo: %dx%d resolution\nAudio: %s\nSize: %d\n",
++    hh = info->total_time / 3600;
++    mm = (info->total_time - hh * 3600)/60;
++    ss = ((int)info->total_time % 60);
++    g_snprintf( buffer, 1024, "Filename: %s\nStream: %s\nVideo: %dx%d resolution\nAudio: %s\nSize: %d\nTime %d:%02d:%02d\n",
+ 		(gchar*) gtk_object_get_data( GTK_OBJECT( raw ), "filename_buffer" ),
+ 		( info->has_audio && info->has_video ) ? "system" :
+ 		( info->has_video ? "video" :
+ 		( info->has_audio ? "audio" : "not MPEG" ) ),
+ 		info->width, info->height,
+ 		( info->has_audio ? info->audio_string : "none" ),
+-		info->total_size );
++		info->total_size , hh,mm,ss);
+     text = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( dialog ), "text" ) );
+     gtk_editable_insert_text( GTK_EDITABLE( text ), buffer, strlen( buffer ), &ignored );
+ 
+Index: plaympeg.c
+===================================================================
+RCS file: /home/ncvs/smpeg/plaympeg.c,v
+retrieving revision 1.1.1.1
+diff -u -r1.1.1.1 plaympeg.c
+--- plaympeg.c	2000/08/18 12:39:45	1.1.1.1
++++ plaympeg.c	2000/08/18 12:46:45
+@@ -33,7 +33,9 @@
+ #define RAW_SUPPORT  /* Raw data transport support */
+ #define HTTP_SUPPORT /* HTTP support */
+ #define FTP_SUPPORT  /* FTP support */
++#ifdef __linux__
+ #define VCD_SUPPORT  /* Video CD support */
++#endif
+ #endif
+ 
+ #ifdef NET_SUPPORT
+*************************************************************************
+*** Applied ***
 Date: Tue, 19 Sep 2000 17:30:33 +0200
 From: Tim Jansen <tim@tjansen.de>
 Subject: SMPEG/splay bugfix
