@@ -235,24 +235,24 @@ public:
             return(audioaction->Volume(vol));
         }
     }
-	bool WantedSpec(SDL_AudioSpec *wanted) {
-		if( AudioEnabled() && audio ) {
-			return(audio->WantedSpec(wanted));
-		}
-		return(false);
-	}
-	void ActualSpec(const SDL_AudioSpec *actual) {
-		if( AudioEnabled() && audio ) {
-			audio->ActualSpec(actual);
-		}
-	}
-	MPEGaudio *GetAudio(void) { // Simple accessor used in the C interface
+    bool WantedSpec(SDL_AudioSpec *wanted) {
+        if( audiostream ) {
+            return(GetAudio()->WantedSpec(wanted));
+        }
+        return(false);
+    }
+    void ActualSpec(const SDL_AudioSpec *actual) {
+        if( audiostream ) {
+            GetAudio()->ActualSpec(actual);
+        }
+    }
+    MPEGaudio *GetAudio(void) { // Simple accessor used in the C interface
         if ( audiostream == this ) {
-		    return audio;
+            return audio;
         } else {
             return(audiostream->GetAudio());
         }
-	}
+    }
 
     /* MPEG video actions */
     bool GetVideoInfo(MPEG_VideoInfo *info) {
@@ -426,21 +426,21 @@ public:
             return(mpeg->Volume(vol));
         }
     }
-	bool WantedSpec(SDL_AudioSpec *wanted) {
-		if( mpeg ) {
-			return(mpeg->WantedSpec(wanted));
-		}
-	}
-	void ActualSpec(const SDL_AudioSpec *actual) {
-		if( mpeg ) {
-			mpeg->ActualSpec(actual);
-		}
-	}
-	MPEGaudio *GetAudio(void) {
-		if( mpeg ) {
-			return mpeg->GetAudio();
-		}
-	}
+    bool WantedSpec(SDL_AudioSpec *wanted) {
+        if( mpeg ) {
+            return(mpeg->WantedSpec(wanted));
+        }
+    }
+    void ActualSpec(const SDL_AudioSpec *actual) {
+        if( mpeg ) {
+            mpeg->ActualSpec(actual);
+        }
+    }
+    MPEGaudio *GetAudio(void) {
+        if( mpeg ) {
+            return mpeg->GetAudio();
+        }
+    }
 
     /* MPEG video actions */
     bool GetVideoInfo(MPEG_VideoInfo *info) {
