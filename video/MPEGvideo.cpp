@@ -132,7 +132,6 @@ MPEGvideo:: MPEGvideo(MPEGstream *stream)
     /* Set the MPEG data stream */
     mpeg = stream;
     time_source = NULL;
-    play_time = 0.0;
 
     /* Set default playback variables */
     _thread = NULL;
@@ -192,6 +191,7 @@ int Play_MPEGvideo( void *udata )
 
     /* Get the time the playback started */
     mpeg->_stream->realTimeStart = ReadSysClock();
+    mpeg->play_time = 0.0;
 
     while( mpeg->playing )
     {
@@ -208,7 +208,7 @@ int Play_MPEGvideo( void *udata )
             if( mpeg->_stream->loopFlag ) {
                 /* Rewind and start playback over */
                 mpeg->RewindStream();
-                mpeg->_stream->realTimeStart = ReadSysClock();
+                //mpeg->_stream->realTimeStart = ReadSysClock();
             } else {
                 mpeg->playing = false;
             }
@@ -255,8 +255,6 @@ MPEGvideo:: RewindStream(void)
     ResetVidStream( _stream );
 
     mpeg->reset_stream();
-
-    play_time = 0.0;
 
 #ifdef ANALYSIS 
     init_stats();

@@ -1144,13 +1144,16 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
     {
         /* Check to see if actually a startcode and not a macroblock. */
 
-        if( ! next_bits( 23, 0x00000000, vid_stream ) )
+        if( ! next_bits( 23, 0x00000000, vid_stream ) &&
+            ! vid_stream->film_has_ended )
         {
             /* Not start code. Parse Macroblock. */
 
             if (ParseMacroBlock(vid_stream) != PARSE_OK)
             {
+#ifdef VERBOSE_WARNINGS
                 fprintf( stderr, "mpegVidRsrc ParseMacroBlock\n" );
+#endif
                 goto error;
             }
         }

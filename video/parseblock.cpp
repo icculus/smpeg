@@ -277,6 +277,16 @@ void ParseReconBlock( int n, VidStream* vid_stream )
           if (run >= END_OF_BLOCK) break;
 
           i = i + run + 1;
+#if 0
+          assert(i < 64);
+#else
+          if (i >= 64) {
+#ifdef VERBOSE_WARNING
+            fprintf(stderr, "Bad matrix decoding information\n");
+#endif
+	       	break;
+          }
+#endif
           pos = zigzag_direct[i];
 
           /* quantizes and oddifies each coefficient */
@@ -349,7 +359,16 @@ void ParseReconBlock( int n, VidStream* vid_stream )
           }
 
           i = i+run+1;
+#if 0
           assert(i < 64);
+#else
+          if (i >= 64) {
+#ifdef VERBOSE_WARNING
+            fprintf(stderr, "Bad matrix decoding information\n");
+#endif
+	       	break;
+          }
+#endif
           pos = zigzag_direct[i];
           if (level < 0) {
             coeff = (((level<<1) - 1) * qscale * 
