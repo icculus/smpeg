@@ -61,9 +61,11 @@ case "$target" in
         fi
         ;;
     sparc*-*-solaris*)
-	if test x$ac_cv_prog_gcc = xyes; then
-            LIBS="$LIBS -lsocket -lnsl"	
-        fi
+        LIBS="$LIBS -lsocket -lnsl"	
+        ;;
+    *-*-nto-qnx*)
+        # Sam 1/8/2001 - I think -lph needs to go in SDL, but it's here for now
+        LIBS="$LIBS -lsocket -lph"
         ;;
     *-*-cygwin* | *-*-mingw32*)
         if test "$build" != "$target"; then # cross-compiling
