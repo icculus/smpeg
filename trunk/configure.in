@@ -212,7 +212,7 @@ if test x$enable_opengl_player = xyes; then
             SYS_GL_LIBS="-lopengl32 -lglu32"
             ;;
         *-*-beos*)
-            SYS_GL_LIBS="-lGL -lGLU"
+            SYS_GL_LIBS="-lGL"
             ;;
         *)
             AC_PATH_X
