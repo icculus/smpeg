@@ -495,7 +495,6 @@ METH(GetVideoInfo) (_THIS, MPEG_VideoInfo *info)
             info->current_fps = 0.0;
         }
     }
-//    return(!WasError());
     return (!MPEGerror_WasError(self->error));
 }
 
@@ -534,7 +533,6 @@ METH(SetDisplay) (_THIS, SDL_Surface *dst, SDL_mutex *lock, MPEG_DisplayCallback
             self->_stream->matched_depth = dst->format->BitsPerPixel;
 
             if( mpegVidRsrc( 0, self->_stream, 1 ) == NULL ) {
-//                SetError("Not an MPEG video stream");
                 MPEGerror_SetError(self->error, "Not an MPEG video stream");
                 return false;
             }

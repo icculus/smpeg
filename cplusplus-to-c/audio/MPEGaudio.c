@@ -322,7 +322,6 @@ METH(fillbuffer) (_THIS, int size)
   {
       PROP(bitindex)=0;
       PROP(_buffer_pos) = PROP(mpeg)->pos;
-//      return(mpeg->copy_data(_buffer, size) > 0);
       return (MPEGstream_copy_data(PROP(mpeg), PROP(_buffer), size, false) > 0);
   };
   

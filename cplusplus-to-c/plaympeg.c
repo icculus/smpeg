@@ -879,8 +879,9 @@ int main(int argc, char *argv[])
                 }
             }
 #ifndef THREADED_VIDEO
-SMPEG_run(mpeg);
-SDL_Delay(10);
+/* Dethreaded video.  Call SMPEG_run() and delay 10ms. */
+            SMPEG_run(mpeg);
+            SDL_Delay(10);
 #else /* THREADED_VIDEO */
             SDL_Delay(1000/2);
 #endif /* THREADED_VIDEO */
