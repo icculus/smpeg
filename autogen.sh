@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-aclocal
+aclocal $ACLOCAL_FLAGS
 automake --foreign
 autoconf
 
