@@ -314,12 +314,23 @@ void MPEGvideo::DisplayFrame( VidStream * vid_stream )
   if( _filter )
   {
     SDL_Overlay src;
+    Uint16 pitches[3];
+    Uint8 *pixels[3];
 
+    /* Fill in an SDL YV12 overlay structure for the source */
     src.format = SDL_YV12_OVERLAY;
     src.w = _w;
     src.h = _h;
-    src.pitch = _w;
-    src.pixels = vid_stream->current->image;
+    src.planes = 3;
+    pitches[0] = _w;
+    pitches[1] = _w / 2;
+    pitches[2] = _w / 2;
+    src.pitches = pitches;
+    pixels[0] = vid_stream->current->image;
+    pixels[1] = vid_stream->current->image + pitches[0] * _h;
+    pixels[2] = vid_stream->current->image + pitches[0] * _h +
+                                             pitches[1] * _h / 2;
+    src.pixels = pixels;
 
     _filter->callback(_image, &src, &_srcrect, &info, _filter->data );
   }

@@ -38,43 +38,44 @@ static void filter_destroy(SMPEG_Filter *filter)
 /* The null filter. Copies source rect to overlay */
 /**************************************************/
 
-static void filter_null_callback(SDL_Overlay * dest, SDL_Overlay * source, SDL_Rect * region, SMPEG_FilterInfo * info, void * data)
+static void filter_null_callback(SDL_Overlay * dst, SDL_Overlay * src, SDL_Rect * region, SMPEG_FilterInfo * info, void * data)
 {
   register Uint32 y;
   register Uint8 * s, * d;
 
-  s = (Uint8 *) source->pixels;
-  d = (Uint8 *) dest->pixels;
-
   /* Y component */
-  s += region->y * source->pitch + region->x; /* Go to the top left corner of the source rectangle */
+  s = src->pixels[0];
+  d = dst->pixels[0];
+  /* Go to the top left corner of the source rectangle */
+  s += region->y * src->pitches[0] + region->x; 
   for(y = 0; y < region->h; y++)
   {
-    memcpy(d, s, region->w);   /* Copy lines */
-    s += source->pitch;
-    d += dest->pitch;
+    /* Copy lines */
+    memcpy(d, s, region->w);   
+    s += src->pitches[0];
+    d += dst->pitches[0];
   }
-  s += (source->h - region->h - region->y) * source->pitch - region->x;
-  d += (dest->h - region->h) * dest->pitch;              /* Go to end */
 
-  /* U component */
-  s += (region->y >> 1) * (source->pitch >> 1) + (region->x >> 1);
-  for(y = 0; y < region->h; y+=2)
-  {
-    memcpy(d, s, region->w >> 1);
-    s += source->pitch >> 1;
-    d += dest->pitch >> 1;
-  }
-  s += (((source->h - region->h - region->y) >> 1) * (source->pitch >> 1)) - (region->x >> 1);
-  d += ((dest->h - region->h) >> 1) * (dest->pitch >> 1);
-  
   /* V component */
-  s += (region->y >> 1) * (source->pitch >> 1) + (region->x >> 1);
+  s = src->pixels[1];
+  d = dst->pixels[1];
+  s += (region->y >> 1) * src->pitches[1] + (region->x >> 1);
   for(y = 0; y < region->h; y+=2)
   {
     memcpy(d, s, region->w >> 1);
-    s += source->pitch >> 1;
-    d += dest->pitch >> 1;
+    s += src->pitches[1];
+    d += dst->pitches[1];
+  }
+  
+  /* U component */
+  s = src->pixels[2];
+  d = dst->pixels[2];
+  s += (region->y >> 1) * src->pitches[2] + (region->x >> 1);
+  for(y = 0; y < region->h; y+=2)
+  {
+    memcpy(d, s, region->w >> 1);
+    s += src->pitches[2];
+    d += dst->pitches[2];
   }
 }
 
@@ -102,20 +103,20 @@ SMPEG_Filter *SMPEGfilter_null(void)
 /*                                                   [0 1 0]                        */
 /************************************************************************************/
 
-static void filter_bilinear_callback(SDL_Overlay * dest, SDL_Overlay * source, SDL_Rect * region, SMPEG_FilterInfo * info, void * data)
+static void filter_bilinear_callback(SDL_Overlay * dst, SDL_Overlay * src, SDL_Rect * region, SMPEG_FilterInfo * info, void * data)
 {
   register int x, y;
   register Uint8 * s, * d;
 
-  s = (Uint8 *) source->pixels;
-  d = (Uint8 *) dest->pixels;
+  s = src->pixels[0];
+  d = dst->pixels[0];
 
-  s += region->y * source->pitch + region->x;
+  s += region->y * src->pitches[0] + region->x;
 
   /* Skip first line */
   memcpy(d, s, region->w);
-  d += dest->pitch;
-  s += source->pitch;
+  d += dst->pitches[0];
+  s += src->pitches[0];
 
   for(y = 1; y < region->h - 1; y++)
   {
@@ -125,12 +126,12 @@ static void filter_bilinear_callback(SDL_Overlay * dest, SDL_Overlay * source, S
     for(x = 1; x < region->w - 1; x++)
     {
 	*d++ = 
-	  (((*s) << 2)           +  // 4*(x,y)   +
-	   *(s - source->pitch)  +  //   (x,y-1) +
-	   *(s - 1)              +  //   (x-1,y) +
-	   *(s + 1)              +  //   (x+1,y) +
-	   *(s + source->pitch))    //   (x,y+1)
-	  >> 3;                     // / 8
+	  (((*s) << 2)           +       // 4*(x,y)   +
+	   *(s - src->pitches[0])  +     //   (x,y-1) +
+	   *(s - 1)              +       //   (x-1,y) +
+	   *(s + 1)              +       //   (x+1,y) +
+	   *(s + src->pitches[0]))       //   (x,y+1)
+	  >> 3;                          // / 8
 	s++;
     }
 
@@ -138,38 +139,35 @@ static void filter_bilinear_callback(SDL_Overlay * dest, SDL_Overlay * source, S
     *d++ = *s++;
 
     /* Go to next line */
-    d += dest->pitch - region->w;
-    s += source->pitch - region->w;
+    d += dst->pitches[0] - region->w;
+    s += src->pitches[0] - region->w;
   }
 
   /* Skip last line */
   memcpy(d, s, region->w);
-  d += dest->pitch;
-  s += source->pitch;
-
-  /* Go to end of Y plane */
-  s -= region->y * source->pitch + region->x;
-  s += (source->h - region->y - region->h) * source->pitch;
-  d += (dest->h - region->h) * dest->pitch;
-
-  /* U component (unfiltered) */
-  s += (region->y >> 1) * (source->pitch >> 1) + (region->x >> 1);
-  for(y = 0; y < region->h; y+=2)
-  {
-    memcpy(d, s, region->w >> 1);
-    s += source->pitch >> 1;
-    d += dest->pitch >> 1;
-  }
-  s += (((source->h - region->h - region->y) >> 1) * (source->pitch >> 1)) - (region->x >> 1);
-  d += ((dest->h - region->h) >> 1) * (dest->pitch >> 1);
+  d += dst->pitches[0];
+  s += src->pitches[0];
 
   /* V component (unfiltered) */
-  s += (region->y >> 1) * (source->pitch >> 1) + (region->x >> 1);
+  s = src->pixels[1];
+  d = dst->pixels[1];
+  s += (region->y >> 1) * src->pitches[1] + (region->x >> 1);
   for(y = 0; y < region->h; y+=2)
   {
     memcpy(d, s, region->w >> 1);
-    s += source->pitch >> 1;
-    d += dest->pitch >> 1;
+    s += src->pitches[1];
+    d += dst->pitches[1];
+  }
+  
+  /* U component (unfiltered) */
+  s = src->pixels[2];
+  d = dst->pixels[2];
+  s += (region->y >> 1) * src->pitches[2] + (region->x >> 1);
+  for(y = 0; y < region->h; y+=2)
+  {
+    memcpy(d, s, region->w >> 1);
+    s += src->pitches[2];
+    d += dst->pitches[2];
   }
 }
 
@@ -179,7 +177,7 @@ SMPEG_Filter *SMPEGfilter_bilinear(void)
 
     filter = (SMPEG_Filter *)malloc(sizeof(*filter));
     if ( filter ) {
-        /* the null filter requires no extra info */
+        /* the bilinear filter requires no extra info */
         filter->flags = 0;
         /* no private data */
         filter->data = 0;
@@ -195,7 +193,7 @@ SMPEG_Filter *SMPEGfilter_bilinear(void)
 /* The deblocking filter. It filters block borders and non-intra coded blocks to reduce blockiness */ 
 /***************************************************************************************************/
 
-static void filter_deblocking_callback(SDL_Overlay * dest, SDL_Overlay * source, SDL_Rect * region, SMPEG_FilterInfo * info, void * data)
+static void filter_deblocking_callback(SDL_Overlay * dst, SDL_Overlay * src, SDL_Rect * region, SMPEG_FilterInfo * info, void * data)
 {
   int x, y;
   Uint32 dL, dU, dR, dD;
@@ -208,15 +206,15 @@ static void filter_deblocking_callback(SDL_Overlay * dest, SDL_Overlay * source,
   coeffs = (Uint16 *) data;
 
   /* Y component */
-  s = (Uint8 *) source->pixels;
-  d = (Uint8 *) dest->pixels;
+  s = src->pixels[0];
+  d = dst->pixels[0];
 
-  s += region->y * source->pitch + region->x;
+  s += region->y * src->pitches[0] + region->x;
 
   /* Skip first line */
   memcpy(d, s, region->w);
-  d += dest->pitch;
-  s += source->pitch;
+  d += dst->pitches[0];
+  s += src->pitches[0];
 
   for(y = 1; y < region->h - 1; y++)
   {
@@ -226,7 +224,7 @@ static void filter_deblocking_callback(SDL_Overlay * dest, SDL_Overlay * source,
     for(x = 1; x < region->w - 1; x++)
     {
       /* get current block quantization error from the info structure provided by the video decoder */
-      Q = info->yuv_mb_square_error[((region->y + y) >> 4) * (source->w >> 4) + ((region->x + x) >> 4)];
+      Q = info->yuv_mb_square_error[((region->y + y) >> 4) * (src->w >> 4) + ((region->x + x) >> 4)];
 
       if(!Q)
 	*d++ = *s++; /* block is intra coded, don't filter */
@@ -235,8 +233,8 @@ static void filter_deblocking_callback(SDL_Overlay * dest, SDL_Overlay * source,
 	/* compute differences with up, left, right and down neighbors */
 	dL = *s - *(s - 1) + 256;
 	dR = *s - *(s + 1) + 256;
-	dU = *s - *(s - source->pitch) + 256;
-	dD = *s - *(s + source->pitch) + 256;
+	dU = *s - *(s - src->pitches[0]) + 256;
+	dD = *s - *(s + src->pitches[0]) + 256;
 
 	/* get the corresponding filter coefficients from the lookup table */
 	aU = coeffs[(y & 7) + (Q << 12) + (dU << 3)];
@@ -247,10 +245,10 @@ static void filter_deblocking_callback(SDL_Overlay * dest, SDL_Overlay * source,
 	/* apply the filter on current pixel */
 	*d++ = 
 	  ((*s)*(4 * 65536 - aL - aR - aU - aD) + // (4-aL-aR-aU-aD)*(x,y) +
-	   (*(s - source->pitch))*aU +            // aU*(x,y-1) +
+	   (*(s - src->pitches[0]))*aU +          // aU*(x,y-1) +
 	   (*(s - 1))*aL +                        // aL*(x-1,y) +
 	   (*(s + 1))*aR +                        // aR*(x+1,y) +
-	   (*(s + source->pitch))*aD)             // aU*(x,y+1)
+	   (*(s + src->pitches[0]))*aD)           // aU*(x,y+1)
 	     >> 18;                               // remove fixed point and / 4
 	s++;
       }
@@ -260,38 +258,35 @@ static void filter_deblocking_callback(SDL_Overlay * dest, SDL_Overlay * source,
     *d++ = *s++;
 
     /* Go to next line */
-    d += dest->pitch - region->w;
-    s += source->pitch - region->w;
+    d += dst->pitches[0] - region->w;
+    s += src->pitches[0] - region->w;
   }
 
   /* Skip last line */
   memcpy(d, s, region->w);
-  d += dest->pitch;
-  s += source->pitch;
-
-  /* Go to end of Y plane */
-  s -= region->y * source->pitch + region->x;
-  s += (source->h - region->y - region->h) * source->pitch;
-  d += (dest->h - region->h) * dest->pitch;
-
-  /* U component (unfiltered) */
-  s += (region->y >> 1) * (source->pitch >> 1) + (region->x >> 1);
-  for(y = 0; y < region->h; y+=2)
-  {
-    memcpy(d, s, region->w >> 1);
-    s += source->pitch >> 1;
-    d += dest->pitch >> 1;
-  }
-  s += (((source->h - region->h - region->y) >> 1) * (source->pitch >> 1)) - (region->x >> 1);
-  d += ((dest->h - region->h) >> 1) * (dest->pitch >> 1);
+  d += dst->pitches[0];
+  s += src->pitches[0];
 
   /* V component (unfiltered) */
-  s += (region->y >> 1) * (source->pitch >> 1) + (region->x >> 1);
+  s = src->pixels[1];
+  d = dst->pixels[1];
+  s += (region->y >> 1) * src->pitches[1] + (region->x >> 1);
   for(y = 0; y < region->h; y+=2)
   {
     memcpy(d, s, region->w >> 1);
-    s += source->pitch >> 1;
-    d += dest->pitch >> 1;
+    s += src->pitches[1];
+    d += dst->pitches[1];
+  }
+  
+  /* U component (unfiltered) */
+  s = src->pixels[2];
+  d = dst->pixels[2];
+  s += (region->y >> 1) * src->pitches[2] + (region->x >> 1);
+  for(y = 0; y < region->h; y+=2)
+  {
+    memcpy(d, s, region->w >> 1);
+    s += src->pitches[2];
+    d += dst->pitches[2];
   }
 }
 
