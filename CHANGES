@@ -1,4 +1,6 @@
 current:
+Ryan C. Gordon - Tue Jul  9 22:28:21 EDT 2002
+ * Removed #include <unistd.h> from glmovie.c
 Ryan C. Gordon - Sun Jun 02 20:10:42 EST 2002
  * ./autogen.sh accepts aclocal commandlines via the ACLOCAL_FLAGS envr var.
 Ryan C. Gordon - Sun Jun 02 20:10:42 EST 2002
