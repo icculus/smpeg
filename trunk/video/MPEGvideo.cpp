@@ -1,6 +1,8 @@
 /*
     SMPEG - SDL MPEG Player Library
     Copyright (C) 1999  Loki Entertainment Software
+    
+    - Modified by Michel Darricau from eProcess <mdarricau@eprocess.fr>  for popcorn -
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -204,6 +206,7 @@ MPEGvideo::MPEGvideo(MPEGstream *stream)
     _image = 0;
     _filter = SMPEGfilter_null();
     _filter_mutex = SDL_CreateMutex();
+//	printf("[MPEGvideo::MPEGvideo]_filter_mutex[%lx] = SDL_CreateMutex()\n",_filter_mutex);
 }
 
 MPEGvideo:: ~MPEGvideo()
@@ -362,8 +365,9 @@ MPEGvideo::Skip(float seconds)
   }
 }
 
+	/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name in popcorn */
 MPEGstatus
-MPEGvideo:: Status(void)
+MPEGvideo:: GetStatus(void)
 {
     if ( _stream ) {
         if( !_thread || (_stream->film_has_ended ) ) {

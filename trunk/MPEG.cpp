@@ -244,12 +244,14 @@ void MPEG::Pause(void) {
   }
 }
 
-MPEGstatus MPEG::Status(void) {
+/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
+MPEGstatus MPEG::GetStatus(void) {
   MPEGstatus status;
 
   status = MPEG_STOPPED;
   if ( VideoEnabled() ) {
-    switch (videoaction->Status()) {
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
+    switch (videoaction->GetStatus()) {
       case MPEG_PLAYING:
         status = MPEG_PLAYING;
       break;
@@ -258,7 +260,8 @@ MPEGstatus MPEG::Status(void) {
     }
   }
   if ( AudioEnabled() ) {
-    switch (audioaction->Status()) {
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
+    switch (audioaction->GetStatus()) {
       case MPEG_PLAYING:
         status = MPEG_PLAYING;
       break;
@@ -274,7 +277,8 @@ MPEGstatus MPEG::Status(void) {
     Play();
 
     if ( VideoEnabled() ) {
-      switch (videoaction->Status()) {
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
+      switch (videoaction->GetStatus()) {
       case MPEG_PLAYING:
         status = MPEG_PLAYING;
 	break;
@@ -283,7 +287,8 @@ MPEGstatus MPEG::Status(void) {
       }
     }
     if ( AudioEnabled() ) {
-      switch (audioaction->Status()) {
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
+      switch (audioaction->GetStatus()) {
       case MPEG_PLAYING:
         status = MPEG_PLAYING;
 	break;
@@ -383,8 +388,9 @@ void MPEG::Seek(int position)
   /* Cannot seek past end of file */
   if((Uint32)position > system->TotalSize()) return;
   
+	/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
   /* get info whrether we need to restart playing at the end */
-  if( Status() == MPEG_PLAYING )
+  if( GetStatus() == MPEG_PLAYING )
     was_playing = 1;
 
   if(!seekIntoStream(position)) return;

@@ -1,6 +1,8 @@
 /*
     SMPEG - SDL MPEG Player Library
     Copyright (C) 1999  Loki Entertainment Software
+    
+    - Modified by Michel Darricau from eProcess <mdarricau@eprocess.fr>  for popcorn -
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -59,7 +61,8 @@ public:
             paused = true;
         }
     }
-    virtual MPEGstatus Status(void) = 0;
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  conflict name in popcorn */
+    virtual MPEGstatus GetStatus(void) = 0;
 
 protected:
     bool playing;

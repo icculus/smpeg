@@ -1,4 +1,6 @@
 /* A class based on the MPEG stream class, used to parse the system stream */
+    
+/* - Modified by Michel Darricau from eProcess <mdarricau@eprocess.fr>  for popcorn - */
 
 #ifndef _MPEGSYSTEM_H_
 #define _MPEGSYSTEM_H_
@@ -19,6 +21,8 @@ class MPEGstream;
 class MPEGsystem : public MPEGerror
 {
 public:
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
+	MPEGsystem(){}
     MPEGsystem(int MPEG_Fd);
     MPEGsystem(void *data, int size);
     virtual ~MPEGsystem();
@@ -29,12 +33,14 @@ public:
     Uint32 Tell();
     void Rewind();
     void Loop(bool toggle);
-    void Start();
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
+    virtual void Start();
     void Stop();
     bool Eof() const;
-    bool Seek(int length);
-    Uint32 TotalSize();
-    double TotalTime();
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
+    virtual bool Seek(int length);
+    virtual Uint32 TotalSize();
+    virtual double TotalTime();
 
     /* Skip "seconds" seconds */
     void Skip(double seconds);
@@ -60,21 +66,24 @@ public:
     /* Set looping for all streams */
     void loop_all_streams(bool toggle);
 
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
     /* Seek the first header */
-    bool seek_first_header();
+    virtual bool seek_first_header();
 
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
     /* Seek the next header */
-    bool seek_next_header();
+    virtual bool seek_next_header();
 
 protected:
     /* Run the loop to fill the stream buffers */
     static bool SystemLoop(MPEGsystem *system);
 
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
     /* Fill a buffer */
-    Uint8 FillBuffer();
+    virtual Uint8 FillBuffer();
 
     /* Read a new packet */
-    void Read();
+    virtual void Read();
 
     /* The system thread which fills the FIFO */
     static int SystemThread(void * udata);

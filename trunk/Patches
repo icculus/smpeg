@@ -1,4 +1,385 @@
 *************************************************************************
+*** Applied ***
+Date: Wed, 14 Feb 2001 14:54:26 +0100
+From: Michel Darricau <mdarricau@eprocess.fr>
+Subject: Re: RTSP/MPEG1 Player
+
+Hi,
+
+I have created a patch for some files from the smpeg library for the
+popcorn player...
+
+Theses modifications have several goals :
+        * declare some methods in the library for override.
+        * create empty constructors for MPEG and MPEGsystem classes
+        * change the Status method name for GetStatus to prevent some problem
+with xmms pluggin sheme
+        * I have force the #define USE_SYSTEM_THREAD in the MPEGsystem.cpp for
+best results...
+
+Thanks in advance to accept this patch. Comments are welcome!
+
+To see the overrides methods, you can download the popcorn project and
+see in the src directory... 
+
+Michel Darricau
+eProcess
+
+David Olivari wrote:
+> 
+> eProcess, a french software company specialized in embedded multimedia
+> solutions, announces the release of popCorn, an open source MPEG-1
+> streaming player for Linux based on SMPEG and libwww.
+> 
+> popCorn is a desktop-oriented MPEG-1 audio (MP3) and video software
+> capable of playing data streamed directly from the network.
+> Compatibility with existing media servers is provided by the support of
+> the industry standard RTSP protocol (Real Time Streaming Protocol).
+> 
+> http://opensource.eprocess.fr/popcorn
+
+diff -urN smpeg-0.4.2.org/MPEG.cpp smpeg-0.4.2/MPEG.cpp
+--- smpeg-0.4.2.org/MPEG.cpp	Sat Dec  2 00:58:20 2000
++++ smpeg-0.4.2/MPEG.cpp	Wed Feb  7 16:37:46 2001
+@@ -244,12 +244,14 @@
+   }
+ }
+ 
+-MPEGstatus MPEG::Status(void) {
++/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
++MPEGstatus MPEG::GetStatus(void) {
+   MPEGstatus status;
+ 
+   status = MPEG_STOPPED;
+   if ( VideoEnabled() ) {
+-    switch (videoaction->Status()) {
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
++    switch (videoaction->GetStatus()) {
+       case MPEG_PLAYING:
+         status = MPEG_PLAYING;
+       break;
+@@ -258,7 +260,8 @@
+     }
+   }
+   if ( AudioEnabled() ) {
+-    switch (audioaction->Status()) {
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
++    switch (audioaction->GetStatus()) {
+       case MPEG_PLAYING:
+         status = MPEG_PLAYING;
+       break;
+@@ -274,7 +277,8 @@
+     Play();
+ 
+     if ( VideoEnabled() ) {
+-      switch (videoaction->Status()) {
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
++      switch (videoaction->GetStatus()) {
+       case MPEG_PLAYING:
+         status = MPEG_PLAYING;
+ 	break;
+@@ -283,7 +287,8 @@
+       }
+     }
+     if ( AudioEnabled() ) {
+-      switch (audioaction->Status()) {
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
++      switch (audioaction->GetStatus()) {
+       case MPEG_PLAYING:
+         status = MPEG_PLAYING;
+ 	break;
+@@ -383,8 +388,9 @@
+   /* Cannot seek past end of file */
+   if((Uint32)position > system->TotalSize()) return;
+   
++	/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
+   /* get info whrether we need to restart playing at the end */
+-  if( Status() == MPEG_PLAYING )
++  if( GetStatus() == MPEG_PLAYING )
+     was_playing = 1;
+ 
+   if(!seekIntoStream(position)) return;
+diff -urN smpeg-0.4.2.org/MPEG.h smpeg-0.4.2/MPEG.h
+--- smpeg-0.4.2.org/MPEG.h	Wed Oct  4 19:29:25 2000
++++ smpeg-0.4.2/MPEG.h	Wed Feb  7 16:39:02 2001
+@@ -1,6 +1,8 @@
+ /*
+     SMPEG - SDL MPEG Player Library
+     Copyright (C) 1999  Loki Entertainment Software
++    
++    - Modified by Michel Darricau from eProcess <mdarricau@eprocess.fr>  for popcorn -
+ 
+     This library is free software; you can redistribute it and/or
+     modify it under the terms of the GNU Library General Public
+@@ -50,6 +52,10 @@
+ class MPEG : public MPEGerror
+ {
+ public:
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
++    MPEG():MPEGerror(){}
++	MPEG(bool Sdlaudio, char *addresse,char *asset,long buffersize){}
++
+     MPEG(const char * name, bool sdlaudio = true);
+     MPEG(int Mpeg_FD, bool sdlaudio = true);
+     MPEG(void *data, int size, bool sdlaudio = true);
+@@ -67,13 +73,16 @@
+ 
+     /* MPEG actions */
+     void Loop(bool toggle);
+-    void Play(void);
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
++    virtual void Play(void);
+     void Stop(void);
+     void Rewind(void);
+-    void Pause(void);
+-    void Seek(int bytes);
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
++    virtual void Pause(void);
++    virtual void Seek(int bytes);
+     void Skip(float seconds);
+-    MPEGstatus Status(void);
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
++    MPEGstatus GetStatus(void);
+     void GetSystemInfo(MPEG_SystemInfo *info);
+ 
+     /* MPEG audio actions */
+diff -urN smpeg-0.4.2.org/MPEGaction.h smpeg-0.4.2/MPEGaction.h
+--- smpeg-0.4.2.org/MPEGaction.h	Tue Sep  5 23:11:32 2000
++++ smpeg-0.4.2/MPEGaction.h	Wed Feb  7 16:40:33 2001
+@@ -1,6 +1,8 @@
+ /*
+     SMPEG - SDL MPEG Player Library
+     Copyright (C) 1999  Loki Entertainment Software
++    
++    - Modified by Michel Darricau from eProcess <mdarricau@eprocess.fr>  for popcorn -
+ 
+     This library is free software; you can redistribute it and/or
+     modify it under the terms of the GNU Library General Public
+@@ -59,7 +61,8 @@
+             paused = true;
+         }
+     }
+-    virtual MPEGstatus Status(void) = 0;
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  conflict name in popcorn */
++    virtual MPEGstatus GetStatus(void) = 0;
+ 
+ protected:
+     bool playing;
+diff -urN smpeg-0.4.2.org/MPEGaudio.h smpeg-0.4.2/MPEGaudio.h
+--- smpeg-0.4.2.org/MPEGaudio.h	Thu Oct  5 21:51:43 2000
++++ smpeg-0.4.2/MPEGaudio.h	Wed Feb  7 16:42:32 2001
+@@ -1,6 +1,8 @@
+ /*
+     SMPEG - SDL MPEG Player Library
+     Copyright (C) 1999  Loki Entertainment Software
++    
++    - Modified by Michel Darricau from eProcess <mdarricau@eprocess.fr>  for popcorn -
+ 
+     This library is free software; you can redistribute it and/or
+     modify it under the terms of the GNU Library General Public
+@@ -168,7 +170,8 @@
+     void ResetSynchro(double time);
+     void Skip(float seconds);
+     void Volume(int vol);
+-    MPEGstatus Status(void);
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name in popcorn */
++    MPEGstatus GetStatus(void);
+ 
+     /* Returns the desired SDL audio spec for this stream */
+     bool WantedSpec(SDL_AudioSpec *wanted);
+diff -urN smpeg-0.4.2.org/MPEGsystem.cpp smpeg-0.4.2/MPEGsystem.cpp
+--- smpeg-0.4.2.org/MPEGsystem.cpp	Mon Dec  4 21:25:36 2000
++++ smpeg-0.4.2/MPEGsystem.cpp	Wed Feb  7 17:04:30 2001
+@@ -17,7 +17,8 @@
+ #include "MPEGstream.h"
+ 
+ /* Define this if you want to use a separate thread for stream decoding */
+-//#define USE_SYSTEM_THREAD
++/* Michel Darricau from eProcess <mdarricau@eprocess.fr> popcorn */
++#define USE_SYSTEM_THREAD
+ 
+ Uint8 const PACKET_CODE[]       = { 0x00, 0x00, 0x01, 0xba };
+ Uint8 const PACKET_MASK[]       = { 0xff, 0xff, 0xff, 0xff };
+diff -urN smpeg-0.4.2.org/MPEGsystem.h smpeg-0.4.2/MPEGsystem.h
+--- smpeg-0.4.2.org/MPEGsystem.h	Mon Dec  4 20:41:58 2000
++++ smpeg-0.4.2/MPEGsystem.h	Wed Feb  7 17:08:24 2001
+@@ -1,4 +1,6 @@
+ /* A class based on the MPEG stream class, used to parse the system stream */
++    
++/* - Modified by Michel Darricau from eProcess <mdarricau@eprocess.fr>  for popcorn - */
+ 
+ #ifndef _MPEGSYSTEM_H_
+ #define _MPEGSYSTEM_H_
+@@ -19,6 +21,8 @@
+ class MPEGsystem : public MPEGerror
+ {
+ public:
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
++	MPEGsystem(){}
+     MPEGsystem(int MPEG_Fd);
+     MPEGsystem(void *data, int size);
+     virtual ~MPEGsystem();
+@@ -29,12 +33,14 @@
+     Uint32 Tell();
+     void Rewind();
+     void Loop(bool toggle);
+-    void Start();
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
++    virtual void Start();
+     void Stop();
+     bool Eof() const;
+-    bool Seek(int length);
+-    Uint32 TotalSize();
+-    double TotalTime();
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
++    virtual bool Seek(int length);
++    virtual Uint32 TotalSize();
++    virtual double TotalTime();
+ 
+     /* Skip "seconds" seconds */
+     void Skip(double seconds);
+@@ -60,21 +66,24 @@
+     /* Set looping for all streams */
+     void loop_all_streams(bool toggle);
+ 
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
+     /* Seek the first header */
+-    bool seek_first_header();
++    virtual bool seek_first_header();
+ 
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
+     /* Seek the next header */
+-    bool seek_next_header();
++    virtual bool seek_next_header();
+ 
+ protected:
+     /* Run the loop to fill the stream buffers */
+     static bool SystemLoop(MPEGsystem *system);
+ 
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
+     /* Fill a buffer */
+-    Uint8 FillBuffer();
++    virtual Uint8 FillBuffer();
+ 
+     /* Read a new packet */
+-    void Read();
++    virtual void Read();
+ 
+     /* The system thread which fills the FIFO */
+     static int SystemThread(void * udata);
+diff -urN smpeg-0.4.2.org/MPEGvideo.h smpeg-0.4.2/MPEGvideo.h
+--- smpeg-0.4.2.org/MPEGvideo.h	Tue Sep  5 23:11:32 2000
++++ smpeg-0.4.2/MPEGvideo.h	Wed Feb  7 17:09:39 2001
+@@ -1,6 +1,8 @@
+ /*
+     SMPEG - SDL MPEG Player Library
+     Copyright (C) 1999  Loki Entertainment Software
++    
++    - Modified by Michel Darricau from eProcess <mdarricau@eprocess.fr>  for popcorn -
+ 
+     This library is free software; you can redistribute it and/or
+     modify it under the terms of the GNU Library General Public
+@@ -56,7 +58,8 @@
+     void Rewind(void);
+     void ResetSynchro(double time);
+      void Skip(float seconds);
+-    MPEGstatus Status(void);
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name in popcorn */
++    MPEGstatus GetStatus(void);
+ 
+     /* MPEG video actions */
+     bool GetVideoInfo(MPEG_VideoInfo *info);
+diff -urN smpeg-0.4.2.org/audio/MPEGaudio.cpp smpeg-0.4.2/audio/MPEGaudio.cpp
+--- smpeg-0.4.2.org/audio/MPEGaudio.cpp	Thu Oct  5 21:31:05 2000
++++ smpeg-0.4.2/audio/MPEGaudio.cpp	Thu Feb  8 16:06:10 2001
+@@ -1,6 +1,8 @@
+ /*
+     SMPEG - SDL MPEG Player Library
+     Copyright (C) 1999  Loki Entertainment Software
++    
++    - Modified by Michel Darricau from eProcess <mdarricau@eprocess.fr>  for popcorn -
+ 
+     This library is free software; you can redistribute it and/or
+     modify it under the terms of the GNU Library General Public
+@@ -247,8 +249,9 @@
+         volume = (vol*SDL_MIX_MAXVOLUME)/100;
+     }
+ }
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  conflict name in popcorn */
+ MPEGstatus
+-MPEGaudio:: Status(void)
++MPEGaudio:: GetStatus(void)
+ {
+     if ( valid_stream ) {
+         /* Has decoding stopped because of end of stream? */
+diff -urN smpeg-0.4.2.org/audio/mpegtoraw.cpp smpeg-0.4.2/audio/mpegtoraw.cpp
+--- smpeg-0.4.2.org/audio/mpegtoraw.cpp	Wed Oct 18 00:26:12 2000
++++ smpeg-0.4.2/audio/mpegtoraw.cpp	Thu Feb  8 16:09:59 2001
+@@ -362,8 +362,9 @@
+     long copylen;
+     int mixed = 0;
+ 
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  conflict name in popcorn */
+     /* Bail if audio isn&#039;t playing */
+-    if ( audio->Status() != MPEG_PLAYING ) {
++    if ( audio->GetStatus() != MPEG_PLAYING ) {
+         return(0);
+     }
+     volume = audio->volume;
+diff -urN smpeg-0.4.2.org/smpeg.cpp smpeg-0.4.2/smpeg.cpp
+--- smpeg-0.4.2.org/smpeg.cpp	Thu Oct  5 21:58:08 2000
++++ smpeg-0.4.2/smpeg.cpp	Wed Feb  7 17:20:35 2001
+@@ -1,6 +1,8 @@
+ /*
+     SMPEG - SDL MPEG Player Library
+     Copyright (C) 1999  Loki Entertainment Software
++    
++    - Modified by Michel Darricau from eProcess <mdarricau@eprocess.fr>  for popcorn -
+ 
+     This library is free software; you can redistribute it and/or
+     modify it under the terms of the GNU Library General Public
+@@ -162,7 +164,8 @@
+     SMPEGstatus status;
+ 
+     status = SMPEG_ERROR;
+-    switch (mpeg->obj->Status()) {
++		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  conflict name in popcorn */
++    switch (mpeg->obj->GetStatus()) {
+         case MPEG_STOPPED:
+             if ( ! mpeg->obj->WasError() ) {
+                 status = SMPEG_STOPPED;
+diff -urN smpeg-0.4.2.org/video/MPEGvideo.cpp smpeg-0.4.2/video/MPEGvideo.cpp
+--- smpeg-0.4.2.org/video/MPEGvideo.cpp	Sat Dec  2 03:33:11 2000
++++ smpeg-0.4.2/video/MPEGvideo.cpp	Wed Feb  7 17:23:44 2001
+@@ -1,6 +1,8 @@
+ /*
+     SMPEG - SDL MPEG Player Library
+     Copyright (C) 1999  Loki Entertainment Software
++    
++    - Modified by Michel Darricau from eProcess <mdarricau@eprocess.fr>  for popcorn -
+ 
+     This library is free software; you can redistribute it and/or
+     modify it under the terms of the GNU Library General Public
+@@ -204,6 +206,7 @@
+     _image = 0;
+     _filter = SMPEGfilter_null();
+     _filter_mutex = SDL_CreateMutex();
++//	printf("[MPEGvideo::MPEGvideo]_filter_mutex[%lx] = SDL_CreateMutex()\n",_filter_mutex);
+ }
+ 
+ MPEGvideo:: ~MPEGvideo()
+@@ -362,8 +365,9 @@
+   }
+ }
+ 
++	/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name in popcorn */
+ MPEGstatus
+-MPEGvideo:: Status(void)
++MPEGvideo:: GetStatus(void)
+ {
+     if ( _stream ) {
+         if( !_thread || (_stream->film_has_ended ) ) {
+*************************************************************************
 *** Not Applied ***
 Date: Mon, 5 Feb 2001 23:29:43 -0500
 From: Joe Drew <hoserhead@woot.net>

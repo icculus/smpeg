@@ -1,6 +1,8 @@
 0.4.3:
-Sam Lantinga - Wed Apr  4 13:31:40 PDT 2001
+Sam Lantinga - Wed Apr  4 13:40:44 PDT 2001
  * Updated for SDL 1.2.0
+Michel Darricau - Wed Apr  4 13:31:40 PDT 2001
+ * Added some changes for the popcorn MPEG library
 Nicolas Vignal - Wed Apr  4 13:25:28 PDT 2001
  * Added smpeg.m4
 Sam Lantinga - Wed Feb 21 16:24:46 PST 2001

@@ -1,6 +1,8 @@
 /*
     SMPEG - SDL MPEG Player Library
     Copyright (C) 1999  Loki Entertainment Software
+    
+    - Modified by Michel Darricau from eProcess <mdarricau@eprocess.fr>  for popcorn -
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -162,7 +164,8 @@ SMPEGstatus SMPEG_status( SMPEG* mpeg )
     SMPEGstatus status;
 
     status = SMPEG_ERROR;
-    switch (mpeg->obj->Status()) {
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  conflict name in popcorn */
+    switch (mpeg->obj->GetStatus()) {
         case MPEG_STOPPED:
             if ( ! mpeg->obj->WasError() ) {
                 status = SMPEG_STOPPED;
