@@ -1,4 +1,6 @@
 0.4.1:
+Sam Lantinga - Thu Aug  3 17:56:09 PDT 2000
+ * Fixed FD_ZERO compile problem on some systems
 Sam Lantinga - Thu Aug  3 17:51:35 PDT 2000
  * Modified plaympeg to play videos even if audio device isn't available
 Jens Vaasjo, Sam Lantinga, Nicholas Vining - Thu Aug  3 16:49:40 PDT 2000
