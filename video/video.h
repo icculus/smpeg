@@ -428,6 +428,10 @@ extern unsigned int cacheMiss[8][8];
 #undef  BIG_ENDIAN_ARCHITECTURE
 #define LITTLE_ENDIAN_ARCHITECTURE
 #else
+#ifdef __BIG_ENDIAN__
+#undef  LITTLE_ENDIAN_ARCHITECTURE
+#define BIG_ENDIAN_ARCHITECTURE 1
+#else
 #include <endian.h>
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #undef  BIG_ENDIAN_ARCHITECTURE
@@ -436,6 +440,7 @@ extern unsigned int cacheMiss[8][8];
 #if __BYTE_ORDER == __BIG_ENDIAN
 #undef  LITTLE_ENDIAN_ARCHITECTURE
 #define BIG_ENDIAN_ARCHITECTURE 1
+#endif
 #endif
 #endif
 #endif
