@@ -153,6 +153,9 @@ Uint32 SMPEG_tell( SMPEG* mpeg );
 /* Warning: this is 32 bit values so streams > 4Go will return bad values */
 Uint32 SMPEG_total_size( SMPEG* mpeg );
 
+/* Skip 'seconds' seconds in the MPEG stream */
+void SMPEG_skip( SMPEG* mpeg, float seconds );
+
 /* Render a particular frame in the MPEG video
    API CHANGE: This function no longer takes a target surface and position.
                Use SMPEG_setdisplay() and SMPEG_move() to set this information.

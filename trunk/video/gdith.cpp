@@ -145,6 +145,7 @@ inline double CurrentTime( VidStream* vid_stream )
 int timeSync( VidStream* vid_stream )
 {
     MPEGvideo* mpeg = (MPEGvideo*) vid_stream->_smpeg;
+    static double correction = -1;
 
     /* Update the number of frames displayed */
     vid_stream->totNumFrames++;
@@ -172,6 +173,21 @@ int timeSync( VidStream* vid_stream )
     /* Update the current play time */
     mpeg->play_time += vid_stream->_oneFrameTime;
 
+    /* Synchronize using system timestamps */
+    if(vid_stream->current && vid_stream->current->show_time > 0){
+#ifdef DEBUG_TIMESTAMP_SYNC
+      fprintf(stderr, "video: time:%.3f  shift:%.3f\r",
+	      mpeg->play_time,
+	      mpeg->play_time - vid_stream->current->show_time);
+#endif
+      if(correction == -1)
+	correction = mpeg->play_time - vid_stream->current->show_time;
+#ifdef USE_TIMESTAMP_SYNC
+      mpeg->play_time = vid_stream->current->show_time + correction ;
+#endif
+      vid_stream->current->show_time = -1;
+    }
+
     /* If we are looking for a particular frame... */
     if( vid_stream->_jumpFrame > -1 )
     {
@@ -198,7 +214,7 @@ int timeSync( VidStream* vid_stream )
         time_behind = CurrentTime(vid_stream) - mpeg->Time();
 
 #ifdef DEBUG_MPEG_SCHEDULING
-//printf("Frame %d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, mpeg->Time(), CurrentTime(vid_stream), time_behind);
+printf("Frame %d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, mpeg->Time(), CurrentTime(vid_stream), time_behind);
 #endif
 
         /* Allow up to MAX_FUDGE_TIME of delay in output */

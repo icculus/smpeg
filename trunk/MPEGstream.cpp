@@ -34,6 +34,7 @@ MPEGstream::MPEGstream(MPEGsystem * System, Uint8 Streamid)
   
   data = 0;
   stop = 0;
+  pos = 0;
   
   preread_size = 0;
   looping = false;
@@ -97,7 +98,7 @@ MPEGstream::rewind_stream()
 }
 
 bool
-MPEGstream:: next_packet(bool recurse)
+MPEGstream:: next_packet(bool recurse, bool update_timestamp)
 {
   SDL_mutexP(mutex);
 
@@ -114,7 +115,7 @@ MPEGstream:: next_packet(bool recurse)
     system->RequestBuffer();
     while(!br->Next() && timeout--)
       SDL_Delay(1);
-    if(!timeout) return(false);
+    if(timeout<=0) return(false);
     SDL_mutexP(mutex);
   }
 
@@ -157,7 +158,10 @@ MPEGstream:: next_packet(bool recurse)
   /* Update stream datas */
   data = (Uint8 *) br->Buffer();
   stop = data + br->Size();
-
+  if(update_timestamp){
+    timestamp = br->TimeStamp;
+    timestamp_pos = pos;
+  }
   SDL_mutexV(mutex);
 
   return(true);
@@ -230,15 +234,18 @@ Uint32
 MPEGstream:: copy_data(Uint8 *area, Sint32 size, bool short_read)
 {
     Uint32 copied = 0;
+    bool timestamped = false;
 
     while ( (size > 0) && !eof()) {
         Uint32 len;
 
         /* Get new data if necessary */
         if ( data == stop ) {
-            if ( ! next_packet() ) {
+            /* try to use the timestamp of the first packet */
+            if ( ! next_packet(true, (timestamp == -1) || !timestamped) ) {
                 break;
             }
+	    timestamped = true;
         }
 
 	SDL_mutexP(mutex);
@@ -256,6 +263,7 @@ MPEGstream:: copy_data(Uint8 *area, Sint32 size, bool short_read)
         data += len;
         size -= len;
         copied += len;
+	pos += len;
 
         /* Allow 32-bit aligned short reads? */
         if ( ((copied%4) == 0) && short_read ) {
@@ -277,7 +285,7 @@ int MPEGstream::copy_byte(void)
       return (-1);
     }
   }
-
+  pos ++;
   return(*data++);
 }
 
@@ -286,7 +294,7 @@ bool MPEGstream::eof() const
   return(!br->Size());
 }
 
-void MPEGstream::insert_packet(Uint8 * Data, Uint32 Size)
+void MPEGstream::insert_packet(Uint8 * Data, Uint32 Size, double timestamp=-1)
 {
   MPEGlist * newbr;
 
@@ -305,6 +313,7 @@ void MPEGstream::insert_packet(Uint8 * Data, Uint32 Size)
   if ( Size ) {
     memcpy(newbr->Buffer(), Data, Size);
   }
+  newbr->TimeStamp = timestamp;
 
   SDL_mutexV(mutex);
   garbage_collect();

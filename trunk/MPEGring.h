@@ -54,10 +54,13 @@ public:
     Uint8 *NextWriteBuffer( void );
 
     /* Release a buffer, written to in the ring */
-    void WriteDone( Uint32 len );
+    void WriteDone( Uint32 len, double timestamp=-1 );
 
     /* Reserve a buffer for reading in the ring */
     Uint32 NextReadBuffer( Uint8** buffer );
+
+    /* Read the timestamp of the current buffer */
+    double ReadTimeStamp(void);
 
     /* Release a buffer having read some of it */
     void ReadSome( Uint32 used );
@@ -75,6 +78,10 @@ protected:
     Uint8 *begin;
     Uint8 *end;
 
+    double *timestamps;
+    double *timestamp_read;
+    double *timestamp_write;
+ 
     Uint8 *read;
     Uint8 *write;
 

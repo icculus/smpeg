@@ -53,8 +53,8 @@ public:
     void rewind_stream(void);
 
     /* Go to the next packet in the stream */
-    bool next_packet(bool recurse = true);
-
+    bool next_packet(bool recurse = true, bool update_timestamp = true);
+ 
     /* Mark a position in the data stream */
     MPEGstream_marker *new_marker(int offset);
 
@@ -74,7 +74,7 @@ public:
     bool eof(void) const;
 
     /* Insert a new packet at the end of the stream */
-    void insert_packet(Uint8 * data, Uint32 size);
+    void insert_packet(Uint8 * data, Uint32 size, double timestamp=-1);
 
     /* Check for unused buffers and free them */
     void garbage_collect(void);
@@ -102,6 +102,13 @@ protected:
     bool looping;
 
     SDL_mutex * mutex;
+public:
+    /* total of bytes read by our client, it doesn't realy have to be
+       too meaningful, it only serves as a reference for timestamp_pos */
+    Uint32 pos;
+    /* "pos" where "timestamp" belongs */
+    Uint32 timestamp_pos;
+    double timestamp;
 };
 
 #endif /* _MPEGSTREAM_H_ */

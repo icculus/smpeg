@@ -265,13 +265,24 @@ bool MPEGaudio::loadheader()
 }
 
 
-bool MPEGaudio::run( int frames )
+bool MPEGaudio::run( int frames, double *timestamp = NULL)
 {
+    double last_timestamp = -1;
+    int totFrames = frames;
+
     for( ; frames; frames-- )
     {
         if( loadheader() == false ) {
 	  return false;	  
         }
+
+        if (frames == totFrames  && timestamp != NULL)
+            if (last_timestamp != mpeg->timestamp){
+		if (mpeg->timestamp_pos <= _buffer_pos)
+		    last_timestamp = *timestamp = mpeg->timestamp;
+	    }
+            else
+                *timestamp = -1;
 
         if     ( layer == 3 ) extractlayer3();
         else if( layer == 2 ) extractlayer2();
@@ -304,13 +315,14 @@ bool MPEGaudio::run( int frames )
 int Decode_MPEGaudio(void *udata)
 {
     MPEGaudio *audio = (MPEGaudio *)udata;
+    double timestamp;
 
     while ( audio->decoding && ! audio->mpeg->eof() ) {
         audio->rawdata = (Sint16 *)audio->ring->NextWriteBuffer();
         if ( audio->rawdata ) {
             audio->rawdatawriteoffset = 0;
-            audio->run(1);
-            audio->ring->WriteDone(audio->rawdatawriteoffset*2);
+            audio->run(1, &timestamp);
+            audio->ring->WriteDone(audio->rawdatawriteoffset*2, timestamp);
         }
     }
     audio->decoding = false;
@@ -361,11 +373,24 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
     assert(audio);
     assert(audio->ring);
     do {
+	/* this is empirical, I don't realy know how to find out when
+	   a certain piece of audio has finished playing or even if
+	   the timestamps refer to the time when the frame starts
+	   playing or then the frame ends playing, but as is works
+	   quite right */
+#define N_TIMESTAMPS 5
+	static double timestamp[N_TIMESTAMPS] = {0};
+	if(timestamp[0] == 0)
+	    for (int i=0; i<N_TIMESTAMPS; i++)
+		timestamp[i] = -1;
         copylen = audio->ring->NextReadBuffer(&rbuf);
         if ( copylen > len ) {
             SDL_MixAudio(stream, rbuf, len, volume);
             audio->ring->ReadSome(len);
             len = 0;
+	    for (int i=0; i < N_TIMESTAMPS -1; i++)
+		timestamp[i] = timestamp[i+1];
+	    timestamp[N_TIMESTAMPS-1] = audio->ring->ReadTimeStamp();
         } else {
             SDL_MixAudio(stream, rbuf, copylen, volume);
             ++audio->currentframe;
@@ -374,6 +399,26 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
             len -= copylen;
             stream += copylen;
         }
+	if (timestamp[0] != -1){
+	    double timeshift = audio->Time() - timestamp[0];
+	    double correction = 0;
+	    assert(timestamp >= 0);
+	    if (fabs(timeshift) > 1.0){
+	        correction = -timeshift;
+#ifdef DEBUG_TIMESTAMP_SYNC
+                fprintf(stderr, "audio jump %f\n", timeshift);
+#endif
+            } else
+	        correction = -timeshift/100;
+#ifdef USE_TIMESTAMP_SYNC
+	    audio->play_time += correction;
+#endif
+#ifdef DEBUG_TIMESTAMP_SYNC
+	    fprintf(stderr, "\raudio: time:%8.3f shift:%8.4f",
+                    audio->Time(), timeshift);
+#endif
+	    timestamp[0] = -1;
+	}
     } while ( copylen && (len > 0) && ((audio->currentframe < audio->decodedframe) || audio->decoding));
 #else
     /* The length is interpreted as being in samples */

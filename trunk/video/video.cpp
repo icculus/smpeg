@@ -1085,7 +1085,12 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
 
         /* Picture start code. Parse picture header and first slice header. */
 
-        status = ParsePicture( vid_stream, time_stamp );
+	if (vid_stream->timestamp_mark < vid_stream->buffer
+	    && !vid_stream->timestamp_used){
+	  vid_stream->timestamp_used = true;
+	  status = ParsePicture( vid_stream, vid_stream->timestamp );
+	} else
+	  status = ParsePicture( vid_stream, -1);
 
         if((vid_stream->picture.code_type == B_TYPE) &&
             vid_stream->_skipFrame && (vid_stream->_jumpFrame < 0))

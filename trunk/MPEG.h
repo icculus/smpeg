@@ -69,6 +69,7 @@ public:
     void Rewind(void);
     void Pause(void);
     void Seek(int bytes);
+    void Skip(float seconds);
     Uint32 Tell();
     Uint32 TotalSize();
     MPEGstatus Status(void);

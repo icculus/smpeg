@@ -101,9 +101,9 @@ void MPEG::Init(int Mpeg_FD, bool Sdlaudio)
 
 MPEG::~MPEG()
 {
-  if(audio) delete audio;
+  Stop();
   if(video) delete video;
-
+  if(audio) delete audio;
   if(system) delete system;
 
   if ( close_fd && mpeg_fd ) {
@@ -334,11 +334,13 @@ void MPEG::Seek(int position)
 
 void MPEG::seekIntoStream(int position)
 {
+  double time;
+
   /* First we stop everything */
   Stop();
 
   /* Go to the desired position into file */
-  system->Seek(position);
+  time = system->Seek(position);
 
   /* Skip the first empty buffer made when creating a mpegstream */
   /* which would otherwise be interpreted as end of file */
@@ -350,14 +352,13 @@ void MPEG::seekIntoStream(int position)
 
   if ( AudioEnabled() ) {
     audioaction->Rewind();
-    audioaction->ResetSynchro();
+    audioaction->ResetSynchro(time);
   }
 
   if ( VideoEnabled() ) {
     videoaction->Rewind();
-    videoaction->ResetSynchro();
+    videoaction->ResetSynchro(time);
   }
-
 }
 
 Uint32 MPEG::Tell()
@@ -368,6 +369,20 @@ Uint32 MPEG::Tell()
 Uint32 MPEG::TotalSize()
 {
   return(system->TotalSize());
+}
+
+void MPEG::Skip(float seconds)
+{
+  if(system->get_stream(SYSTEM_STREAMID))
+  {
+    system->Skip(seconds);
+  }
+  else
+  {
+    /* No system information in MPEG */
+    if( VideoEnabled() ) videoaction->Skip(seconds);
+    if( AudioEnabled() ) audioaction->Skip(seconds);
+  }
 }
 
 void MPEG::parse_stream_list()
