@@ -1,5 +1,47 @@
 *************************************************************************
 *** Applied ***
+Date: Mon, 13 Nov 2000 13:53:51 -0800
+From: "Joseph I . Valenzuela" <tsaotsao@lokigames.com>
+Subject: smpeg redux
+
+
+Sam;
+
+Slightly updated patch.  Thanks again.
+
+-- 
+J. Valenzuela -- tsaotsao@lokigames.com
+
+diff -Naur smpeg/MPEGsystem.cpp smpeg-new/MPEGsystem.cpp
+--- smpeg/MPEGsystem.cpp	Fri Oct 27 15:12:28 2000
++++ smpeg-new/MPEGsystem.cpp	Mon Nov 13 13:33:07 2000
+@@ -1100,14 +1100,18 @@
+ 	      int size = MPEG_BUFFER_SIZE;
+ 
+ 	      if(data_reader.offset + size > data_reader.size) {
+-		      size = data_reader.size - data_reader.offset;
++                  size = data_reader.size - data_reader.offset;
+ 	      }
+ 
+-	      dataptr += size;
+-
+-	      memcpy(buffer, dataptr, size);
+-
+-	      data_reader.offset += size;
++              if(size >= 0) {
++                  dataptr += size;
++      
++                  memcpy(buffer, dataptr, size);
++      
++                  data_reader.offset += size;
++             } else {
++		     break;
++	     }
+       } else {
+         if(read(mpeg_fd, buffer, MPEG_BUFFER_SIZE) < 0) break;
+       }
+*************************************************************************
+*** Applied ***
 Date: Sat, 14 Oct 2000 23:43:33 +0900
 From: Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
 Subject: SDL-1.1 Patch For FreeBSD.
