@@ -267,11 +267,7 @@ void DisplayCurrentFrame( VidStream* vid_stream )
     if ( mpeg->_mutex )
         SDL_mutexP( mpeg->_mutex );
 
-    dstrect.x = mpeg->_x;
-    dstrect.y = mpeg->_y;
-    dstrect.w = vid_stream->h_size * mpeg->_scale;
-    dstrect.h = vid_stream->v_size * mpeg->_scale;
-
+    dstrect = mpeg->_rect;
     SDL_DisplayYUVOverlay(vid_stream->current->image, &dstrect);
 
     if ( mpeg->_callback )

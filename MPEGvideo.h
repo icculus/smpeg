@@ -65,7 +65,7 @@ public:
     bool SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
                                             MPEG_DisplayCallback callback);
     void MoveDisplay(int x, int y);
-    void ScaleDisplay(int scale);
+    void ScaleDisplayXY(int w, int h);
     void RenderFrame(int frame);
     void RenderFinal(SDL_Surface *dst, int x, int y);
 
@@ -87,8 +87,7 @@ protected:
     int _scale;         // play back at '_scale' size
     int _w;             // width of movie
     int _h;             // height of movie
-    int _x;             // pixel x offset
-    int _y;             // pixel y offset
+    SDL_Rect _rect;	// display area
     float _fps;         // frames per second
 
     void RewindStream(void);

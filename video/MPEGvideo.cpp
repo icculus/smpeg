@@ -132,9 +132,6 @@ MPEGvideo::MPEGvideo(MPEGstream *stream)
 
     /* Set default playback variables */
     _thread = NULL;
-    _x = 0;
-    _y = 0;
-    _scale = 1;
     _dst = NULL;
     _mutex = NULL;
     _stream = NULL;
@@ -182,6 +179,12 @@ MPEGvideo::MPEGvideo(MPEGstream *stream)
     /* Rewind back to the old position */
     mpeg->seek_marker(marker);
     mpeg->delete_marker(marker);
+
+    /* Set the default playback area */
+    _rect.x = 0;
+    _rect.y = 0;
+    _rect.w = _w;
+    _rect.h = _h;
 }
 
 MPEGvideo:: ~MPEGvideo()
@@ -416,15 +419,18 @@ void
 MPEGvideo:: MoveDisplay( int x, int y )
 {
     SDL_mutexP( _mutex );
-    _x = x;
-    _y = y;
+    _rect.x = x;
+    _rect.y = y;
     SDL_mutexV( _mutex );
 }
 
 void
-MPEGvideo:: ScaleDisplay( int scale )
+MPEGvideo:: ScaleDisplayXY( int w, int h )
 {
-    _scale = scale;
+    SDL_mutexP( _mutex );
+    _rect.w = w;
+    _rect.h = h;
+    SDL_mutexV( _mutex );
 }
 
 

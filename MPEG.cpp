@@ -303,9 +303,9 @@ void MPEG::MoveDisplay(int x, int y) {
     videoaction->MoveDisplay(x, y);
   }
 }
-void MPEG::ScaleDisplay(int scale) {
+void MPEG::ScaleDisplayXY(int w, int h) {
   if ( VideoEnabled() ) {
-    videoaction->ScaleDisplay(scale);
+    videoaction->ScaleDisplayXY(w, h);
   }
 }
 void MPEG::RenderFrame(int frame) {

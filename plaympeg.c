@@ -51,7 +51,7 @@ void usage(char *argv0)
 "	--double or -2	     Play MPEG at double size\n"
 "	--loop or -l	     Play MPEG over and over\n"
 "	--volume N or -v N   Set audio volume to N (0-100)\n"
-"	--scale S or -s S    Play MPEG at size S (1-)\n"
+"	--scale wxh or -s wxh  Play MPEG at given resolution\n"
 "       --skip N or -S N     Skip N seconds\n"
 "	--help or -h\n"
 "	--version or -V\n"
@@ -75,10 +75,11 @@ void update(SDL_Surface *screen, Sint32 x, Sint32 y, Uint32 w, Uint32 h)
 
 int main(int argc, char *argv[])
 {
+    int video_inited = 0, audio_inited = 0;
     int use_audio, use_video;
     int fullscreen;
-    int video_inited = 0, audio_inited = 0;
     int scalesize;
+    int scale_width, scale_height;
     int loop_play;
     int i, done, pause;
     int volume;
@@ -94,6 +95,8 @@ int main(int argc, char *argv[])
     use_video = 1;
     fullscreen = 0;
     scalesize = 1;
+    scale_width = 0;
+    scale_height = 0;
     loop_play = 0;
     volume = 100;
     skip = 0;
@@ -148,15 +151,8 @@ int main(int argc, char *argv[])
         if ((strcmp(argv[i], "--scale") == 0)||(strcmp(argv[i], "-s") == 0)) {
             ++i;
             if ( argv[i] ) {
-                scalesize = atoi(argv[i]);
+                sscanf(argv[i], "%dx%d", &scale_width, &scale_height);
             }
-	    if (( scalesize < 1 ) || ( scalesize > 2)) {
-	      fprintf(stderr, "Scale must be 1 or 2 (work in progress)\n");
-              if ( scalesize < 1 )
-	          scalesize = 1;
-              else
-	          scalesize = 2;
-	    }
         } else
         if ((strcmp(argv[i], "--help") == 0) || (strcmp(argv[i], "-h") == 0)) {
             usage(argv[0]);
@@ -310,8 +306,6 @@ int main(int argc, char *argv[])
             int video_bpp;
             int width, height;
 
-            SMPEG_scale(mpeg, scalesize);
-
             /* Get the "native" video mode */
             video_info = SDL_GetVideoInfo();
             switch (video_info->vfmt->BitsPerPixel) {
@@ -323,8 +317,18 @@ int main(int argc, char *argv[])
                     video_bpp = 16;
                     break;
             }
-            width = info.width * scalesize;
-            height = info.height * scalesize;
+            if ( scale_width ) {
+                width = scale_width;
+            } else {
+                width = info.width;
+            }
+            width *= scalesize;
+            if ( scale_height ) {
+                height = scale_height;
+            } else {
+                height = info.height;
+            }
+            height *= scalesize;
             video_flags = SDL_SWSURFACE;
             if ( fullscreen ) {
                 video_flags = SDL_FULLSCREEN|SDL_DOUBLEBUF|SDL_HWSURFACE;
@@ -339,6 +343,7 @@ int main(int argc, char *argv[])
             if ( screen->flags & SDL_FULLSCREEN ) {
                 SDL_ShowCursor(0);
             }
+            SMPEG_scaleXY(mpeg, screen->w, screen->h);
             SMPEG_setdisplay(mpeg, screen, NULL, update);
         }
 
