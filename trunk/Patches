@@ -1,5 +1,45 @@
 *************************************************************************
 *** Applied ***
+Date: Sun, 12 Mar 2000 03:18:09 +0900
+From: Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
+Subject: layer2audio fix.
+
+
+[Note: This fixes the Futurama videos!]
+
+Hi.
+
+  some movie is get SIGFPE exceptions on plaympeg.
+  (Linux is No Exception. May Be Getting Noise.)
+
+  add checking group10bits max size.
+  (Possibly, better checking other tables,too group5bits,group3bits)
+
+patch attached.(layer2.diff)
+
+-----------------------------------------------
+Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
+
+--- smpeg-0.3.3/audio/mpeglayer2.cpp	Thu Aug 26 13:37:52 1999
++++ smpeg-0.3.4/audio/mpeglayer2.cpp	Sun Mar 12 02:36:07 2000
+@@ -615,6 +615,7 @@
+ 	    int code=getbits(codelength[LS][i]);
+ 
+ 	    code+=code<<1;
++if(code > 2184) {/*printf("fraction LS OverFlow code %d -> 2184 \n",code);*/code=2184;}
+ 	    s=group[LS][i]+code;
+ 
+ 	    fraction[LS][0][i]=s[0];
+@@ -641,6 +642,7 @@
+ 	    int code=getbits(codelength[RS][i]);
+ 
+ 	    code+=code<<1;
++if(code > 2184) {/*printf("fraction RS OverFlow code %d -> 2184 \n",code);*/code=2184;}
+ 	    s=group[RS][i]+code;
+ 
+ 	    fraction[RS][0][i]=s[0];
+*************************************************************************
+*** Applied ***
 Date: Wed, 29 Mar 2000 19:47:06 +0000
 From: Vivien Chapplier <vivien.chappelier@enst-bretagne.fr>
 Subject: Re: Media Player
