@@ -37,6 +37,13 @@ METH(destroy) (_THIS)
     }
 }
 
+void
+METH(delete) (_THIS)
+{
+  METH(destroy) (self);
+  free(self);
+}
+
 
 /* Return the next free buffer or allocate a new one if none is empty */
 MPEGlist *

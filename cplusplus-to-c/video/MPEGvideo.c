@@ -237,6 +237,14 @@ METH(destroy) (_THIS)
     /* Release filter */
     SDL_DestroyMutex(self->_filter_mutex);
     self->_filter->destroy(self->_filter);
+
+  MPEGaction_destroy(self->action);
+  free(self->action);
+  self->action = NULL;
+
+  MPEGerror_destroy(self->error);
+  free(self->error);
+  self->error = NULL;
 }
 
 /* Simple thread play function */

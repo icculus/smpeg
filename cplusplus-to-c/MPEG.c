@@ -121,8 +121,8 @@ METH(Init) (_THIS, SDL_RWops *mpeg_source, bool SDLaudio)
     self->audiostream = self->videostream = NULL;
 //    self->audioaction = NULL;
 //    self->videoaction = NULL;
-    self->audio = NULL;
-    self->video = NULL;
+/*    self->audio = NULL; */
+/*    self->video = NULL; */
 //    self->audioaction_enabled = self->videoaction_enabled = false;
     self->audio_enabled = self->video_enabled = false;
     self->loop = false;
@@ -175,8 +175,6 @@ METH(InitErrorState) (_THIS)
     self->audiostream = self->videostream = NULL;
 //    self->audioaction = NULL;
 //    self->videoaction = NULL;
-    self->audio = NULL;
-    self->video = NULL;
 //    self->audioaction_enabled = self->videoaction_enabled = false;
     self->audio_enabled = self->video_enabled = false;
     self->loop = false;
@@ -217,6 +215,10 @@ METH(destroy) (_THIS)
       free(self->mpeg_mem);
       self->mpeg_mem = NULL;
     }
+
+  MPEGerror_destroy(self->error);
+  free(self->error);
+  self->error = NULL;
 }
 
 bool
@@ -725,7 +727,7 @@ METH(parse_stream_list) (_THIS)
 //	self->audiostream->next_packet(); /* XXX */
 	MPEGstream_next_packet(self->audiostream, true, true);
 //	self->audio = new MPEGaudio(audiostream, sdlaudio);  /* XXX */
-	self->audio = MPEGaudio_init(NULL, self->audiostream, self->sdlaudio);
+	self->audio = MPEGaudio_init(self->audio, self->audiostream, self->sdlaudio);
 //	self->audioaction = self->audio;
       break;
 
@@ -736,7 +738,7 @@ METH(parse_stream_list) (_THIS)
 //	self->videostream->next_packet(); /* XXX */
 	MPEGstream_next_packet(self->videostream, true, true);
 //	self->video = new MPEGvideo(videostream); /* XXX */
-	self->video = MPEGvideo_init(NULL, self->videostream);
+	self->video = MPEGvideo_init(self->video, self->videostream);
 //	self->videoaction = self->video;
       break;
     }

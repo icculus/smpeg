@@ -72,6 +72,7 @@ METH(init) (_THIS, Uint32 size, Uint32 count)
         self->readwait = 0;
     }
 
+    self->active = 0;
     if ( self->begin && self->readwait && self->writewait ) {
         self->active = 1;
     }

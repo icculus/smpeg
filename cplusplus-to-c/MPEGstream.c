@@ -40,6 +40,7 @@ METH(init) (_THIS, MPEGsystem *System, Uint8 Streamid)
     
     self->system = System;
     self->streamid = Streamid;
+
     self->br = MPEGlist_init(NULL);
     self->cleareof = true;
         
@@ -67,9 +68,10 @@ METH(destroy) (_THIS)
     while(MPEGlist_Next(newbr))
     {
         newbr = MPEGlist_Next(newbr);
-        MPEGlist_destroy(MPEGlist_Prev(newbr));
+        MPEGlist_delete(MPEGlist_Prev(newbr));
     }
-    MPEGlist_destroy(newbr);
+    MPEGlist_delete(newbr);
+    self->br = NULL;
 }
 
 void
@@ -85,9 +87,9 @@ METH(reset_stream) (_THIS)
     while(MPEGlist_Next(newbr))
     {
         newbr = MPEGlist_Next(newbr);
-        MPEGlist_destroy(MPEGlist_Prev(newbr));
+        MPEGlist_delete(MPEGlist_Prev(newbr));
     }
-    MPEGlist_destroy(newbr);
+    MPEGlist_delete(newbr);
     
     self->br = MPEGlist_init(NULL);
     self->cleareof = true;
@@ -205,18 +207,21 @@ bool
 METH(seek_marker) (_THIS, MPEGstream_marker const *marker)
 {
     SDL_mutexP(self->mutex);
+
     if (marker) {
         /* Release current buffer */
-        if(MPEGlist_IsLocked(self->br)) {
+        if(MPEGlist_IsLocked(self->br))
+          {
             MPEGlist_Unlock(self->br);
             MPEGlist_Lock(marker->marked_buffer);
-        }
+          }
         
         /* Reset the data positions */
         self->br = marker->marked_buffer;
         self->data = marker->marked_data;
         self->stop = marker->marked_stop;
     }
+
     SDL_mutexV(self->mutex);
     
     return(marker != 0);
@@ -339,7 +344,7 @@ METH(garbage_collect) (_THIS)
     while(MPEGlist_Next(newbr) && !MPEGlist_IsLocked(newbr))
     {
         newbr = MPEGlist_Next(newbr);
-        MPEGlist_destroy(MPEGlist_Prev(newbr));
+        MPEGlist_delete(MPEGlist_Prev(newbr));
     }
     
     MPEGlist_Unlock(self->br);

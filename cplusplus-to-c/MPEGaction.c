@@ -47,6 +47,10 @@ MPEGaction *METH(init) (_THIS)
 
 void METH(destroy) (_THIS)
 {
+  self->playing = false;
+  self->paused = false;
+  self->looping = false;
+  self->play_time = 0.0;
 }
 
 void METH(ResetPause) (_THIS)

@@ -40,8 +40,8 @@ void METH(ResetPause) (_THIS)
 MPEGaudio *
 METH(init) (_THIS, MPEGstream *stream, bool initSDL)
 {
-    SDL_AudioSpec wanted;
     bool audio_active;
+    SDL_AudioSpec wanted = { 0, }; /* Valgrind-B-Happy */
     SDL_AudioSpec actual;
     int i;
 
@@ -76,9 +76,7 @@ METH(init) (_THIS, MPEGstream *stream, bool initSDL)
         }
         if ( PROP(sdl_audio) ) {
             /* Open the audio, get actual audio hardware format and convert */
-//            audio_active = (SDL_OpenAudio(&wanted, &actual) == 0);
-            audio_active = SDL_OpenAudio(&wanted, &actual);
-            audio_active = (audio_active == 0);
+            audio_active = (SDL_OpenAudio(&wanted, &actual) == 0);
             if ( audio_active ) {
                 METH(ActualSpec)(self, &actual);
                 PROP(valid_stream) = true;
@@ -115,6 +113,14 @@ METH(destroy) (_THIS)
         /* Close up the audio so others may play */
         SDL_CloseAudio();
     }
+
+  MPEGaction_destroy(self->action);
+  free(self->action);
+  self->action = NULL;
+
+  MPEGerror_destroy(self->error);
+  free(self->error);
+  self->error = NULL;
 }
 
 bool

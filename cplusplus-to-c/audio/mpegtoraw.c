@@ -344,7 +344,7 @@ int MPEGaudio_run( MPEGaudio *self, int frames, double *timestamp)
 int Decode_MPEGaudio(void *udata)
 {
     MPEGaudio *audio = (MPEGaudio *)udata;
-    double timestamp;
+    double timestamp = 0.0; /* Valgrind-B-Happy */
 
 #if defined(_WIN32)
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);

@@ -514,8 +514,11 @@ METH(destroy) (_THIS)
 
     /* Delete the streams */
     for(list = self->stream_list; *list; list ++)
+      {
 //	delete *list;
+        MPEGstream_destroy(*list);
         free(*list);
+      }
     list = NULL;
 
     free(self->stream_list);
@@ -525,6 +528,10 @@ METH(destroy) (_THIS)
 //    delete[] self->read_buffer;
     free(self->read_buffer);
     self->read_buffer = NULL;
+
+  MPEGerror_destroy(self->error);
+  free(self->error);
+  self->error = NULL;
 }
 
 MPEGstream **
