@@ -382,14 +382,11 @@ int vcd_open(char * arg)
   unsigned char * buffer;
   
   /* Track defaults to 02, unless requested otherwise */
-  track = 0;
+  track = 02;
   pip = strrchr(arg, ':');
   if ( pip ) {
     *pip = '\0';
-    track = atoi(pip+1);
-  }
-  if ( ! track ) {
-    track = 02;
+    track = atoi(pip+1) + 1;
   }
 
   /* See if the CD-ROM device file exists */
