@@ -1,4 +1,6 @@
 0.4.4:
+Laurent Alacoque - Mon, 18 Jun 2001 15:51:51
+ * Fixed some hangs that occurred when seeking in MPEG files
 Sam Lantinga - Fri Apr 27 15:54:30 PDT 2001
  * Reworked the looping code - it should work better now
 Sam Lantinga - Fri Apr 27 13:30:27 PDT 2001

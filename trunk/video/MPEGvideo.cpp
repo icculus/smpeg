@@ -248,7 +248,7 @@ int Play_MPEGvideo( void *udata )
         int mark = mpeg->_stream->totNumFrames;
 
         /* make sure we do a whole frame */
-        while( mark == mpeg->_stream->totNumFrames )
+        while( (mark == mpeg->_stream->totNumFrames) && mpeg->playing )
         {
             mpegVidRsrc( 0, mpeg->_stream, 0 );
         }
