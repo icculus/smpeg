@@ -5,7 +5,7 @@ From: J. Valenzuela <tsaotsao@lokigames.com>
 Added small patch to allow construction of SMPEG objects from raw data.
 This additional interface looks like:
 
-	SMPEG_new_data(void *data, int size, int sdl_audio);
+	SMPEG_new_data(void *data, int size, SMPEG_Info *info, int sdl_audio);
 
 --------------
 diff -Naur smpeg/MPEG.cpp smpeg-new/MPEG.cpp
