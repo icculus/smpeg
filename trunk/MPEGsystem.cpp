@@ -628,7 +628,6 @@ void MPEGsystem::Read()
                         READ_ALIGN(MPEG_BUFFER_SIZE - remaining));
 	if(read_size < 0)
 	{
-	  perror("Read");
 	  errorstream = true;
 	  SDL_mutexV(system_mutex);
 	  return;
@@ -648,7 +647,6 @@ void MPEGsystem::Read()
 
 	  if(read_at_once < 0)
 	  {
-	    perror("Read");
 	    errorstream = true;
 	    SDL_mutexV(system_mutex);
 	    return;
@@ -1098,11 +1096,12 @@ double MPEGsystem::TimeElapsed(int atByte)
 	      SetError(strerror(errno));
 	    }
 	    SDL_mutexV(system_mutex);
-	    return(false);
+	    return(0);
 	  }
   }
   file_ptr = 0;
   buffer = new Uint8[MPEG_BUFFER_SIZE];
+  time = 0;
 
   /* If audio, compute total time according to bitrate of the first header and total size */
   /* Note: this doesn't work on variable bitrate streams */
@@ -1123,7 +1122,7 @@ double MPEGsystem::TimeElapsed(int atByte)
 		  SetError(strerror(errno));  
 		}
 		SDL_mutexV(system_mutex);
-		return(false);
+		return(0);
 	      }
       }
     
@@ -1166,16 +1165,18 @@ double MPEGsystem::TimeElapsed(int atByte)
     if(framesize)
       //is there a better way to do this?
       time = (frametime * (atByte ? atByte:totalsize)) / framesize;
-    else
-      time = 0;
   }
   else
   {
+    bool last_chance = false;
     do
     {
     /* Otherwise search the stream backwards for a valid header */
       file_ptr -= MPEG_BUFFER_SIZE;
-      if(file_ptr < -TotalSize()) file_ptr = -TotalSize();
+      if ( file_ptr < -TotalSize() ) {
+          last_chance = true;
+          file_ptr = -TotalSize();
+      }
       
       if(data_reader.fromData == true) {
 	      data_reader.offset = data_reader.size - file_ptr;
@@ -1189,7 +1190,7 @@ double MPEGsystem::TimeElapsed(int atByte)
 		  SetError(strerror(errno));  
 		}
 		SDL_mutexV(system_mutex);
-		return(false);
+		return(0);
 	      }
       }
       
@@ -1212,6 +1213,7 @@ double MPEGsystem::TimeElapsed(int atByte)
 	  if(*p-- != 1) continue;
 	  if(*p-- != 0) continue;
 	  if(*p-- != 0) continue;
+          ++p;
 	  break;
 	}
       if(stream_list[0]->streamid == VIDEO_STREAMID)
@@ -1221,19 +1223,20 @@ double MPEGsystem::TimeElapsed(int atByte)
 	  if(*p-- != 1) continue;
 	  if(*p-- != 0) continue;
 	  if(*p-- != 0) continue;
+          ++p;
 	  break;
 	}
     }
-    while(p < buffer);
+    while( !last_chance && (p < buffer) );
 
-    p++;
-
-    /* Extract time info from the last header */
-    if(stream_list[0]->streamid == SYSTEM_STREAMID)
-      packet_header(p, buffer + MPEG_BUFFER_SIZE - p, &time);
+    if ( p >= buffer ) {
+      /* Extract time info from the last header */
+      if(stream_list[0]->streamid == SYSTEM_STREAMID)
+        packet_header(p, buffer + MPEG_BUFFER_SIZE - p, &time);
     
-    if(stream_list[0]->streamid == VIDEO_STREAMID)
-      gop_header(p, buffer + MPEG_BUFFER_SIZE - p, &time);
+      if(stream_list[0]->streamid == VIDEO_STREAMID)
+        gop_header(p, buffer + MPEG_BUFFER_SIZE - p, &time);
+    }
   }
 
   delete buffer;

@@ -1,4 +1,6 @@
 0.4.3:
+Sam Lantinga - Thu Feb  8 17:33:15 PST 2001
+ * Fixed a hang playing invalid MPEG files
 Joe Drew - Mon, 5 Feb 2001 23:29:43 -0500
  * Fixed updating current time when seeking by byte offsets
 Matt Carlson - Fri Feb  2 18:13:08 PST 2001
