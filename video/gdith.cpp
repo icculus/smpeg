@@ -279,7 +279,7 @@ static inline void TimestampFPS( VidStream* vid_stream )
 #define SLOW_START_INCREMENT    0.3
 
 /* Define this to debug the frame scheduler */
-#define DEBUG_MPEG_SCHEDULING
+//#define DEBUG_MPEG_SCHEDULING
 
 inline double CurrentTime( VidStream* vid_stream )
 {
@@ -350,7 +350,7 @@ int timeSync( VidStream* vid_stream )
         time_behind = CurrentTime(vid_stream) - mpeg->Time();
 
 #ifdef DEBUG_MPEG_SCHEDULING
-printf("Frame %d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, mpeg->Time(), CurrentTime(vid_stream), time_behind);
+//printf("Frame %d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, mpeg->Time(), CurrentTime(vid_stream), time_behind);
 #endif
 
         /* Allow up to MAX_FUDGE_TIME of delay in output */
