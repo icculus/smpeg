@@ -16,6 +16,9 @@
 #include "MPEGsystem.h"
 #include "MPEGstream.h"
 
+/* Define this if you want to use a separate thread for stream decoding */
+//#define USE_SYSTEM_THREAD
+
 Uint8 const PACKET_CODE[]       = { 0x00, 0x00, 0x01, 0xba };
 Uint8 const PACKET_MASK[]       = { 0xff, 0xff, 0xff, 0xff };
 Uint8 const END_CODE[]          = { 0x00, 0x00, 0x01, 0xb9 };
@@ -436,12 +439,16 @@ MPEGsystem::MPEGsystem(int Mpeg_FD)
   
   request_wait = SDL_CreateSemaphore(0);
 
+#ifdef USE_SYSTEM_THREAD
   /* Start the system thread */
   system_thread = SDL_CreateThread(SystemThread, this);
 
   /* Wait for the thread to start */
   while(!system_thread_running && !Eof())
     SDL_Delay(1);
+#else
+  system_thread_running = true;
+#endif
 
   /* Look for streams */
   do
@@ -508,12 +515,16 @@ MPEGsystem::MPEGsystem(void *data, int size)
   
   request_wait = SDL_CreateSemaphore(0);
 
+#ifdef USE_SYSTEM_THREAD
   /* Start the system thread */
   system_thread = SDL_CreateThread(SystemThread, this);
 
   /* Wait for the thread to start */
   while(!system_thread_running && !Eof())
     SDL_Delay(1);
+#else
+  system_thread_running = true;
+#endif
 
   /* Look for streams */
   do
@@ -1297,12 +1308,16 @@ void MPEGsystem::Start()
     }
   }
   
+#ifdef USE_SYSTEM_THREAD
   /* Start the system thread */
   system_thread = SDL_CreateThread(SystemThread, this);
 
   /* Wait for the thread to start */
   while(!system_thread_running && !Eof())
     SDL_Delay(1);
+#else
+  system_thread_running = true;
+#endif
 }
 
 void MPEGsystem::Stop()
@@ -1311,8 +1326,10 @@ void MPEGsystem::Stop()
 
   /* Force the system thread to die */
   system_thread_running = false;
+#ifdef USE_SYSTEM_THREAD
   SDL_SemPost(request_wait);
   SDL_WaitThread(system_thread, NULL);
+#endif
 
   /* Reset the streams */
   reset_all_streams();
@@ -1321,12 +1338,66 @@ void MPEGsystem::Stop()
 void MPEGsystem::Wait()
 {
   while(SDL_SemValue(request_wait) != 0)
+#ifdef USE_SYSTEM_THREAD
     SDL_Delay(1);
+#else
+    if ( ! SystemLoop(this) ) break;
+#endif
 }
 
 bool MPEGsystem::Eof() const
 {
   return(errorstream || endofstream);
+}
+
+bool MPEGsystem::SystemLoop(MPEGsystem *system)
+{
+  /* Check for end of file */
+  if(system->Eof())
+  {
+    /* Set the eof mark on all streams */
+    system->end_all_streams();
+
+    if(system->data_reader.fromData == true)
+    {
+      system->data_reader.offset = 0;
+    } else {
+      /* Get back to the beginning of the stream if possible */
+      if(lseek(system->mpeg_fd, 0, SEEK_SET) < 0)
+      {
+	if(errno != ESPIPE)
+	{
+	  system->errorstream = true;
+	  system->SetError(strerror(errno));
+	}
+        return(false);
+      }
+    }
+
+    /* Reinitialize the read buffer */
+    system->pointer = system->read_buffer;
+    system->read_size = 0;
+    system->read_total = 0;
+    system->packet_total = 0;
+    system->endofstream = false;
+    system->errorstream = false;
+
+    /* Get the first header */
+    if(!system->seek_first_header())
+    {
+      system->errorstream = true;
+      system->SetError("Could not find the beginning of MPEG data\n");
+      return(false);
+    }
+  }
+
+  /* Wait for a buffer request */
+  SDL_SemWait(system->request_wait);
+
+  /* Read the buffer */
+  system->FillBuffer();
+
+  return(true);
 }
 
 int MPEGsystem::SystemThread(void * udata)
@@ -1337,53 +1408,10 @@ int MPEGsystem::SystemThread(void * udata)
 
   while(system->system_thread_running)
   {
-    /* Check for end of file */
-    if(system->Eof())
-    {
-      /* Set the eof mark on all streams */
-      system->end_all_streams();
-
-      if(system->data_reader.fromData == true)
-      {
-        system->data_reader.offset = 0;
-      } else {
-	      /* Get back to the beginning of the stream if possible */
-	      if(lseek(system->mpeg_fd, 0, SEEK_SET) < 0)
-	      {
-		if(errno != ESPIPE)
-		{
-		  system->errorstream = true;
-		  system->SetError(strerror(errno));
-		}
-		break;
-	      }
-      }
-
-      /* Reinitialize the read buffer */
-      system->pointer = system->read_buffer;
-      system->read_size = 0;
-      system->read_total = 0;
-      system->packet_total = 0;
-      system->endofstream = false;
-      system->errorstream = false;
-
-      /* Get the first header */
-      if(!system->seek_first_header())
-      {
-	system->errorstream = true;
-	system->SetError("Could not find the beginning of MPEG data\n");
-	break;
-      }
+    if ( ! SystemLoop(system) ) {
+      system->system_thread_running = false;
     }
-
-    /* Wait for a buffer request */
-    SDL_SemWait(system->request_wait);
-
-    /* Read the buffer */
-    system->FillBuffer();
   }
-  system->system_thread_running = false;
-
   return(true);
 }
 

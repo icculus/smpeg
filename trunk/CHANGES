@@ -1,4 +1,7 @@
 0.4.2:
+Sam Lantinga - Fri Dec  1 20:39:39 PST 2000
+ * Disabled the system thread by default.
+   You can re-enable it by looking for USE_SYSTEM_THREAD in MPEGsystem.cpp
 Sam Lantinga - Fri Dec  1 18:07:50 PST 2000
  * Fixed RenderFinal() to a different surface than the original one
 Vivien Chappelier - Fri Nov 17 13:35:36 PST 2000
