@@ -252,7 +252,7 @@ int Play_MPEGvideo( void *udata )
 
         if( mpeg->_stream->film_has_ended )
         {
-	  mpeg->playing = false;
+            mpeg->playing = false;
         }
     }
     /* Get the time the playback stopped */
@@ -439,6 +439,9 @@ MPEGvideo:: SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
     _mutex = lock;
     _dst = dst;
     _callback = callback;
+    if ( _image ) {
+      SDL_FreeYUVOverlay(_image);
+    }
     _image = SDL_CreateYUVOverlay(_srcrect.w, _srcrect.h, SDL_YV12_OVERLAY, dst);
     if ( !_dstrect.w || !_dstrect.h ) {
         _dstrect.w = dst->w;
@@ -518,7 +521,7 @@ MPEGvideo:: RenderFrame( int frame )
 
     if( _stream->current_frame > frame ) {
         mpeg->rewind_stream();
-	mpeg->next_packet();
+        mpeg->next_packet();
         Rewind();
     }
 
@@ -536,15 +539,25 @@ MPEGvideo:: RenderFrame( int frame )
 void
 MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
 {
+    SDL_Surface *saved_dst;
+    int saved_x, saved_y;
+
+    /* This operation can only be performed when stopped */
     Stop();
 
-    if( ! _stream->film_has_ended )
-    {
+    /* Set (and save) the destination and location */
+    saved_dst = _dst;
+    saved_x = _dstrect.x;
+    saved_y = _dstrect.y;
+    SetDisplay(dst, _mutex, _callback);
+    MoveDisplay(x, y);
+
+    if ( ! _stream->film_has_ended ) {
         /* Search for the last "group of pictures" start code */
         Uint32 start_code;
-	MPEGstream_marker * marker, * oldmarker;
+        MPEGstream_marker * marker, * oldmarker;
 
-	marker = 0;
+        marker = 0;
         start_code = mpeg->copy_byte();
         start_code <<= 8;
         start_code |= mpeg->copy_byte();
@@ -556,8 +569,8 @@ MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
             start_code |= mpeg->copy_byte();
             if ( start_code == GOP_START_CODE ) {
 	          oldmarker = marker;
-		  marker = mpeg->new_marker(-4);
-		  if( oldmarker ) mpeg->delete_marker( oldmarker );
+        	  marker = mpeg->new_marker(-4);
+        	  if( oldmarker ) mpeg->delete_marker( oldmarker );
        		  mpeg->garbage_collect();
             }
         }
@@ -565,10 +578,10 @@ MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
         /* Set the stream to the last spot marked */
         if ( ! mpeg->seek_marker( marker ) ) {
             mpeg->rewind_stream();
-	    mpeg->next_packet();
-	}
+            mpeg->next_packet();
+        }
 
-	mpeg->delete_marker( marker );
+        mpeg->delete_marker( marker );
         _stream->buf_length = 0;
         _stream->bit_offset = 0;
 
@@ -577,11 +590,15 @@ MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
 
         RenderFrame( INT_MAX );
 
-	mpeg->garbage_collect();
+        mpeg->garbage_collect();
     }
 
     /* Display the frame */
     DisplayFrame(_stream);
+
+    /* Restore the destination and location */
+    SetDisplay(saved_dst, _mutex, _callback);
+    MoveDisplay(saved_x, saved_y);
 }
 
 /* EOF */
