@@ -1,4 +1,6 @@
 0.4.4:
+Sam Lantinga - Fri Apr 27 10:32:04 PDT 2001
+ * Widened initial search for audio streams in MPEG files
 Sam Lantinga - Fri Apr 27 10:15:37 PDT 2001
  * plaympeg now shows the name of the MPEG file in the caption
 Sam Lantinga - Wed Apr 18 17:07:40 PDT 2001

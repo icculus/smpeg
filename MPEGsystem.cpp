@@ -19,6 +19,9 @@
 #include "MPEGsystem.h"
 #include "MPEGstream.h"
 
+/* Define this if you want to debug the system stream parsing */
+//#define DEBUG_SYSTEM
+
 /* Define this if you want to use a separate thread for stream decoding */
 //#define USE_SYSTEM_THREAD
 
@@ -453,7 +456,7 @@ MPEGsystem::MPEGsystem(SDL_RWops *mpeg_source)
   {
     RequestBuffer();
     Wait();
-    if ( tries++ < 10 ) {
+    if ( tries++ < 20 ) {  // Adjust this to catch more streams
       if ( exist_stream(VIDEO_STREAMID, 0xF0) &&
 	   exist_stream(AUDIO_STREAMID, 0xF0) ) {
         break;
