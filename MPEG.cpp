@@ -133,6 +133,7 @@ void MPEG::InitErrorState() {
     video = NULL;
     system = NULL;
     error = NULL;
+    source = NULL;
 
     audiostream = videostream = NULL;
     audioaction = NULL;
