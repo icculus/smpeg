@@ -27,7 +27,9 @@ AC_SUBST(BINARY_AGE)
 AC_SUBST(VERSION)
 
 ASFLAGS=""
+CCASFLAGS=""
 AC_SUBST(ASFLAGS)
+AC_SUBST(CCASFLAGS)
 
 # libtool versioning
 LT_RELEASE=$MAJOR_VERSION.$MINOR_VERSION
@@ -58,6 +60,7 @@ AC_PROG_INSTALL
 
 dnl Ugh.
 AS="$CC"
+CCAS="$CC"
 
 dnl Work around the lack of certain typedefs.
 AC_TYPE_SOCKLEN_T
@@ -153,6 +156,7 @@ if test x$enable_mmx = xyes; then
     if test x$use_mmx = xyes; then
         CFLAGS="$CFLAGS -DUSE_MMX"
         ASFLAGS="$ASFLAGS -DUSE_MMX"
+        CCASFLAGS="$CCASFLAGS -DUSE_MMX"
     fi
 fi
 
