@@ -1,5 +1,79 @@
 *************************************************************************
 *** Applied ***
+Date: Sat, 27 May 2000 15:43:08 -0700
+From: Mo <mo@nospam.com>
+Subject: A bug, a patch, and a question.
+
+First off, I would like to say thanks to everyone working on
+smpeg. It is really making some good progress. At the same
+time, there also seem to be some regressions. The CVS version
+of smpeg does not work for a number of mpeg files that it worked
+on a couple of weeks ago. I am not just complaining here, I want
+to help find out what went wrong and fix it. Problem is, I do not
+know where to start. There is no ChangeLog in the smpeg CVS. What's
+up with that? Every project needs a ChangeLog, otherwise it is
+very difficult to figure out where and when something broke.
+
+I also noticed that the autogen.sh script actually runs ./configure.
+This is not correct. The autogen.sh script should do everything needed
+to regen files but it should not run ./configure. I also found that
+smpeg would sometimes deadlock inside the destructor for an audio file.
+The following patch fixes the deadlock and the autogen.sh script, I have
+also included the first entry for a ChangeLog that is so badly needed.
+
+
+2000-05-27  Mo DeJong  <mdejong@cygnus.com>
+
+        * ChangeLog: Added ChangeLog to project.
+        * autogen.sh: Don't run ./configure
+        * audio/MPEGaudio.cpp (~MPEGaudio): Shutdown
+        the audio decoding thread before stopping to
+        avoid deadlock.
+
+
+
+Index: autogen.sh
+===================================================================
+RCS file: /cvs/smpeg/autogen.sh,v
+retrieving revision 1.1
+diff -u -r1.1 autogen.sh
+--- autogen.sh	1999/10/25 14:38:47	1.1
++++ autogen.sh	2000/05/27 22:20:51
+@@ -3,5 +3,3 @@
+ aclocal
+ automake --foreign
+ autoconf
+-
+-./configure $*
+Index: audio/MPEGaudio.cpp
+===================================================================
+RCS file: /cvs/smpeg/audio/MPEGaudio.cpp,v
+retrieving revision 1.19
+diff -u -r1.19 MPEGaudio.cpp
+--- audio/MPEGaudio.cpp	2000/05/26 17:54:37	1.19
++++ audio/MPEGaudio.cpp	2000/05/27 22:20:51
+@@ -74,12 +74,13 @@
+ 
+ MPEGaudio:: ~MPEGaudio()
+ {
+-    /* Remove ourselves from the mixer hooks */
+-    Stop();
+ #ifdef THREADED_AUDIO
+     /* Stop the decode thread */
+     StopDecoding();
+ #endif
++
++    /* Remove ourselves from the mixer hooks */
++    Stop();
+     if ( sdl_audio ) {
+         /* Close up the audio so others may play */
+         SDL_CloseAudio();
+
+
+Mo DeJong
+Red Hat Inc
+*************************************************************************
+*** Applied ***
 Date: Tue, 30 May 2000 03:57:33 +0200 (CEST)
 From: "Markus F.X.J. Oberhumer" <markus.oberhumer@jk.uni-linz.ac.at>
 To: Sam Lantinga <slouken@devolution.com>
