@@ -114,8 +114,8 @@ if test x$enable_opengl_player = xyes; then
     dnl FIXME:  Need a better test here...
     #AC_CHECK_HEADER(GL/gl.h, have_gl=yes)
     AC_CHECK_LIB(GL, glXCreateContext, have_gl=yes)
-    AC_CHECK_HEADER(GL/glu.h, have_glu=yes)
-    #AC_CHECK_LIB(GLU, gluOrtho2D, have_glu=yes)
+    #AC_CHECK_HEADER(GL/glu.h, have_glu=yes)
+    AC_CHECK_LIB(GLU, gluOrtho2D, have_glu=yes)
 fi
 AM_CONDITIONAL(HAVE_MESA, test x$have_gl = xyes -a x$have_glu = xyes)
 
