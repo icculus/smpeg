@@ -348,7 +348,8 @@ public:
 		// Added by HanishKVC
                 mpeg_start = (Uint8 *)mpeg_area;
 		mpeg_offset = 0;
-		if ( memcmp(mpeg_start, PACKET_START_CODE, 3) != 0 ) {
+		if ( (memcmp(mpeg_start, PACKET_START_CODE, 3) != 0) &&
+                     (mpeg_start[0] != 0xFF /* MP3 audio */) ) {
 		  //printf("DebugKVC: A Not so normal mpeg file\n");
 		  while((mpeg_start = 
 			(Uint8*)memchr((Uint8 *)mpeg_area+mpeg_offset,0xba,

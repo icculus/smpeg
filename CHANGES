@@ -1,5 +1,8 @@
 
 0.3.3:
+Sam Lantinga - Thu Jan  6 13:02:32 PST 2000
+ * SMPEG now detects MP3 files again (broken by RIFF searching code)
+ * gtv is now included by default when building an RPM
 Sam Lantinga - Mon Jan  3 20:54:32 PST 2000
  * Changelog entries are now Y2K safe. ;-)
  * SMPEG now handles pad packets in the initial system stream
