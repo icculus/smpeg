@@ -48,7 +48,9 @@ EXTRA_DIST =		\
 	README.SDL_mixer \
 	plaympeg.1	\
 	gtv.1		\
-	VisualC.zip
+	VisualC.zip	\
+	smpeg.m4	\
+	autogen.sh
 
 # Sample MPEG players
 if HAVE_GTK
@@ -76,6 +78,9 @@ gtv_LDADD = @GTK_LIBS@ libsmpeg.la
 glmovie_SOURCES = glmovie-tile.c glmovie.c glmovie.h
 glmovie_LDADD = @GL_LIBS@ libsmpeg.la
 
+# M4 macro file for inclusion with autoconf
+m4datadir = $(datadir)/aclocal
+m4data_DATA = smpeg.m4
 
 # Rule to build tar-gzipped distribution package
 $(PACKAGE)-$(VERSION).tar.gz: dist
