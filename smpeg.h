@@ -199,6 +199,6 @@ extern DECLSPEC int SMPEG_wantedSpec( SMPEG *mpeg, SDL_AudioSpec *wanted );
 extern DECLSPEC void SMPEG_actualSpec( SMPEG *mpeg, SDL_AudioSpec *spec );
 
 #ifdef __cplusplus
-};
+}
 #endif
 #endif /* _SMPEG_H_ */
