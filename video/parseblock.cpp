@@ -119,7 +119,7 @@ void InitIDCT(void)
     mmx_available = mmx_ok();
   }
   if (mmx_available) {
-printf("Using MMX IDCT algorithm!\n");
+//printf("Using MMX IDCT algorithm!\n");
     for(i=0;i<64;i++) {
       zigzag_direct[i]=zigzag_direct_mmx[i];
     }
