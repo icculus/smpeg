@@ -5,7 +5,7 @@
  */
 #include "smpeg.h"
 #include <GL/glx.h>
-#include <SDL/SDL.h>
+#include "SDL.h"
 #include <stdlib.h>
 #include <malloc.h>
 #include <string.h>

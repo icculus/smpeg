@@ -22,7 +22,7 @@
 #ifndef _MPEGSTREAM_H_
 #define _MPEGSTREAM_H_
 
-#include <SDL/SDL_types.h>
+#include "SDL_types.h"
 #include "MPEGerror.h"
 
 #define AUDIO_STREAMID  0xc0
