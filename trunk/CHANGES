@@ -1,13 +1,11 @@
 0.3.5:
 Sam Lantinga - Wed Mar  8 11:01:16 PST 2000
- * Added 32-bit MMX dither code donated by Martin Vogt <mvogt@rhrk.uni-kl.de>
- * Added 16-bit MMX dither code donated by Martin Vogt <mvogt@rhrk.uni-kl.de>
-   - originally from NIST MPEG-2 player: http://home.germany.net/100-5083/
+ * Added 16-bit MMX dither/IDCT code from the NIST MPEG-2/DVD player.
+   (http://home.germany.net/100-5083/)
+ * Added 32-bit MMX dither code from the kmpg MPEG-1 player.
+   (http://www.rhrk.uni-kl.de/~mvogt/linux/kmpg/)
 Sam Lantinga - Wed Mar  8 07:25:33 PST 2000
  * Added the math library to configure.in
-Sam Lantinga - Tue Mar  7 15:47:27 PST 2000
- * Added MMX IDCT code donated by Martin Vogt <mvogt@rhrk.uni-kl.de>
-   - originally from NIST MPEG-2 player: http://home.germany.net/100-5083/
 Hiroshi Yamashita - Mon Mar  6 07:48:35 PST 2000
  * Added audio information to the MPEG info.
  * Added support for videos starting with Video Start Code 0xe0 0xe2.
