@@ -1,4 +1,6 @@
 0.4.0:
+Hiroshi Yamashita - Tue Apr 11 13:00:01 PDT 2000
+ * Tuned MPEG_BUFFER_SIZE for slower systems.
 Atsushi Yamagata - Tue Apr 11 12:50:45 PDT 2000
  * Added locale setting for gtv.
 Hiroshi Yamashita - Tue Apr 11 09:59:11 PDT 2000
