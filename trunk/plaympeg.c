@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
     /* Play the mpeg files! */
     for ( ; argv[i]; ++i ) {
         /* Create the MPEG stream */
-        mpeg = SMPEG_new(argv[i], &info);
+        mpeg = SMPEG_new(argv[i], &info, 1);
         if ( SMPEG_error(mpeg) ) {
             fprintf(stderr, "%s: %s\n", argv[i], SMPEG_error(mpeg));
             SMPEG_delete(mpeg);

@@ -160,7 +160,7 @@ class MPEGaudio : public MPEGerror, public MPEGaudioaction {
 #endif
 
 public:
-    MPEGaudio(MPEGstream *stream);
+    MPEGaudio(MPEGstream *stream, bool initSDL = true);
     virtual ~MPEGaudio();
 
     /* MPEG actions */
@@ -170,9 +170,17 @@ public:
     void Volume(int vol);
     MPEGstatus Status(void);
 
+	/* Returns the desired SDL audio spec for this stream */
+	bool WantedSpec(SDL_AudioSpec *wanted);
+
+	/* Inform SMPEG of the actual audio format if configuring SDL
+	   outside of this class */
+	void ActualSpec(const SDL_AudioSpec *actual);
+
 protected:
     MPEGstream *mpeg;
     int valid_stream;
+	bool sdl_audio;
 #ifdef THREADED_AUDIO
     SDL_Thread *decode_thread;
 #endif

@@ -221,7 +221,7 @@ void LokiTV::openFile( const char* file )
     _closeFile();
 
     /* Create the MPEG stream */
-    _mpeg = SMPEG_new(file, &_info);
+    _mpeg = SMPEG_new(file, &_info, 1);
     if ( SMPEG_error(_mpeg) ) {
         QMessageBox::warning( this, file, SMPEG_error(_mpeg) );
         SMPEG_delete(_mpeg);
