@@ -132,6 +132,7 @@ MPEGvideo:: MPEGvideo(MPEGstream *stream)
     /* Set the MPEG data stream */
     mpeg = stream;
     time_source = NULL;
+    play_time = 0.0;
 
     /* Set default playback variables */
     _thread = NULL;
