@@ -583,9 +583,9 @@ void Color16DitherImageModInterlace( unsigned char *lum, unsigned char *cr,
 /*
  *--------------------------------------------------------------
  *
- * Twox2Color16DitherImage --
+ * ScaleColor16DitherImage --
  *
- *        Converts image into 16 bit color at double size.
+ *        Converts image into 16 bit color at a scale size.
  *
  * Results:
  *        None.
@@ -606,9 +606,9 @@ void Color16DitherImageModInterlace( unsigned char *lum, unsigned char *cr,
  * the horisontal doubling for free (almost).
  */
 
-void Twox2Color16DitherImageMod( unsigned char *lum, unsigned char *cr,
+void ScaleColor16DitherImageMod( unsigned char *lum, unsigned char *cr,
                                  unsigned char *cb, unsigned char *out,
-                                 int rows, int cols, int mod )
+                                 int rows, int cols, int mod, int scale )
 {
     unsigned int* row1 = (unsigned int*) out;
     const int next_row = cols+(mod/2);
@@ -618,13 +618,13 @@ void Twox2Color16DitherImageMod( unsigned char *lum, unsigned char *cr,
     int cr_r;
     int crb_g;
     int cb_b;
-    int cols_2 = cols / 2;
+    int cols_2 = cols / scale;
 
     lum2 = lum + cols;
 
     mod = (next_row * 3) + (mod/2);
 
-    y = rows / 2;
+    y = rows / scale;
     while( y-- )
     {
         x = cols_2;
@@ -678,9 +678,9 @@ void Twox2Color16DitherImageMod( unsigned char *lum, unsigned char *cr,
     }
 }
 
-void Twox2Color32DitherImageMod( unsigned char *lum, unsigned char *cr,
+void ScaleColor32DitherImageMod( unsigned char *lum, unsigned char *cr,
                                  unsigned char *cb, unsigned char *out,
-                                 int rows, int cols, int mod )
+                                 int rows, int cols, int mod, int scale )
 {
     unsigned int* row1 = (unsigned int*) out;
     const int next_row = cols*2+mod;
@@ -715,7 +715,7 @@ void Twox2Color32DitherImageMod( unsigned char *lum, unsigned char *cr,
                                        (rgb_2_pix[ L + cr_r ] |
                                         rgb_2_pix[ L + crb_g ] |
                                         rgb_2_pix[ L + cb_b ]);
-            row1 += 2;
+            row1 += scale;
 
             L = L_tab[ (int) *lum++ ];
             row1[0] = row1[1] = row1[next_row] = row1[next_row+1] =
@@ -761,30 +761,30 @@ void Twox2Color32DitherImageMod( unsigned char *lum, unsigned char *cr,
      framerate very much.  Optimization is better done in stream parsing.
  */
 #ifdef USE_INTERLACED_VIDEO
-void Twox2Color16DitherImageModInterlace( unsigned char *lum, unsigned char *cr,
-                                 unsigned char *cb, unsigned char *out,
-                                 int rows, int cols, int mod, int start )
+void ScaleColor16DitherImageModInterlace( unsigned char *lum, unsigned char *cr,
+					  unsigned char *cb, unsigned char *out,
+					  int rows, int cols, int mod, int start, int scale )
 {
     unsigned long* row1;
-    const int next_row = cols+(mod/2);
+    const int next_row = cols+(mod/scale);
     unsigned long* row2;
     unsigned char* lum2;
     int x, y;
     int cr_r;
     int crb_g;
     int cb_b;
-    int cols_2 = cols / 2;
+    int cols_2 = cols / scale;
 
     row1 = (unsigned long*) out;
     // Uncomment this to enable even-odd scanline rendering (looks terrible)
     //row1 += 2*start * next_row;
     //lum += start * cols;
-    row2 = row1 + 4*next_row;
-    lum2 = lum + 2*cols;
+    row2 = row1 + 2*scale*next_row;
+    lum2 = lum + scale*cols;
 
-    mod = ((cols + (mod/2)) * 3) + (mod/2);
+    mod = ((cols + (mod/scale)) * 3) + (mod/scale);
 
-    y = ((rows-2) / 2);
+    y = ((rows-2) / scale);
     while( y-- )
     {
         x = cols_2;

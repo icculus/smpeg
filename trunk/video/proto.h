@@ -139,9 +139,9 @@ void Color16DitherImageMod P((unsigned char *lum, unsigned char *cr, unsigned ch
 void Color32DitherImageMod P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod ));
 void Color16DitherImageModInterlace P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod, int start ));
 void Color32DitherImage P((unsigned char *lum , unsigned char *cr , unsigned char *cb , unsigned char *out , int rows , int cols ));
-void Twox2Color16DitherImageMod P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod ));
-void Twox2Color32DitherImageMod P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod ));
-void Twox2Color16DitherImageModInterlace P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod, int start ));
+void ScaleColor16DitherImageMod P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod, int scale ));
+void ScaleColor32DitherImageMod P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod, int scale ));
+void ScaleColor16DitherImageModInterlace P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod, int start, int scale ));
 void Twox2Color32DitherImage P((unsigned char *lum , unsigned char *cr , unsigned char *cb , unsigned char *out , int rows , int cols ));
 
 /* ordered.c */

@@ -1,5 +1,7 @@
 
 0.3.4:
+Jesper Pedersen - Mon Jan 31 12:33:25 PST 2000
+ * Fixed a bug in the pausing code.
 Sam Lantinga - Mon Jan 24 12:57:54 PST 2000
  * Disabled consistency checks by default, now plays more video streams
 Laurent Bonnaud - Tue Jan 25 13:46:32 PST 2000

@@ -135,10 +135,10 @@ void SMPEG_loop( SMPEG* mpeg, int repeat )
     mpeg->obj->Loop(repeat);
 }
 
-/* Set or clear pixel-doubled display on an SMPEG object */
-void SMPEG_double( SMPEG* mpeg, int big )
+/* Scale pixel display on an SMPEG object */
+void SMPEG_scale( SMPEG* mpeg, int scale )
 {
-    mpeg->obj->DoubleDisplay(big);
+    mpeg->obj->ScaleDisplay(scale);
 }
 
 /* Move the video display area within the destination surface */

@@ -430,33 +430,33 @@ void DisplayCurrentFrame( VidStream* vid_stream )
     if ( mpeg->_mutex )
         SDL_mutexP( mpeg->_mutex );
 
-    if( mpeg->_double )
+    if( mpeg->_scale != 1 )
     {
 #ifdef USE_INTERLACED_VIDEO
         static int start = 1;
         if ( mpeg->_surf->format->BytesPerPixel == 2 ) {
-        	Twox2Color16DitherImageModInterlace( l, Cr, Cb, disp,
-                  vid_stream->v_size, vid_stream->h_size,
-                 (mpeg->_surf->pitch / 2) - (vid_stream->h_size * 2), start );
+	  ScaleColor16DitherImageModInterlace( l, Cr, Cb, disp,
+					       vid_stream->v_size, vid_stream->h_size,
+					       (mpeg->_surf->pitch / 2) - (vid_stream->h_size * mpeg->_scale), start, mpeg->_scale);
 	}
         start = !start;
 #else
         if ( mpeg->_surf->format->BytesPerPixel == 2 ) {
-            Twox2Color16DitherImageMod( l, Cr, Cb, disp,
-                  vid_stream->v_size, vid_stream->h_size,
-                 (mpeg->_surf->pitch / 2) - (vid_stream->h_size * 2) );
-        }
+            ScaleColor16DitherImageMod( l, Cr, Cb, disp,
+					vid_stream->v_size, vid_stream->h_size,
+					(mpeg->_surf->pitch / 2) - (vid_stream->h_size * mpeg->_scale), mpeg->_scale);
+        } else
         if ( mpeg->_surf->format->BytesPerPixel == 4 ) {
-            Twox2Color32DitherImageMod( l, Cr, Cb, disp,
-                  vid_stream->v_size, vid_stream->h_size,
-                 (mpeg->_surf->pitch / 4) - (vid_stream->h_size * 2) );
+            ScaleColor32DitherImageMod( l, Cr, Cb, disp,
+					vid_stream->v_size, vid_stream->h_size,
+					(mpeg->_surf->pitch / 4) - (vid_stream->h_size * mpeg->_scale), mpeg->_scale);
         }
 #endif
         if ( SDL_MUSTLOCK(mpeg->_surf) ) {
             SDL_UnlockSurface(mpeg->_surf);
         }
         mpeg->_callback( mpeg->_surf, mpeg->_x, mpeg->_y,
-                     vid_stream->h_size * 2, vid_stream->v_size * 2 );
+                     vid_stream->h_size * mpeg->_scale, vid_stream->v_size * mpeg->_scale );
     }
     else
     {
