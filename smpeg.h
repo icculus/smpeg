@@ -88,6 +88,9 @@ typedef void(*SMPEG_DisplayCallback)(SDL_Surface* dst, int x, int y,
  */
 extern SMPEG* SMPEG_new(const char *file, SMPEG_Info* info, int sdl_audio);
 
+/* The same as above for a file descriptor */
+extern SMPEG* SMPEG_new_descr(int file, SMPEG_Info* info, int sdl_audio);
+
 /* Get current information about an SMPEG object */
 extern void SMPEG_getinfo( SMPEG* mpeg, SMPEG_Info* info );
 
@@ -137,6 +140,9 @@ extern void SMPEG_stop( SMPEG* mpeg );
 
 /* Rewind the play position of an SMPEG object to the beginning of the MPEG */
 extern void SMPEG_rewind( SMPEG* mpeg );
+
+/* Skip 'seconds' seconds of the MPEG stream */
+void SMPEG_skip( SMPEG* mpeg, float seconds );
 
 /* Render a particular frame in the MPEG video */
 extern void SMPEG_renderFrame( SMPEG* mpeg, int framenum, SDL_Surface* dst,

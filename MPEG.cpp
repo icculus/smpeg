@@ -1,102 +1,370 @@
+#include "SDL.h"
 
 #include "MPEG.h"
 
+#include <unistd.h>
+#include <fcntl.h>
+#include <string.h>
+#include <errno.h>
 
-MPEG::MPEG(Uint8 *Mpeg, Uint32 Size, Uint8 StreamID, bool sdlaudio) :
-                                   MPEGstream(Mpeg, Size, StreamID)
+MPEG::MPEG(const char * name, bool Sdlaudio) :
+  MPEGerror()
 {
-    audiostream = NULL; audio = NULL; audioaction = NULL;
-    audioaction_enabled = false;
-    videostream = NULL; video = NULL; videoaction = NULL;
-    videoaction_enabled = false;
-    if ( streamid == SYSTEM_STREAMID ) {
-        /* Do special parsing to find out which MPEG streams to create */
-        while ( next_packet(false) ) {
-            data += 6;
-            while ( data[0] & 0x80 ) {
-#ifndef PROFILE_VIDEO
-                if ( (data[1] == AUDIO_STREAMID) && !audiostream ) {
-                    audiostream = new MPEG(mpeg, size, data[1], sdlaudio);
-                    if ( audiostream->WasError() ) {
-                        SetError(audiostream->TheError());
-                    }
-                    audioaction = audiostream;
-                    audioaction_enabled = true;
-                } else
-#endif
-                if ( ((data[1] & 0xF0) == VIDEO_STREAMID)  && !videostream ) {
-                    videostream = new MPEG(mpeg, size, data[1]&0xF0, sdlaudio);
-                    if ( videostream->WasError() ) {
-                        SetError(videostream->TheError());
-                    }
-                    videoaction = videostream;
-                    videoaction_enabled = true;
-                }
-                data += 3;
-            }
-            /* Hack to detect video streams that are not advertised */
-            if ( ! videostream ) {
-                if ( data[3] == 0xb3 ) {
-                    videostream = new MPEG(mpeg,size, VIDEO_STREAMID, sdlaudio);
-                    if ( videostream->WasError() ) {
-                        SetError(videostream->TheError());
-                    }
-                    videoaction = videostream;
-                    videoaction_enabled = true;
-                }
-            }
-        }
-        EnableAudio(audioaction_enabled);
-        EnableVideo(videoaction_enabled);
-        reset_stream();
-    }
-    /* Determine if we are reading a system layer, and get first packet */
-    if ( mpeg[3] == 0xba ) {
-        next_packet();
-    } else {
-        packet = mpeg;
-        packetlen = size;
-        data = packet;
-        stop = data + packetlen;
-    }
-    if ( streamid == AUDIO_STREAMID ) {
-        audiostream = this;
-        audio = new MPEGaudio(audiostream, sdlaudio);
-        if ( audio->WasError() ) {
-            SetError(audio->TheError());
-        } else {
-            audioaction = audio;
-            audioaction_enabled = true;
-        }
-    } else
-    if ( streamid == VIDEO_STREAMID ) {
-        videostream = this;
-        video = new MPEGvideo(videostream);
-        if ( video->WasError() ) {
-            SetError(video->TheError());
-        } else {
-            videoaction = video;
-            videoaction_enabled = true;
-        }
-    }
+  int new_fd;
+
+  new_fd = open(name, O_RDONLY);
+  close_fd = true;
+
+  if(new_fd == -1)
+  {
+    audio = NULL;
+    video = NULL;
+    system = NULL;
+    close_fd = false;
+    error = NULL;
+
+    audiostream = videostream = NULL;
+    audioaction = NULL;
+    videoaction = NULL;
+    audio = NULL;
+    video = NULL;
+    audioaction_enabled = videoaction_enabled = false;
+    loop = false;
+    pause = false;
+
+    SetError(strerror(errno));
+
+    return;
+  }
+
+  Init(new_fd, Sdlaudio);
+}
+
+MPEG::MPEG(int Mpeg_FD, bool Sdlaudio) :
+  MPEGerror()
+{
+  close_fd = false;
+  Init(Mpeg_FD, Sdlaudio);
+}
+
+void MPEG::Init(int Mpeg_FD, bool Sdlaudio)
+{
+    mpeg_fd = Mpeg_FD;
+
+    sdlaudio = Sdlaudio;
+
+    /* Create the system that will parse the MPEG stream */
+    system = new MPEGsystem(Mpeg_FD);
+
+    /* Initialize everything to invalid values for cleanup */
+    error = NULL;
+
+    audiostream = videostream = NULL;
+    audioaction = NULL;
+    videoaction = NULL;
+    audio = NULL;
+    video = NULL;
+    audioaction_enabled = videoaction_enabled = false;
+    loop = false;
+    pause = false;
+
+    parse_stream_list();
+
+    EnableAudio(audioaction_enabled);
+    EnableVideo(videoaction_enabled);
+
     if ( ! audiostream && ! videostream ) {
-        SetError("No audio/video stream found in MPEG");
+      SetError("No audio/video stream found in MPEG");
+    }
+
+    if ( system && system->WasError() ) {
+      SetError(system->TheError());
+    }
+
+    if ( audio && audio->WasError() ) {
+      SetError(audio->TheError());
+    }
+
+    if ( video && video->WasError() ) {
+      SetError(video->TheError());
+    }
+
+    if ( WasError() ) {
+      SetError(TheError());
     }
 }
 
-MPEG::~MPEG() {
-    if ( audiostream ) {
-        if ( audiostream == this ) {
-            delete audio;
-        } else {
-            delete audiostream;
-        }
+MPEG::~MPEG()
+{
+  if(audio) delete audio;
+  if(video) delete video;
+
+  if(system) delete system;
+
+  if ( close_fd && mpeg_fd ) {
+    close(mpeg_fd);
+  }
+}
+
+bool MPEG::AudioEnabled(void) {
+  return(audioaction_enabled);
+}
+void MPEG::EnableAudio(bool enabled) {
+  if ( enabled && ! audioaction ) {
+    enabled = false;
+  }
+  audioaction_enabled = enabled;
+
+  /* Stop currently playing stream, if necessary */
+  if ( audioaction && ! audioaction_enabled ) {
+    audioaction->Stop();
+  } 
+  /* Set the video time source */
+  if ( videoaction ) {
+    if ( audioaction_enabled ) {
+      videoaction->SetTimeSource(audioaction);
+    } else {
+      videoaction->SetTimeSource(NULL);
     }
-    if ( videostream ) {
-        if ( videostream == this ) {
-            delete video;
-        } else {
-            delete videostream;
-        }
+  }
+/*
+  if(audiostream)
+    audiostream->enable(enabled);
+*/
+}
+bool MPEG::VideoEnabled(void) {
+  return(videoaction_enabled);
+}
+void MPEG::EnableVideo(bool enabled) {
+  if ( enabled && ! videoaction ) {
+    enabled = false;
+  }
+  videoaction_enabled = enabled;
+
+  /* Stop currently playing stream, if necessary */
+  if ( videoaction && ! videoaction_enabled ) {
+    videoaction->Stop();
+  } 
+}
+
+/* MPEG actions */
+void MPEG::Loop(bool toggle) {
+  loop = toggle;
+  system->Loop(toggle);
+}
+void MPEG::Play(void) {
+  if ( VideoEnabled() ) {
+    videoaction->Play();
+  }
+  if ( AudioEnabled() ) {
+    audioaction->Play();
+  }
+}
+void MPEG::Stop(void) {
+  if ( VideoEnabled() ) {
+    videoaction->Stop();
+  }
+  if ( AudioEnabled() ) {
+    audioaction->Stop();
+  }
+}
+
+void MPEG::Rewind(void) {
+  Stop();
+
+  /* Go to the beginning of the file */
+  system->Rewind();
+
+  /* Skip the first empty buffer made when creating a mpegstream */
+  /* which would otherwise be interpreted as end of file */
+  if(audiostream) audiostream->next_packet();
+  if(videostream) videostream->next_packet();
+
+  if ( AudioEnabled() ) {
+    audioaction->Rewind();
+  }
+
+  if ( VideoEnabled() ) {
+    videoaction->Rewind();
+  }
+}
+
+void MPEG::Pause(void) {
+  pause = !pause;
+
+  if ( VideoEnabled() ) {
+    videoaction->Pause();
+  }
+  if ( AudioEnabled() ) {
+    audioaction->Pause();
+  }
+}
+
+MPEGstatus MPEG::Status(void) {
+  MPEGstatus status;
+
+  status = MPEG_STOPPED;
+  if ( VideoEnabled() ) {
+    switch (videoaction->Status()) {
+      case MPEG_PLAYING:
+        status = MPEG_PLAYING;
+      break;
     }
+  }
+  if ( AudioEnabled() ) {
+    switch (audioaction->Status()) {
+      case MPEG_PLAYING:
+        status = MPEG_PLAYING;
+      break;
+    }
+  }
+
+  if(status == MPEG_STOPPED && loop && !pause)
+  {
+    /* Here we go again */
+    Rewind();
+    Play();
+
+    if ( VideoEnabled() ) {
+      switch (videoaction->Status()) {
+      case MPEG_PLAYING:
+        status = MPEG_PLAYING;
+	break;
+      }
+    }
+    if ( AudioEnabled() ) {
+      switch (audioaction->Status()) {
+      case MPEG_PLAYING:
+        status = MPEG_PLAYING;
+	break;
+      }
+    }
+  }
+
+  return(status);
+}
+
+/* MPEG audio actions */
+bool MPEG::GetAudioInfo(MPEG_AudioInfo *info) {
+  if ( AudioEnabled() ) {
+    return(audioaction->GetAudioInfo(info));
+  }
+  return(false);
+}
+void MPEG::Volume(int vol) {
+  if ( AudioEnabled() ) {
+    return(audioaction->Volume(vol));
+  }
+}
+bool MPEG::WantedSpec(SDL_AudioSpec *wanted) {
+  if( audiostream ) {
+    return(GetAudio()->WantedSpec(wanted));
+  }
+  return(false);
+}
+void MPEG::ActualSpec(const SDL_AudioSpec *actual) {
+  if( audiostream ) {
+    GetAudio()->ActualSpec(actual);
+  }
+}
+MPEGaudio *MPEG::GetAudio(void) { // Simple accessor used in the C interface
+  return audio;
+}
+
+/* MPEG video actions */
+bool MPEG::GetVideoInfo(MPEG_VideoInfo *info) {
+  if ( VideoEnabled() ) {
+    return(videoaction->GetVideoInfo(info));
+  }
+  return(false);
+}
+bool MPEG::SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
+		MPEG_DisplayCallback callback) {
+  if ( VideoEnabled() ) {
+    return(videoaction->SetDisplay(dst, lock, callback));
+  }
+  return(false);
+}
+void MPEG::MoveDisplay(int x, int y) {
+  if ( VideoEnabled() ) {
+    videoaction->MoveDisplay(x, y);
+  }
+}
+void MPEG::ScaleDisplay(int scale) {
+  if ( VideoEnabled() ) {
+    videoaction->ScaleDisplay(scale);
+  }
+}
+void MPEG::RenderFrame(int frame, SDL_Surface *dst, int x, int y) {
+  /* Prevent acces to the audio stream to avoid filling it */
+  if( audiostream ) audiostream->enable(false);
+
+  if ( VideoEnabled() ) {
+    videoaction->RenderFrame(frame, dst, x, y);
+  }
+
+  if( audiostream ) audiostream->enable(true);
+}
+void MPEG::RenderFinal(SDL_Surface *dst, int x, int y) {
+  /* Prevent acces to the audio stream to avoid filling it */
+  if( audiostream ) audiostream->enable(false);
+
+  if ( VideoEnabled() ) {
+    videoaction->RenderFinal(dst, x, y);
+  }
+
+  if( audiostream ) audiostream->enable(true);
+}
+
+void MPEG::Skip(float seconds)
+{
+  if ( AudioEnabled() ) {
+    audioaction->Skip(seconds);
+  }
+
+  if ( VideoEnabled() ) {
+    videoaction->Skip(seconds);
+  }
+}
+
+void MPEG::parse_stream_list()
+{
+  MPEGstream ** stream_list;
+  register int i;
+
+  /* A new thread is created for each video and audio */
+  /* stream                                           */ 
+  /* TODO: support MPEG systems containing more than  */
+  /*       one audio or video stream                  */
+  i = 0;
+  do
+  {
+    /* Retreive the list of streams */
+    stream_list = system->GetStreamList();
+
+    switch(stream_list[i]->streamid)
+    {
+      case SYSTEM_STREAMID:
+      break;
+
+      case AUDIO_STREAMID:
+	audiostream = stream_list[i];
+	audioaction_enabled = true;
+	audiostream->next_packet();
+	audio = new MPEGaudio(audiostream, sdlaudio);
+	audioaction = audio;
+      break;
+
+      case VIDEO_STREAMID:
+	videostream = stream_list[i];
+	videoaction_enabled = true;
+	videostream->next_packet();
+	video = new MPEGvideo(videostream);
+	videoaction = video;
+      break;
+    }
+
+    i++;
+  }
+  while(stream_list[i]);
 }

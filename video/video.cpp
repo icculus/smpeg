@@ -1021,20 +1021,26 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
     case SEQ_END_CODE:
     case 0x000001b9:   /*  handle ISO_11172_END_CODE too */
 
-        /* Display last frame. */
+        flush_bits32;
+        /* Display last frame if not looping */
 
-        /* Set ended flag first so that ExecuteDisplay may check it. */
-        vid_stream->film_has_ended = TRUE;
+	if(!vid_stream->_smpeg->mpeg->is_looping())
+	{
 
-        if( vid_stream->future != NULL )
-        {
+	  /* Set ended flag first so that ExecuteDisplay may check it. */
+
+	  vid_stream->film_has_ended = TRUE;
+
+	  if( vid_stream->future != NULL )
+	  {
             vid_stream->current = vid_stream->future;
             ExecuteDisplay( vid_stream );
-        }
+	  }
 
 #ifdef ANALYSIS
-        PrintAllStats(vid_stream);
+	  PrintAllStats(vid_stream);
 #endif
+	}
         goto done;
         break;
 
@@ -1236,12 +1242,12 @@ static int ParseSeqHead( VidStream* vid_stream )
   /* Get horizontal size of image space. */
 
   get_bits12(data);
-  vid_stream->h_size = data;
+  vid_stream->h_size = (data + 15) & ~15;
 
   /* Get vertical size of image space. */
 
   get_bits12(data);
-  vid_stream->v_size = data;
+  vid_stream->v_size = (data + 15) & ~15;
 
   /* Calculate macroblock width and height of image space. */
 

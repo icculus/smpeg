@@ -20,7 +20,7 @@
 /* A class based on the MPEG stream class, used to parse and play audio */
 
 #include "MPEGaudio.h"
-
+#include "MPEGstream.h"
 
 MPEGaudio:: MPEGaudio(MPEGstream *stream, bool initSDL) : sdl_audio(initSDL)
 {
@@ -33,8 +33,6 @@ MPEGaudio:: MPEGaudio(MPEGstream *stream, bool initSDL) : sdl_audio(initSDL)
 
     /* Analyze the MPEG audio stream */
     if ( loadheader() ) {
-        mpeg->reset_stream();
-
         SDL_AudioSpec wanted;
         WantedSpec(&wanted);
 
@@ -202,13 +200,24 @@ MPEGaudio:: Rewind(void)
     /* Stop the decode thread */
     StopDecoding();
 #endif
-    mpeg->reset_stream();
+
     clearrawdata();
     decodedframe = 0;
     currentframe = 0;
     frags_playing = 0;
     frag_time = 0;
     play_time = 0.0;
+}
+void
+MPEGaudio:: Skip(float seconds)
+{
+  printf("Audio: Skipping %f seconds...\n", seconds);  
+  while(seconds > 0)
+  {
+    seconds -= (double) samplesperframe / ((double) frequencies[version][frequency]*(1+inputstereo));
+
+    if(!loadheader()) break;
+  }
 }
 void
 MPEGaudio:: Volume(int vol)
@@ -247,4 +256,66 @@ MPEGaudio:: GetAudioInfo(MPEG_AudioInfo *info)
       info->bitrate = bitrate[version][layer-1][bitrateindex];
       info->current_frame = currentframe;
     }
+}
+bool
+MPEGaudio:: fillbuffer(int size)
+  {
+      bitindex=0;
+      return(mpeg->copy_data(_buffer, size) > 0);
+  };
+  
+void
+MPEGaudio:: sync(void)
+{
+  bitindex=(bitindex+7)&0xFFFFFFF8;
+}
+  
+bool
+MPEGaudio:: issync(void)
+{
+  return (bitindex&7);
+}
+  
+int 
+MPEGaudio::getbyte(void) 
+{
+  int r=(unsigned char)_buffer[bitindex>>3];
+
+  bitindex+=8;
+  return r;
+}
+  
+int 
+MPEGaudio::getbit(void) 
+{
+  register int r=(_buffer[bitindex>>3]>>(7-(bitindex&7)))&1;
+
+  bitindex++;
+  return r;
+}
+  
+int 
+MPEGaudio::getbits8(void) 
+{
+  register unsigned short a;
+  { int offset=bitindex>>3;
+
+  a=(((unsigned char)_buffer[offset])<<8) | ((unsigned char)_buffer[offset+1]);
+  }
+  a<<=(bitindex&7);
+  bitindex+=8;
+  return (int)((unsigned int)(a>>8));
+}
+  
+int 
+MPEGaudio::getbits9(int bits) 
+{
+  register unsigned short a;
+  { int offset=bitindex>>3;
+
+  a=(((unsigned char)_buffer[offset])<<8) | ((unsigned char)_buffer[offset+1]);
+  }
+  a<<=(bitindex&7);
+  bitindex+=bits;
+  return (int)((unsigned int)(a>>(16-bits)));
 }

@@ -24,13 +24,18 @@
 
 #include "SDL.h"
 #include "SDL_thread.h"
-#include "MPEGstream.h"
+#include "MPEGerror.h"
 #include "MPEGaction.h"
 
+class MPEGstream;
 
 /* This is the MPEG video stream structure in the mpeg_play code */
 struct vid_stream;
 typedef struct vid_stream VidStream;
+
+/* Temporary definition of time stamp structure. */
+
+typedef int TimeStamp;
 
 class MPEGvideo : public MPEGerror, public MPEGvideoaction {
 
@@ -38,6 +43,7 @@ class MPEGvideo : public MPEGerror, public MPEGvideoaction {
     friend int Play_MPEGvideo(void *udata);
 
     /* Various mpeg_play functions that need our data */
+    friend VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first );
     friend void DoDitherImage( VidStream* vid_stream );
     friend void DisplayCurrentFrame( VidStream* vid_stream );
     friend int timeSync( VidStream* vid_stream );
@@ -48,10 +54,10 @@ public:
     virtual ~MPEGvideo();
 
     /* MPEG actions */
-    void Loop(bool toggle);
     void Play(void);
     void Stop(void);
     void Rewind(void);
+    void Skip(float seconds);
     MPEGstatus Status(void);
 
     /* MPEG video actions */
@@ -85,6 +91,7 @@ protected:
     int _y;             // pixel y offset
     int _uw;            // update width
     int _uh;            // update height
+    float _fps;         // frames per second
 
     int _lum[ 8 ];  	// hardcoded LUM_RANGE = 8
     int _cr[ 4 ];   	// hardcoded CR_RANGE = 4

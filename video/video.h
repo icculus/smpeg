@@ -149,10 +149,6 @@ typedef Uint8 UINT8;
 /* Brown - changed to const int because it is a help variable */
 extern const int scan[][8];
 
-/* Temporary definition of time stamp structure. */
-
-typedef int TimeStamp;
-
 /* Structure with reconstructed pixel values. */
 
 typedef struct pict_image {
@@ -291,7 +287,6 @@ typedef struct vid_stream {
   PictImage *ring[RING_BUF_SIZE];              /* Ring buffer of frames.     */
 
 /* KR - beginning of added variables */
-  int loopFlag;
   int rate_deal;
   int _skipFrame;
   double _skipCount;

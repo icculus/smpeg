@@ -16,6 +16,7 @@
 #include <assert.h>
 
 #include "MPEGaudio.h"
+#include "MPEGstream.h"
 
 #define MY_PI 3.14159265358979323846
 
@@ -247,7 +248,7 @@ bool MPEGaudio::loadheader()
 #ifdef DEBUG_AUDIO
   static int printed = 0;
   if ( ! printed ) {
-    printf("MPEG audio stream layer %d, at %d Hz %s\n", layer, frequencies[version][frequency], (mode == single) ? "mono" : "stereo");
+    printf("MPEG audio stream layer %d (%d kbps), at %d Hz %s\n", layer,  bitrate[version][layer-1][bitrateindex], frequencies[version][frequency], (mode == single) ? "mono" : "stereo");
     printed = 1;
   }
 #endif
@@ -270,14 +271,7 @@ bool MPEGaudio::run( int frames )
     for( ; frames; frames-- )
     {
         if( loadheader() == false ) {
-            if ( looping ) {
-                mpeg->reset_stream();
-                if ( loadheader() == false ) {
-                    return(false);
-                }
-            } else {
-                return false;
-            }
+	  return false;	  
         }
 
         if     ( layer == 3 ) extractlayer3();
@@ -322,6 +316,8 @@ int Decode_MPEGaudio(void *udata)
             SDL_Delay(100);  /* The write buffer is full, wait a bit */
         }
     }
+    audio->decoding = false;
+    audio->decode_thread = NULL;
     return(0);
 }
 #endif /* THREADED_AUDIO */
@@ -371,7 +367,7 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
             len -= copylen;
             stream += copylen;
         }
-    } while ( (audio->Status() == MPEG_PLAYING) && (len > 0) );
+    } while ( copylen && (len > 0) && ((audio->currentframe < audio->decodedframe) || audio->decoding));
 #else
     /* The length is interpreted as being in samples */
     len /= 2;

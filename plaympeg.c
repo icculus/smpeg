@@ -17,9 +17,24 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+#define NET_SUPPORT
+
 #include <stdlib.h>
 #include <string.h>
-
+#ifdef NET_SUPPORT
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#endif
 #include "smpeg.h"
 
 
@@ -35,9 +50,19 @@ void usage(char *argv0)
 "	--loop or -l	     Play MPEG over and over\n"
 "	--volume N or -v N   Set audio volume to N (0-100)\n"
 "	--scale S or -s S    Play MPEG at size S (1-)\n"
+"       --skip N or -S N     Skip N seconds\n"
 "	--help or -h\n"
-"	--version or -V\n", argv0);
+"	--version or -V\n"
+"Specifying - as filename will use stdin for input\n", argv0);
 }
+
+#ifdef NET_SUPPORT
+int is_address_multicast(unsigned long address)
+{
+  if((address & 255) >= 224 && (address & 255) <= 239) return(1);
+  return(0);
+}
+#endif
 
 void update(SDL_Surface *screen, Sint32 x, Sint32 y, Uint32 w, Uint32 h)
 {
@@ -57,6 +82,7 @@ int main(int argc, char *argv[])
     int loop_play;
     int i, done, pause;
     int volume;
+    float skip;
     SMPEG *mpeg;
     SMPEG_Info info;
     char *basefile;
@@ -70,7 +96,8 @@ int main(int argc, char *argv[])
     scalesize = 1;
     loop_play = 0;
     volume = 100;
-    for ( i=1; argv[i] && (argv[i][0] == '-'); ++i ) {
+    skip = 0;
+    for ( i=1; argv[i] && (argv[i][0] == '-') && (argv[i][1] != 0); ++i ) {
         if ( (strcmp(argv[i], "--noaudio") == 0) ||
              (strcmp(argv[i], "--nosound") == 0) ) {
             use_audio = 0;
@@ -86,6 +113,12 @@ int main(int argc, char *argv[])
         } else
         if ((strcmp(argv[i], "--loop") == 0) || (strcmp(argv[i], "-l") == 0)) {
             loop_play = 1;
+        } else
+        if ((strcmp(argv[i], "--skip") == 0)||(strcmp(argv[i], "-S") == 0)) {
+            ++i;
+            if ( argv[i] ) {
+                skip = atof(argv[i]);
+            }
         } else
         if ((strcmp(argv[i], "--volume") == 0)||(strcmp(argv[i], "-v") == 0)) {
             ++i;
@@ -164,7 +197,81 @@ int main(int argc, char *argv[])
 	}
 	
         /* Create the MPEG stream */
-        mpeg = SMPEG_new(argv[i], &info, use_audio);
+#ifdef NET_SUPPORT
+        /* Check if source is a file or an ip address */
+        if(strchr(argv[i], ':') != NULL)
+	{
+	  char * address;
+	  int port;
+	  int enable = 1L;
+	  struct sockaddr_in stAddr;
+	  struct sockaddr_in stLclAddr;
+	  struct ip_mreq stMreq;
+	  int sock;
+
+	  /* Source is an ip adress */
+	  port = atoi(strchr(argv[i], ':') + sizeof(char));
+	  *strchr(argv[i], ':') = '\0';
+	  address = argv[i];
+	  
+	  printf("Connecting to %s port %d...\n", address, port);
+	  
+          stAddr.sin_family = AF_INET; 
+	  stAddr.sin_addr.s_addr = inet_addr(address); 
+	  stAddr.sin_port = htons(port);
+
+	  /* Open socket */
+	  sock = socket(AF_INET, SOCK_DGRAM, 0);
+	  if (sock <= 0)
+	    fprintf(stderr, "socket() failed\n");
+	    
+	  /* Allow multiple instance of the client to share */
+	  /* the same address and port */
+ 	  if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
+		        (char *) &enable, sizeof(unsigned long int)) < 0)
+	    fprintf(stderr, "setsockopt() SO_REUSEADDR failed, %s\n",
+		    strerror(errno));
+
+	  /* Do protocol specific initialization */
+	  /* If the address is multicast, register to the multicast group */
+	  if(is_address_multicast(stAddr.sin_addr.s_addr))
+	  {
+	    /* Bind the socket to port */
+	    stLclAddr.sin_family      = AF_INET;
+	    stLclAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	    stLclAddr.sin_port        = stAddr.sin_port;
+      
+	    if(bind(sock, (struct sockaddr*) & stLclAddr,
+		    sizeof(stLclAddr)) < 0)
+	    fprintf(stderr, "bind() failed, %s\n", strerror(errno));
+      
+	    /* Register to a multicast address */
+	    stMreq.imr_multiaddr.s_addr = stAddr.sin_addr.s_addr;
+	    stMreq.imr_interface.s_addr = INADDR_ANY;
+      
+	    if(setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+		 	  (char *) & stMreq, sizeof(stMreq)) < 0)
+	      fprintf(stderr, "setsockopt() IP_ADD_MEMBERSHIP failed\n");
+	  }
+	  else
+	  {
+	    /* Bind the socket to port */
+	    if(bind(sock, (struct sockaddr *) & stAddr, sizeof(stAddr)) < 0)
+	      fprintf(stderr, "bind() failed, %s\n", strerror(errno));
+	  }
+
+	  /* Connected, now the socket is just like a regular file */
+	  mpeg = SMPEG_new_descr(sock, &info, use_audio);
+	}
+	else
+#endif
+	{
+	  if(strcmp(argv[i], "-") == 0) /* Use stdin for input */
+	    mpeg = SMPEG_new_descr(0, &info, use_audio);
+	  else
+	    mpeg = SMPEG_new(argv[i], &info, use_audio);
+	}
+
         if ( SMPEG_error(mpeg) ) {
             fprintf(stderr, "%s: %s\n", argv[i], SMPEG_error(mpeg));
             SMPEG_delete(mpeg);
@@ -238,6 +345,9 @@ int main(int argc, char *argv[])
         if ( loop_play ) {
             SMPEG_loop(mpeg, 1);
         }
+	
+	/* Skip to starting position */
+	if(skip) SMPEG_skip(mpeg, skip);
 
         /* Play it, and wait for playback to complete */
         SMPEG_play(mpeg);
@@ -246,7 +356,7 @@ int main(int argc, char *argv[])
         while ( ! done && ( pause || (SMPEG_status(mpeg) == SMPEG_PLAYING) ) ) {
             SDL_Event event;
 
-            while ( SDL_PollEvent(&event) ) {
+            while ( use_video && SDL_PollEvent(&event) ) {
                 switch (event.type) {
                     case SDL_KEYDOWN:
                         if ( (event.key.keysym.sym == SDLK_ESCAPE) || (event.key.keysym.sym == SDLK_q) ) {

@@ -26,7 +26,7 @@ extern "C" {
 
 /* This is the actual SMPEG object */
 struct _SMPEG {
-    MPEGfile *obj;
+    MPEG *obj;
 };
 
 /* Create a new SMPEG object from an MPEG file.
@@ -44,7 +44,23 @@ SMPEG* SMPEG_new(const char *file, SMPEG_Info* info, int sdl_audio)
 
     /* Create a new SMPEG object! */
     mpeg = new SMPEG;
-    mpeg->obj = new MPEGfile(file, sdl_audio);
+    mpeg->obj = new MPEG(file, sdl_audio);
+
+    /* Find out the details of the stream, if requested */
+    SMPEG_getinfo(mpeg, info);
+
+    /* We're done! */
+    return(mpeg);
+}
+
+/* The same as above except for file descriptors */
+SMPEG* SMPEG_new_descr(int file, SMPEG_Info* info, int sdl_audio)
+{
+    SMPEG *mpeg;
+
+    /* Create a new SMPEG object! */
+    mpeg = new SMPEG;
+    mpeg->obj = new MPEG(file, sdl_audio);
 
     /* Find out the details of the stream, if requested */
     SMPEG_getinfo(mpeg, info);
@@ -61,8 +77,8 @@ void SMPEG_getinfo( SMPEG* mpeg, SMPEG_Info* info )
         MPEG_VideoInfo vinfo;
 
         memset(info, 0, (sizeof *info));
-        if ( mpeg->obj->mpeg ) {
-            info->has_audio = (mpeg->obj->mpeg->audiostream != NULL);
+        if ( mpeg->obj ) {
+            info->has_audio = (mpeg->obj->audiostream != NULL);
             if ( info->has_audio ) {
                 mpeg->obj->GetAudioInfo(&ainfo);
 		info->audio_current_frame = ainfo.current_frame;
@@ -74,7 +90,7 @@ void SMPEG_getinfo( SMPEG* mpeg, SMPEG_Info* info )
 			 ainfo.frequency,
 			 (ainfo.mode == 3) ? "mono" : "stereo");
             }
-            info->has_video = (mpeg->obj->mpeg->videostream != NULL);
+            info->has_video = (mpeg->obj->videostream != NULL);
             if ( info->has_video ) {
                 mpeg->obj->GetVideoInfo(&vinfo);
                 info->width = vinfo.width;
@@ -179,6 +195,12 @@ void SMPEG_rewind( SMPEG* mpeg )
     mpeg->obj->Rewind();
 }
 
+/* Skip 'seconds' seconds of the MPEG */
+void SMPEG_skip( SMPEG* mpeg, float seconds )
+{
+    mpeg->obj->Skip(seconds);
+}
+
 /* Render a particular frame in the MPEG video */
 void SMPEG_renderFrame( SMPEG* mpeg,
                         int framenum, SDL_Surface* dst, int x, int y )
@@ -195,7 +217,7 @@ void SMPEG_renderFinal( SMPEG* mpeg, SDL_Surface* dst, int x, int y )
 /* Exported function for SDL audio playback */
 void SMPEG_playAudio(void *udata, Uint8 *stream, int len)
 {
-    MPEGaudio *audio = ((SMPEG *)udata)->obj->mpeg->GetAudio();
+    MPEGaudio *audio = ((SMPEG *)udata)->obj->GetAudio();
     Play_MPEGaudio(audio, stream, len);
 }
 

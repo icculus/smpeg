@@ -128,6 +128,7 @@ int qualityFlag = 0;
 MPEGvideo::MPEGvideo(MPEGstream *stream)
 {
     Uint32 start_code;
+    MPEGstream_marker const * marker;
 
     /* Set the MPEG data stream */
     mpeg = stream;
@@ -141,6 +142,10 @@ MPEGvideo::MPEGvideo(MPEGstream *stream)
     _surf = NULL;
     _mutex = NULL;
     _stream = NULL;
+
+    /* Mark the data to leave the stream unchanged */
+    /* after parsing */
+    marker = mpeg->new_marker(0);
 
     /* Get the width and height of the video */
     start_code = mpeg->copy_byte();
@@ -157,14 +162,26 @@ MPEGvideo::MPEGvideo(MPEGstream *stream)
 
         /* Get the width and height of the video */
         mpeg->copy_data(buf, 4);
-        _w = (buf[0]<<4)|(buf[1]>>4);     /* 12 bits of width */
-        _h = ((buf[1]&0xF)<<8)|buf[2];    /* 12 bits of height */
+        _w = (((buf[0]<<4)|(buf[1]>>4)) + 15) & ~15;    /* 12 bits of width */
+        _h = ((((buf[1]&0xF)<<8)|buf[2]) + 15) & ~15;   /* 12 bits of height */
+	switch(buf[3]&0xF)                /*  4 bits of fps */
+	{
+	  case 1: _fps = 23.97; break;
+	  case 2: _fps = 24.00; break;
+	  case 3: _fps = 25.00; break;
+	  case 4: _fps = 29.90; break;
+	  case 5: _fps = 30.00; break;
+	  default: _fps = 0.00; break;
+	}
     } else {
         _w = 0;
         _h = 0;
+	_fps = 0.00;
         SetError("Not a valid MPEG video stream");
     }
-    mpeg->reset_stream();
+    /* Rewind back to the old position */
+    mpeg->seek_marker(marker);
+    mpeg->delete_marker(marker);
 }
 
 MPEGvideo:: ~MPEGvideo()
@@ -175,15 +192,6 @@ MPEGvideo:: ~MPEGvideo()
     /* Free actual video stream */
     if( _stream )
         DestroyVidStream( _stream );
-}
-
-
-void
-MPEGvideo:: Loop(bool toggle)
-{
-    if ( _stream ) {
-        _stream->loopFlag = toggle;
-    }
 }
 
 /* Simple thread play function */
@@ -206,12 +214,7 @@ int Play_MPEGvideo( void *udata )
 
         if( mpeg->_stream->film_has_ended )
         {
-            if( mpeg->_stream->loopFlag ) {
-                /* Rewind and start playback over */
-                mpeg->RewindStream();
-            } else {
-                mpeg->playing = false;
-            }
+	  mpeg->playing = false;
         }
     }
     return(0);
@@ -252,42 +255,51 @@ MPEGvideo:: Stop(void)
 }
 
 void
-MPEGvideo:: RewindStream(void)
-{
-    /* Reinitialize vid_stream pointers */
-    ResetVidStream( _stream );
-
-    mpeg->reset_stream();
-
-#ifdef ANALYSIS 
-    init_stats();
-#endif
-    /* Process start codes */
-    if( mpegVidRsrc( 0, _stream, 1 ) == NULL )
-    {
-        /* print something sensible here,
-           but we only get here if the file is changed while we
-           are decoding, right?
-        */
-    }
-}
-
-void
 MPEGvideo:: Rewind(void)
 {
     Stop();
     if ( _stream ) {
-        RewindStream();
-        _stream->realTimeStart = 0.0;
+      /* Reinitialize vid_stream pointers */
+      ResetVidStream( _stream );
+#ifdef ANALYSIS 
+      init_stats();
+#endif
+      /* Process start codes */
+      if( mpegVidRsrc( 0, _stream, 1 ) == NULL )
+      {
+	SetError("Not an MPEG video stream");
+	return;
+      }
+      _stream->realTimeStart = 0.0;
     }
     play_time = 0.0;
 }
+void
+MPEGvideo::Skip(float seconds)
+{
+  Uint32 frame;
 
+  printf("Video: Skipping %f seconds... please wait\n", seconds);  
+  frame = (Uint32) (_fps * seconds);
+
+  if( _stream )
+  {
+    _stream->_jumpFrame = frame;
+    while( (_stream->totNumFrames < frame) &&
+	   ! _stream->film_has_ended )
+    {
+      mpegVidRsrc( 0, _stream, 0 );
+    }
+    _stream->_jumpFrame = -1;
+    _stream->realTimeStart = 0.0;
+    play_time = 0.0;
+  }
+}
 MPEGstatus
 MPEGvideo:: Status(void)
 {
     if ( _stream ) {
-        if( !_thread || (_stream->film_has_ended && !_stream->loopFlag) ) {
+        if( !_thread || (_stream->film_has_ended ) ) {
             return MPEG_STOPPED;
         } else {
             return MPEG_PLAYING;
@@ -434,6 +446,8 @@ MPEGvideo:: RenderFrame( int frame, SDL_Surface* dst, int x, int y )
     _surf = dst;
 
     if( _stream->totNumFrames > frame ) {
+        mpeg->rewind_stream();
+	mpeg->next_packet();
         Rewind();
     }
 
@@ -465,8 +479,11 @@ MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
     {
         /* Search for the last "group of pictures" start code */
         Uint32 start_code;
+	MPEGstream_marker const * marker, * oldmarker;
 
-        mpeg->reset_stream();
+	marker = 0;
+        mpeg->rewind_stream();
+	mpeg->next_packet();
         start_code = mpeg->copy_byte();
         start_code <<= 8;
         start_code |= mpeg->copy_byte();
@@ -476,20 +493,26 @@ MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
             start_code <<= 8;
             start_code |= mpeg->copy_byte();
             if ( start_code == GOP_START_CODE ) {
-                mpeg->mark_data(-4);
+	          oldmarker = marker;
+		  marker = mpeg->new_marker(-4);
+		  if( oldmarker ) mpeg->delete_marker( oldmarker );
+       		  mpeg->garbage_collect();
             }
         }
-
         /* Set the stream to the last spot marked */
-        if ( ! mpeg->seek_marker() ) {
-            mpeg->reset_stream();
-        }
+        if ( ! mpeg->seek_marker( marker ) ) {
+            mpeg->rewind_stream();
+	    mpeg->next_packet();
+	}
+
+	mpeg->delete_marker( marker );
         _stream->buf_length = 0;
         _stream->bit_offset = 0;
 
         /* Process all frames without displaying any */
         _stream->_skipFrame = 1;
         RenderFrame( INT_MAX, dst, x, y );
+	mpeg->garbage_collect();
     }
 
     /* Save original mpeg stream parameters */
