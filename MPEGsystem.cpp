@@ -195,16 +195,16 @@ static inline Uint32 sequence_header(Uint8 * pointer, Uint32 size, double * _fra
   if((header_size+=8) >= size) return(0);
   switch(pointer[7]&0xF)                /*  4 bits of fps */
   {
-    case 1: frametime = 1/23.97; break;
-    case 2: frametime = 1/24.00; break;
-    case 3: frametime = 1/25.00; break;
-    case 4: frametime = 1/29.97; break;
-    case 5: frametime = 1/30.00; break;
-    case 6: frametime = 1/50.00; break;
-    case 7: frametime = 1/59.94; break;
-    case 8: frametime = 1/60.00; break;
-    case 9: frametime = 1/15.00; break;
-    default: frametime = 1/30.00; break;
+    case 1: frametime = 1.0/23.97; break;
+    case 2: frametime = 1.0/24.00; break;
+    case 3: frametime = 1.0/25.00; break;
+    case 4: frametime = 1.0/29.97; break;
+    case 5: frametime = 1.0/30.00; break;
+    case 6: frametime = 1.0/50.00; break;
+    case 7: frametime = 1.0/59.94; break;
+    case 8: frametime = 1.0/60.00; break;
+    case 9: frametime = 1.0/15.00; break;
+    default: frametime = 1.0/30.00; break;
   }
 
   if(_frametime) *_frametime = frametime;
@@ -287,7 +287,7 @@ static inline Uint32 packet_header(Uint8 * pointer, Uint32 size, double * _times
 }
 
 /* Return true if there is a valid stream header at the beginning of pointer */
-static inline Uint32 stream_header(Uint8 * pointer, Uint32 size, Uint32 * _packet_size, Uint8 * _stream_id, double * _stream_timestamp)
+static inline Uint32 stream_header(Uint8 * pointer, Uint32 size, Uint32 * _packet_size, Uint8 * _stream_id, double * _stream_timestamp, double timestamp)
 {
   Uint32 header_size, packet_size;
   Uint8 stream_id;
@@ -339,7 +339,7 @@ static inline Uint32 stream_header(Uint8 * pointer, Uint32 size, Uint32 * _packe
   else if ( pointer[0] != 0x0f && pointer[0] != 0x80)
       return(0);      /* not a valid header */
   else
-      stream_timestamp = -1;
+      stream_timestamp = timestamp;
     
   if((++header_size) >= size) return(0); 
   --packet_size;
@@ -361,7 +361,7 @@ static inline bool system_aligned(Uint8 *pointer, Uint32 size)
     while((s = packet_header(pointer+i, size-i, 0)) != 0)
       if((i+=s) >= size) return(true);
 
-    if((s = stream_header(pointer+i, size-i, 0, 0, 0)) != 0)
+    if((s = stream_header(pointer+i, size-i, 0, 0, 0, 0)) != 0)
       return(true);
     else
       return(false);
@@ -446,14 +446,24 @@ MPEGsystem::MPEGsystem(SDL_RWops *mpeg_source)
 #endif
 
   /* Look for streams */
+  int tries = 0;
   do
   {
     RequestBuffer();
     Wait();
+    if ( tries++ < 10 ) {
+      if ( exist_stream(VIDEO_STREAMID, 0xF0) &&
+	   exist_stream(AUDIO_STREAMID, 0xF0) ) {
+        break;
+      }
+    } else {
+      if ( exist_stream(VIDEO_STREAMID, 0xF0) ||
+	   exist_stream(AUDIO_STREAMID, 0xF0) ) {
+        break;
+      }
+    }
   }
-  while(!exist_stream(VIDEO_STREAMID, 0xF0) &&
-	!exist_stream(AUDIO_STREAMID, 0xF0) &&
-	!Eof());
+  while(!Eof());
 }
 
 MPEGsystem::~MPEGsystem()
@@ -607,7 +617,7 @@ Uint8 MPEGsystem::FillBuffer()
 #endif
   }
 
-  if((header_size = stream_header(pointer, read_buffer + read_size - pointer, &packet_size, &stream_id, &stream_timestamp)) != 0)
+  if((header_size = stream_header(pointer, read_buffer + read_size - pointer, &packet_size, &stream_id, &stream_timestamp, timestamp)) != 0)
   {
       pointer += header_size;
       stream_list[0]->pos += header_size;

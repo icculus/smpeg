@@ -88,7 +88,7 @@ extern int framerate;
    Except for 9, where Xing means 15, and given their popularity, we'll
    be nice and do it */
 static double VidRateNum[16]={ 30, 23.97, 24, 25, 29.97, 30, 50, 59.94, 
-                            60, 15, 30, 30, 30, 30, 30, 30 };
+                            60, 15, 30, 30, 30, 15, 30, 30 };
 
 #ifdef CALCULATE_FPS
 static inline void TimestampFPS( VidStream* vid_stream )
