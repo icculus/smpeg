@@ -1,4 +1,6 @@
 current:
+Ryan C. Gordon - Thu Sep 26 01:13:58 EDT 2002
+ * Minor Makefile.am patch for GCC 3.2
 Ryan C. Gordon - Tue Jul  9 22:28:21 EDT 2002
  * Removed #include <unistd.h> from glmovie.c
 Ryan C. Gordon - Sun Jun 02 20:10:42 EST 2002
