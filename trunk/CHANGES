@@ -1,4 +1,6 @@
 0.4.3:
+Sam Lantinga - Mon Jan  8 07:49:20 PST 2001
+ * Return a non-zero status from plaympeg if playback fails
 James Boucher - Mon Jan  8 06:53:31 PST 2001
  * Changes to compile correctly on QNX RTP
 Sam Lantinga - Thu Dec 21 10:52:28 PST 2000

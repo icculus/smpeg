@@ -482,6 +482,7 @@ int main(int argc, char *argv[])
     SMPEG_version smpegver;
     int fd;
     char buf[32];
+    int status;
 
     /* Get the command line options */
     use_audio = 1;
@@ -533,7 +534,7 @@ int main(int argc, char *argv[])
 	    if (i >= argc)
 	      {
 		fprintf(stderr, "Please specify volume when using --volume or -v\n");
-		exit(1);
+		return(1);
 	      }
             if ( argv[i] ) {
                 volume = atoi(argv[i]);
@@ -551,7 +552,7 @@ int main(int argc, char *argv[])
                    "SMPEG version: %d.%d.%d\n",
 		   sdlver.major, sdlver.minor, sdlver.patch,
 		   smpegver.major, smpegver.minor, smpegver.patch);
-            exit(0);
+            return(0);
         } else
         if ((strcmp(argv[i], "--scale") == 0)||(strcmp(argv[i], "-s") == 0)) {
             ++i;
@@ -561,7 +562,7 @@ int main(int argc, char *argv[])
         } else
         if ((strcmp(argv[i], "--help") == 0) || (strcmp(argv[i], "-h") == 0)) {
             usage(argv[0]);
-            exit(0);
+            return(0);
         } else {
             fprintf(stderr, "Warning: Unknown option: %s\n", argv[i]);
         }
@@ -569,7 +570,7 @@ int main(int argc, char *argv[])
     /* If there were no arguments just print the usage */
     if (argc == 1) {
         usage(argv[0]);
-        exit(0);
+        return(0);
     }
 
 #if defined(linux) || defined(__FreeBSD__) /* Plaympeg doesn't need a mouse */
@@ -577,6 +578,7 @@ int main(int argc, char *argv[])
 #endif
 
     /* Play the mpeg files! */
+    status = 0;
     for ( ; argv[i]; ++i ) {
 	/* Initialize SDL */
 	if ( use_video ) {
@@ -634,6 +636,7 @@ int main(int argc, char *argv[])
         if ( SMPEG_error(mpeg) ) {
             fprintf(stderr, "%s: %s\n", argv[i], SMPEG_error(mpeg));
             SMPEG_delete(mpeg);
+            status = -1;
             continue;
         }
         SMPEG_enableaudio(mpeg, use_audio);
@@ -871,5 +874,5 @@ int main(int argc, char *argv[])
     if(fd) close(fd);
 #endif
 
-    return(0);
+    return(status);
 }
