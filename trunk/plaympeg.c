@@ -572,8 +572,9 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
-    /* Plaympeg doesn't need a mouse */
+#ifdef linux /* Plaympeg doesn't need a mouse */
     setenv("SDL_NOMOUSE","1",0);
+#endif
 
     /* Play the mpeg files! */
     for ( ; argv[i]; ++i ) {
