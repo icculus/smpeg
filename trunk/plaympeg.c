@@ -22,6 +22,7 @@
 
 #include "smpeg.h"
 
+
 void usage(char *argv0)
 {
     printf(
@@ -140,7 +141,7 @@ int main(int argc, char *argv[])
     /* Play the mpeg files! */
     for ( ; argv[i]; ++i ) {
 	/* Initialize SDL */
-	if (info.has_video && !video_inited && use_video) {
+	if ( !video_inited && use_video ) {
 	  if ( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
 	    fprintf(stderr, "Warning: Couldn't init SDL video: %s\n",
 		    SDL_GetError());
@@ -151,7 +152,7 @@ int main(int argc, char *argv[])
 	    video_inited = 1;
 	}
 	
-	if (info.has_audio && !audio_inited && use_audio) {
+	if ( !audio_inited && use_audio ) {
 	  if ( SDL_Init(SDL_INIT_AUDIO) < 0 ) {
 	    fprintf(stderr, "Warning: Couldn't init SDL audio: %s\n",
 		    SDL_GetError());
@@ -161,8 +162,6 @@ int main(int argc, char *argv[])
 	  else
 	    audio_inited = 1;
 	}
-	
-	
 	
         /* Create the MPEG stream */
         mpeg = SMPEG_new(argv[i], &info, use_audio);
@@ -191,6 +190,9 @@ int main(int argc, char *argv[])
         }
         if ( info.has_video ) {
             printf("\tVideo %dx%d resolution\n", info.width, info.height);
+        }
+        if ( info.has_audio ) {
+	    printf("\tAudio %s\n", info.audio_string);
         }
 
         /* Set up video display if needed */

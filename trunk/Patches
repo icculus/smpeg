@@ -1,5 +1,233 @@
 *************************************************************************
 *** Applied ***
+Date: Sun, 05 Mar 2000 02:36:24 +0900
+From: Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
+Subject: smpeg-0.3.4 Report
+
+
+FreeBSD 3.4STABLE & SDL-1.0.6
+(gcc 2.95.2)
+
+patch attached. (smpeg034.diff)
+
+configure
+  SDL Version Req 1.1.1 -> 1.0.6
+
+ltmain.sh
+  FreeBSD -lc not need
+
+mpegtoraw.cpp
+  48Kh Audio Can't Play fix;
+
+MPEGaction.h
+MPEGaudio.h
+MPEGaudio.cpp
+smpeg.cpp
+smpeg.h
+plaympeg.c
+  Getting Audio Info.
+
+MPEG.cpp
+  I have Funny Hedaer MPEG1 Movie. that fix.
+  Video Start Code 0xe0 0xe2.
+
+header(od -cx)
+----------------------------------------
+0000000    R   I   F   F 200   9 314 002   R   M   P   3   d   a   t   a
+            4952    4646    3980    02cc    4d52    3350    6164    6174
+0000020  004   8 314 002  \0  \0 001 272   !  \0 001  \0 001 200   Q 215
+            3804    02cc    0000    ba01    0021    0001    8001    8d51
+0000040   \0  \0 001 273  \0  \f 200   Q 215 004 341 377 340 342 007 300
+            0000    bb01    0c00    5180    048d    ffe1    e2e0    c007
+0000060  300   .  \0  \0 001 276 007 334 017 377 377 377 377 377 377 377
+            2ec0    0000    be01    dc07    ff0f    ffff    ffff    ffff
+0000100  377 377 377 377 377 377 377 377 377 377 377 377 377 377 377 377
+            ffff    ffff    ffff    ffff    ffff    ffff    ffff    ffff
+*
+0004020  377 377 377 377  \0  \0 001 272   !  \0 001 002 305 200   Q 215
+            ffff    ffff    0000    ba01    0021    0201    80c5    8d51
+0004040   \0  \0 001 340 007 356   b 007   1  \0 001 024 007 021  \0 001
+            0000    e001    ee07    0762    0031    1401    1107    0100
+0004060   \b   K  \0  \0 001 263 024  \0 360 027 377 377 350 001 020 021
+            4b08    0000    b301    0014    17f0    ffff    01e8    1110
+0004100  021 022 022 022 023 023 023 023 024 024 024 024 024 025 025 025
+            1211    1212    1313    1313    1414    1414    1514    1515
+0004120  025 025 025 026 026 026 026 026 026 026 027 027 027 027 027 027
+            1515    1615    1616    1616    1616    1717    1717    1717
+0004140  027 027 030 030 030 031 030 030 030 031 032 032 032 032 031 033
+            1717    1818    1918    1818    1918    1a1a    1a1a    1b19
+
+-----------------------------------------------
+Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
+
+diff -Nru smpeg-0.3.4/MPEG.cpp smpeg-0.3.4.new/MPEG.cpp
+--- smpeg-0.3.4/MPEG.cpp	Wed Mar  1 23:47:51 2000
++++ smpeg-0.3.4.new/MPEG.cpp	Sun Mar  5 02:06:28 2000
+@@ -24,8 +24,8 @@
+                     audioaction_enabled = true;
+                 } else
+ #endif
+-                if ( (data[1] == VIDEO_STREAMID) && !videostream ) {
+-                    videostream = new MPEG(mpeg, size, data[1], sdlaudio);
++                if ( ((data[1] & 0xF0) == VIDEO_STREAMID)  && !videostream ) {
++                    videostream = new MPEG(mpeg, size, data[1]&0xF0, sdlaudio);
+                     if ( videostream->WasError() ) {
+                         SetError(videostream->TheError());
+                     }
+diff -Nru smpeg-0.3.4/MPEGaction.h smpeg-0.3.4.new/MPEGaction.h
+--- smpeg-0.3.4/MPEGaction.h	Fri Feb  4 02:45:56 2000
++++ smpeg-0.3.4.new/MPEGaction.h	Sun Mar  5 00:20:25 2000
+@@ -71,7 +71,12 @@
+ 
+ /* For getting info about the audio portion of the stream */
+ typedef struct MPEG_AudioInfo {
+-    int unused;
++    int mpegversion;
++    int mode;
++    int frequency;
++    int layer;
++    int bitrate;
++    int current_frame;
+ } MPEG_AudioInfo;
+ 
+ /* Audio action class */
+diff -Nru smpeg-0.3.4/MPEGaudio.h smpeg-0.3.4.new/MPEGaudio.h
+--- smpeg-0.3.4/MPEGaudio.h	Sat Mar  4 06:23:55 2000
++++ smpeg-0.3.4.new/MPEGaudio.h	Sat Mar  4 23:43:15 2000
+@@ -160,6 +160,7 @@
+     virtual ~MPEGaudio();
+ 
+     /* MPEG actions */
++    bool GetAudioInfo(MPEG_AudioInfo *info);
+     double Time(void);
+     void Play(void);
+     void Stop(void);
+diff -Nru smpeg-0.3.4/audio/MPEGaudio.cpp smpeg-0.3.4.new/audio/MPEGaudio.cpp
+--- smpeg-0.3.4/audio/MPEGaudio.cpp	Wed Mar  1 23:43:46 2000
++++ smpeg-0.3.4.new/audio/MPEGaudio.cpp	Sun Mar  5 00:24:15 2000
+@@ -235,3 +235,16 @@
+         return(MPEG_ERROR);
+     }
+ }
++
++bool
++MPEGaudio:: GetAudioInfo(MPEG_AudioInfo *info)
++{
++    if ( info ) {
++      info->mpegversion = version;
++      info->mode = mode;
++      info->frequency = frequencies[version][frequency];
++      info->layer = layer;
++      info->bitrate = bitrate[version][layer-1][bitrateindex];
++      info->current_frame = currentframe;
++    }
++}
+diff -Nru smpeg-0.3.4/audio/mpegtoraw.cpp smpeg-0.3.4.new/audio/mpegtoraw.cpp
+--- smpeg-0.3.4/audio/mpegtoraw.cpp	Sat Mar  4 06:24:49 2000
++++ smpeg-0.3.4.new/audio/mpegtoraw.cpp	Sat Mar  4 23:29:31 2000
+@@ -167,7 +167,7 @@
+     c = mpeg->copy_byte() >> 1;
+     padding = (c & 1);
+     c >>= 1;
+-    frequency = (_frequency) (c&2);
++    frequency = (_frequency) (c&3);
+     c >>= 2;
+     bitrateindex = (int) c;
+     if( bitrateindex == 15 )
+diff -Nru smpeg-0.3.4/configure smpeg-0.3.4.new/configure
+--- smpeg-0.3.4/configure	Sat Mar  4 10:56:25 2000
++++ smpeg-0.3.4.new/configure	Sat Mar  4 19:37:07 2000
+@@ -2184,7 +2184,7 @@
+     { echo "configure: error: SMPEG requires mmap() for file loading" 1>&2; exit 1; }
+ fi
+ 
+-SDL_VERSION=1.1.1
++SDL_VERSION=1.0.6
+ # Check whether --with-sdl-prefix or --without-sdl-prefix was given.
+ if test "${with_sdl_prefix+set}" = set; then
+   withval="$with_sdl_prefix"
+diff -Nru smpeg-0.3.4/ltmain.sh smpeg-0.3.4.new/ltmain.sh
+--- smpeg-0.3.4/ltmain.sh	Wed Nov 24 05:25:13 1999
++++ smpeg-0.3.4.new/ltmain.sh	Sat Mar  4 19:35:32 2000
+@@ -1993,7 +1993,7 @@
+       if test "$build_libtool_libs" = yes; then
+ 	if test -n "$rpath"; then
+ 	  case "$host" in
+-	  *-*-cygwin* | *-*-mingw* | *-*-os2* | *-*-beos*)
++	  *-*-cygwin* | *-*-mingw* | *-*-os2* | *-*-beos* | *-*-freebsd*)
+ 	    # these systems don't actually have a c library (as such)!
+ 	    ;;
+ 	  *)
+diff -Nru smpeg-0.3.4/plaympeg.c smpeg-0.3.4.new/plaympeg.c
+--- smpeg-0.3.4/plaympeg.c	Thu Mar  2 00:05:07 2000
++++ smpeg-0.3.4.new/plaympeg.c	Sun Mar  5 00:51:42 2000
+@@ -22,6 +22,8 @@
+ 
+ #include "smpeg.h"
+ 
++    SMPEG *mpeg;
++
+ void usage(char *argv0)
+ {
+     printf(
+@@ -56,7 +58,6 @@
+     int loop_play;
+     int i, done, pause;
+     int volume;
+-    SMPEG *mpeg;
+     SMPEG_Info info;
+     char *basefile;
+     SDL_version sdlver;
+@@ -163,7 +164,6 @@
+ 	}
+ 	
+ 	
+-	
+         /* Create the MPEG stream */
+         mpeg = SMPEG_new(argv[i], &info, use_audio);
+         if ( SMPEG_error(mpeg) ) {
+@@ -184,8 +184,10 @@
+         }
+         if ( info.has_audio && info.has_video ) {
+             printf("%s: MPEG system stream (audio/video)\n", basefile);
++	    printf("%s\n",info.ainfo_str);
+         } else if ( info.has_audio ) {
+             printf("%s: MPEG audio stream\n", basefile);
++	    printf("%s\n",info.ainfo_str);
+         } else if ( info.has_video ) {
+             printf("%s: MPEG video stream\n", basefile);
+         }
+diff -Nru smpeg-0.3.4/smpeg.cpp smpeg-0.3.4.new/smpeg.cpp
+--- smpeg-0.3.4/smpeg.cpp	Fri Feb  4 02:45:56 2000
++++ smpeg-0.3.4.new/smpeg.cpp	Sun Mar  5 01:40:36 2000
+@@ -65,6 +65,13 @@
+             info->has_audio = (mpeg->obj->mpeg->audiostream != NULL);
+             if ( info->has_audio ) {
+                 mpeg->obj->GetAudioInfo(&ainfo);
++		info->a_current_frame = ainfo.current_frame;
++		snprintf(info->ainfo_str,80,"MPEG%d layer%d %dkbit/s %dHz %s",
++			ainfo.mpegversion+1,
++			ainfo.layer,
++			ainfo.bitrate,
++			ainfo.frequency,
++			(ainfo.mode==3)?"mono":"stereo");
+             }
+             info->has_video = (mpeg->obj->mpeg->videostream != NULL);
+             if ( info->has_video ) {
+diff -Nru smpeg-0.3.4/smpeg.h smpeg-0.3.4.new/smpeg.h
+--- smpeg-0.3.4/smpeg.h	Sun Feb  6 01:54:09 2000
++++ smpeg-0.3.4.new/smpeg.h	Sun Mar  5 01:40:19 2000
+@@ -61,6 +61,8 @@
+     int height;
+     int current_frame;
+     double current_fps;
++    int  a_current_frame;
++    char ainfo_str[80];
+ } SMPEG_Info;
+ 
+ /* Possible MPEG status codes */
+*************************************************************************
+*** Applied ***
 smpeg-0.3.3-fixes
 by Bill Kendrick
 

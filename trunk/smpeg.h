@@ -32,7 +32,7 @@ extern "C" {
 
 #define SMPEG_MAJOR_VERSION      0
 #define SMPEG_MINOR_VERSION      3
-#define SMPEG_PATCHLEVEL         4
+#define SMPEG_PATCHLEVEL         5
 
 typedef struct {
         Uint8 major;
@@ -61,6 +61,8 @@ typedef struct _SMPEG_Info {
     int height;
     int current_frame;
     double current_fps;
+    char audio_string[80];
+    int  audio_current_frame;
 } SMPEG_Info;
 
 /* Possible MPEG status codes */

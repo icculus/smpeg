@@ -1993,7 +1993,7 @@ compiler."
       if test "$build_libtool_libs" = yes; then
 	if test -n "$rpath"; then
 	  case "$host" in
-	  *-*-cygwin* | *-*-mingw* | *-*-os2* | *-*-beos*)
+	  *-*-cygwin* | *-*-mingw* | *-*-os2* | *-*-beos* | *-*-freebsd*)
 	    # these systems don't actually have a c library (as such)!
 	    ;;
 	  *)

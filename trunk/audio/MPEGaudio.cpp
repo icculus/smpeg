@@ -235,3 +235,16 @@ MPEGaudio:: Status(void)
         return(MPEG_ERROR);
     }
 }
+
+bool
+MPEGaudio:: GetAudioInfo(MPEG_AudioInfo *info)
+{
+    if ( info ) {
+      info->mpegversion = version;
+      info->mode = mode;
+      info->frequency = frequencies[version][frequency];
+      info->layer = layer;
+      info->bitrate = bitrate[version][layer-1][bitrateindex];
+      info->current_frame = currentframe;
+    }
+}

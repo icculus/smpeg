@@ -160,6 +160,7 @@ public:
     virtual ~MPEGaudio();
 
     /* MPEG actions */
+    bool GetAudioInfo(MPEG_AudioInfo *info);
     double Time(void);
     void Play(void);
     void Stop(void);

@@ -24,8 +24,8 @@ MPEG::MPEG(Uint8 *Mpeg, Uint32 Size, Uint8 StreamID, bool sdlaudio) :
                     audioaction_enabled = true;
                 } else
 #endif
-                if ( (data[1] == VIDEO_STREAMID) && !videostream ) {
-                    videostream = new MPEG(mpeg, size, data[1], sdlaudio);
+                if ( ((data[1] & 0xF0) == VIDEO_STREAMID)  && !videostream ) {
+                    videostream = new MPEG(mpeg, size, data[1]&0xF0, sdlaudio);
                     if ( videostream->WasError() ) {
                         SetError(videostream->TheError());
                     }
