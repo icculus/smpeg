@@ -2821,6 +2821,8 @@ else
   HAVE_MESA_FALSE=
 fi
 
+CFLAGS="$CFLAGS -I\$(top_srcdir) -I\$(top_srcdir)/audio -I\$(top_srcdir)/video"
+
 CXXFLAGS="$CFLAGS"
 if test x$compiler_rtti_exceptions = xyes; then
     CXXFLAGS="$CXXFLAGS -fno-exceptions -fno-rtti"
