@@ -63,9 +63,8 @@ case "$target" in
     sparc*-*-solaris*)
         LIBS="$LIBS -lsocket -lnsl"	
         ;;
-    *-*-nto-qnx*)
-        # Sam 1/8/2001 - I think -lph needs to go in SDL, but it's here for now
-        LIBS="$LIBS -lsocket -lph"
+    *-*-qnx*)
+        LIBS="$LIBS -lsocket"
         ;;
     *-*-cygwin* | *-*-mingw32*)
         if test "$build" != "$target"; then # cross-compiling
