@@ -1,4 +1,6 @@
 0.3.5:
+Sam Lantinga - Thu Mar  9 19:51:13 PST 2000
+ * Fixed a hang in MP3 playback if track plays all the way to the end.
 Sam Lantinga - Wed Mar  8 11:01:16 PST 2000
  * Added 16-bit MMX dither/IDCT code from the NIST MPEG-2/DVD player.
    (http://home.germany.net/100-5083/)

@@ -371,7 +371,7 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
             len -= copylen;
             stream += copylen;
         }
-    } while ( copylen && (len > 0) );
+    } while ( (audio->Status() == MPEG_PLAYING) && (len > 0) );
 #else
     /* The length is interpreted as being in samples */
     len /= 2;
