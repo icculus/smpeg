@@ -1,5 +1,29 @@
 *************************************************************************
 *** Applied ***
+Date: Sat, 14 Oct 2000 23:43:33 +0900
+From: Hiroshi Yamashita <bluemoon@msj.biglobe.ne.jp>
+Subject: SDL-1.1 Patch For FreeBSD.
+
+latest smpeg is audio output always Mono.
+(smpeg041fix.diff)
+
+Index: audio/mpegtoraw.cpp
+===================================================================
+RCS file: /home/ncvs/smpeg/audio/mpegtoraw.cpp,v
+retrieving revision 1.1.1.1
+diff -u -r1.1.1.1 mpegtoraw.cpp
+--- audio/mpegtoraw.cpp	2000/10/06 01:17:03	1.1.1.1
++++ audio/mpegtoraw.cpp	2000/10/06 01:21:24
+@@ -84,6 +84,7 @@
+   register REAL *s1,*s2;
+   REAL *s3,*s4;
+ 
++  stereo = true;
+   forcetomonoflag = false;
+   forcetostereoflag = false;
+   downfrequency = 0;
+*************************************************************************
+*** Applied ***
 Date: Mon, 25 Sep 2000 20:37:43 +0200
 From: Vivien Chappelier <vivien.chappelier@enst-bretagne.fr>
 Subject: Re: [SMPEG] ati hardware acceleration

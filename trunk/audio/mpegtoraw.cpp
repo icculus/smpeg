@@ -84,6 +84,7 @@ void MPEGaudio::initialize()
   register REAL *s1,*s2;
   REAL *s3,*s4;
 
+  stereo = true;
   forcetomonoflag = false;
   forcetostereoflag = false;
   downfrequency = 0;
