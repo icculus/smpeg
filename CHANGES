@@ -5,6 +5,7 @@ SOL -   Fixed audio decoding thread - releases waiting audio threads
 SOL -	Fixed audio playback of MPEG videos when using external mixer
 KVC -	Handle RIFF encoded MPEG streams
 SOL -	Handle system streams that encode packets without a header
+Stefan Gybas - Contributed a man page for gtv.
 
 0.3.1:
 SOL -   Fixed endlessly looping "mpegVidRsrc ParseMacroBlock" problem
