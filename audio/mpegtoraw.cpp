@@ -183,8 +183,6 @@ bool MPEGaudio::loadheader()
     inputstereo = (mode == single) ? 0 : 1;
     if(forcetomonoflag)
         outputstereo=0;
-    else if(forcetostereoflag)
-        outputstereo=1;
     else
         outputstereo=inputstereo;
 
@@ -209,7 +207,7 @@ bool MPEGaudio::loadheader()
     if(!tableindex)
       if(frequency==frequency32000)subbandnumber=12; else subbandnumber=8;
     else if(frequency==frequency48000||
-	    (channelbitrate>=3 && channelbitrate<=5))
+        (channelbitrate>=3 && channelbitrate<=5))
       subbandnumber=27;
     else subbandnumber=30;
   }
@@ -236,13 +234,13 @@ bool MPEGaudio::loadheader()
     if(layer==3)
     {
       if(version)
-	layer3slots=framesize-((mode==single)?9:17)
-	                     -(protection?0:2)
-	                     -4;
+    layer3slots=framesize-((mode==single)?9:17)
+                         -(protection?0:2)
+                         -4;
       else
-	layer3slots=framesize-((mode==single)?17:32)
-	                     -(protection?0:2)
-	                     -4;
+    layer3slots=framesize-((mode==single)?17:32)
+                         -(protection?0:2)
+                         -4;
     }
   }
 
@@ -277,6 +275,20 @@ bool MPEGaudio::run( int frames )
         if     ( layer == 3 ) extractlayer3();
         else if( layer == 2 ) extractlayer2();
         else if( layer == 1 ) extractlayer1();
+
+        /* Handle expanding to stereo output */
+        if ( forcetostereoflag ) {
+            Sint16 *in, *out;
+
+            in = rawdata+rawdatawriteoffset;
+            rawdatawriteoffset *= 2;
+            out = rawdata+rawdatawriteoffset;
+            while ( in > rawdata ) {
+                --in;
+                *(--out) = *in;
+                *(--out) = *in;
+            }
+        }
 
         ++decodedframe;
 #ifndef THREADED_AUDIO
@@ -322,12 +334,12 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
 
     /* Increment the current play time (assuming fixed frag size) */
     switch (audio->frags_playing++) {
-        case 0:		/* The first audio buffer is being filled */
+        case 0:        /* The first audio buffer is being filled */
             break;
-        case 1:		/* The first audio buffer is starting playback */
+        case 1:        /* The first audio buffer is starting playback */
             audio->frag_time = SDL_GetTicks();
             break;
-        default:	/* A buffer has completed, filling a new one */
+        default:    /* A buffer has completed, filling a new one */
             audio->frag_time = SDL_GetTicks();
             audio->play_time += ((double)len)/audio->rate_in_s;
             break;
