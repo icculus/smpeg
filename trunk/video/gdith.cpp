@@ -285,6 +285,10 @@ void MPEGvideo::DisplayFrame( VidStream * vid_stream )
 {
   SMPEG_FilterInfo info;
 
+  if ( !_image ) {
+    return;
+  }
+
   if ( _filter_mutex )
     SDL_mutexP( _filter_mutex );
 

@@ -39,10 +39,10 @@ int main( int argc, char* argv[] )
 
     /* Grab the mouse and input and set the video mode */
     SDL_ShowCursor(0);
-    SDL_WM_GrabInput(SDL_GRAB_ON);
-    screen = SDL_SetVideoMode(640, 480, 0, SDL_OPENGL|SDL_FULLSCREEN);
+    //SDL_WM_GrabInput(SDL_GRAB_ON);
+    screen = SDL_SetVideoMode(640, 480, 0, SDL_OPENGL); //|SDL_FULLSCREEN);
     if ( !screen ) {
-	fprintf( stderr, "glmovie: Couldn't set 640x480 GL vide mode: %s\n", SDL_GetError());
+	fprintf( stderr, "glmovie: Couldn't set 640x480 GL video mode: %s\n", SDL_GetError());
         SDL_Quit();
         return 1;
     }
@@ -103,6 +103,11 @@ int main( int argc, char* argv[] )
 static void glmpeg_update( SDL_Surface* surface, Sint32 x, Sint32 y, Uint32 w, Uint32 h )
 {
     GLenum error;
+
+    if (( !surface ) || ( !surface->pixels )) {
+        fprintf(stderr, "\n\nERROR: There's no surface for drawing?!\n\n");
+        exit(1);
+    }
 
     glmovie_draw( (GLubyte*) surface->pixels );
 
