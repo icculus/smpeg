@@ -22,9 +22,6 @@
 #ifndef _MPEGAUDIO_H_
 #define _MPEGAUDIO_H_
 
-/* This improves the performance of the audio player by quite a bit */
-#define THREADED_AUDIO
-
 #include "SDL.h"
 #include "MPEGerror.h"
 #include "MPEGaction.h"
