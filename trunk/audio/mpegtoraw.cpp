@@ -361,8 +361,6 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
     }
     volume = audio->volume;
 
-printf("Requested %d bytes ... ", len);
-fflush(stdout);
     /* Increment the current play time (assuming fixed frag size) */
     switch (audio->frags_playing++) {
       // Vivien: Well... the theorical way seems good to me :-)
@@ -427,7 +425,6 @@ fflush(stdout);
 	    audio->timestamp[0] = -1;
 	}
     } while ( copylen && (len > 0) && ((audio->currentframe < audio->decodedframe) || audio->decoding));
-printf("copylen = %d, len = %d, audio->currentframe = %d, audio->decodedframe = %d, audio->decoding = %d\n", copylen, len, audio->currentframe, audio->decodedframe, audio->decoding);
 #else
     /* The length is interpreted as being in samples */
     len /= 2;
@@ -471,7 +468,6 @@ printf("copylen = %d, len = %d, audio->currentframe = %d, audio->decodedframe = 
     }
 #endif
 finished_mixing:
-printf("mixed %d bytes (%sfinished)\n", mixed, (audio->Status() == MPEG_PLAYING) ? "not " : "");
     return(mixed);
 }
 void Play_MPEGaudioSDL(void *udata, Uint8 *stream, int len)
