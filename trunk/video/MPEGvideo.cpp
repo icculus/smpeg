@@ -440,8 +440,10 @@ MPEGvideo:: SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
     _dst = dst;
     _callback = callback;
     _image = SDL_CreateYUVOverlay(_srcrect.w, _srcrect.h, SDL_YV12_OVERLAY, dst);
-    _dstrect.w = dst->w;
-    _dstrect.h = dst->h;
+    if ( !_dstrect.w || !_dstrect.h ) {
+        _dstrect.w = dst->w;
+        _dstrect.h = dst->h;
+    }
 
     if ( !_stream ) {
         decodeInitTables();
@@ -483,6 +485,10 @@ void
 MPEGvideo:: ScaleDisplayXY( int w, int h )
 {
     SDL_mutexP( _mutex );
+#if 1 // Sam 9/8 - The program knows how big it wants the output display!
+    _dstrect.w = w;
+    _dstrect.h = h;
+#else
     if(_image)
     {
       /* Adjust to hide offscreen part */
@@ -494,6 +500,7 @@ MPEGvideo:: ScaleDisplayXY( int w, int h )
       _dstrect.h = _image->h * h / _oh;
       SDL_UnlockYUVOverlay( _image );
     }
+#endif
     SDL_mutexV( _mutex );
 }
 
