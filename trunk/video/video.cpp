@@ -1032,6 +1032,9 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
     case SEQ_END_CODE:
     case 0x000001b9:   /*  handle ISO_11172_END_CODE too */
 
+#ifdef VERBOSE_DEBUG
+        printf("SEQ_END_CODE\n");
+#endif
         flush_bits32;
         /* Display last frame if not looping */
 
@@ -1060,6 +1063,9 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
 
         /* Sequence start code. Parse sequence header. */
 
+#ifdef VERBOSE_DEBUG
+        printf("SEQ_START_CODE\n");
+#endif
         if( ParseSeqHead( vid_stream ) != PARSE_OK )
         {
             fprintf( stderr, "mpegVidRsrc ParseSeqHead\n" );
@@ -1077,6 +1083,9 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
 
         /* Group of Pictures start code. Parse gop header. */
 
+#ifdef VERBOSE_DEBUG
+        printf("GOP_START_CODE\n");
+#endif
         if( ParseGOP(vid_stream) != PARSE_OK )
         {
             fprintf( stderr, "mpegVidRsrc ParseGOP\n" );
@@ -1105,6 +1114,9 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
 
         /* Picture start code. Parse picture header and first slice header. */
 
+#ifdef VERBOSE_DEBUG
+        printf("PICTURE_START_CODE\n");
+#endif
 	if (vid_stream->timestamp_mark < vid_stream->buffer
 	    && !vid_stream->timestamp_used){
 	  vid_stream->timestamp_used = true;
@@ -1158,17 +1170,24 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
 
     case SEQUENCE_ERROR_CODE:
 
+#ifdef VERBOSE_DEBUG
+        printf("SEQUENCE_ERROR_CODE\n");
+#endif
         flush_bits32;
         next_start_code(vid_stream);
         goto done;
 
 
     default:
+
 	/* No base picture for decoding */
 	if( !vid_stream->current )
 	{
 	    flush_bits32;
 	    next_start_code(vid_stream);
+#ifdef VERBOSE_DEBUG
+            printf("No base picture, flushing to next start code\n");
+#endif
 	    goto done;
 	}
 
@@ -1183,6 +1202,10 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
                 goto error;
             }
         }
+#ifdef VERBOSE_DEBUG
+        else
+            printf("Unknown data - not slice start code!\n");
+#endif
         break;
     }
 
