@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 
 #ifdef unix
 #include <unistd.h>
@@ -462,6 +463,14 @@ void update(SDL_Surface *screen, Sint32 x, Sint32 y, Uint32 w, Uint32 h)
     }
 }
 
+/* Flag telling the UI that the movie or song should be skipped */
+int done;
+
+void next_movie(int sig)
+{
+	done = 1;
+}
+
 int main(int argc, char *argv[])
 {
     int use_audio, use_video;
@@ -469,7 +478,7 @@ int main(int argc, char *argv[])
     int scalesize;
     int scale_width, scale_height;
     int loop_play;
-    int i, done, pause;
+    int i, pause;
     int volume;
     Uint32 seek;
     float skip;
@@ -598,6 +607,9 @@ int main(int argc, char *argv[])
 	    use_audio = 0;
 	  }
 	}
+
+	/* Allow Ctrl-C when there's no video output */
+	signal(SIGINT, next_movie);
 	
         /* Create the MPEG stream */
 #ifdef NET_SUPPORT
@@ -768,7 +780,8 @@ int main(int argc, char *argv[])
 			  // toggle fullscreen
 			  if ( event.key.keysym.mod & KMOD_ALT ) {
                             SDL_WM_ToggleFullScreen(screen);
-                           fullscreen = !fullscreen;
+                            fullscreen = (screen->flags & SDL_FULLSCREEN);
+                            SDL_ShowCursor(!fullscreen); 
                           }
                         } else if ( event.key.keysym.sym == SDLK_UP ) {
 			  // Volume up
