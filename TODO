@@ -1,3 +1,4 @@
 
 * Add stdio streaming support - being worked on by Vivien Chappelier
 * Add ATI hardware MPEG decoding acceleration
+* Add MMX versions of pixel-doubled dither routines

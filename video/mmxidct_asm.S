@@ -93,56 +93,6 @@ IDCT_mmx:
 	pushl %esi
 	pushl %edi
 	movl 8(%ebp),%esi		/* source matrix */
-#if 0
-	movq (%esi), %mm0
-	movq 8(%esi), %mm1
-	psllw $4, %mm0
-	movq 16(%esi), %mm2
-	psllw $4, %mm1
-	movq 24(%esi), %mm3
-	psllw $4, %mm2
-	movq 32(%esi), %mm4
-	psllw $4, %mm3
-	movq 40(%esi), %mm5
-	psllw $4, %mm4
-	movq 48(%esi), %mm6
-	psllw $4, %mm5
-	movq 56(%esi), %mm7
-	psllw $4, %mm6
-	psllw $4, %mm7
-	movq %mm0,  (%esi)
-	movq %mm1, 8(%esi)
-	movq %mm2,16(%esi)
-	movq %mm3,24(%esi)
-	movq %mm4,32(%esi)
-	movq %mm5,40(%esi)
-	movq %mm6,48(%esi)
-	movq %mm7,56(%esi)
-	movq 64(%esi), %mm0
-	movq 72(%esi), %mm1
-	psllw $4, %mm0
-	movq 80(%esi), %mm2
-	psllw $4, %mm1
-	movq 88(%esi), %mm3
-	psllw $4, %mm2
-	movq 96(%esi), %mm4
-	psllw $4, %mm3
-	movq 104(%esi), %mm5
-	psllw $4, %mm4
-	movq 112(%esi), %mm6
-	psllw $4, %mm5
-	movq 120(%esi), %mm7
-	psllw $4, %mm6
-	psllw $4, %mm7
-	movq %mm0,64(%esi)
-	movq %mm1,72(%esi)
-	movq %mm2,80(%esi)
-	movq %mm3,88(%esi)
-	movq %mm4,96(%esi)
-	movq %mm5,104(%esi)
-	movq %mm6,112(%esi)
-	movq %mm7,120(%esi)
-#endif
 	leal preSC, %ecx
 /* column 0: even part
  * use V4, V12, V0, V8 to produce V22..V25

@@ -765,9 +765,9 @@ void ScaleColor16DitherImageModInterlace( unsigned char *lum, unsigned char *cr,
 					  unsigned char *cb, unsigned char *out,
 					  int rows, int cols, int mod, int start, int scale )
 {
-    unsigned long* row1;
+    unsigned int* row1;
     const int next_row = cols+(mod/scale);
-    unsigned long* row2;
+    unsigned int* row2;
     unsigned char* lum2;
     int x, y;
     int cr_r;
@@ -775,7 +775,7 @@ void ScaleColor16DitherImageModInterlace( unsigned char *lum, unsigned char *cr,
     int cb_b;
     int cols_2 = cols / scale;
 
-    row1 = (unsigned long*) out;
+    row1 = (unsigned int*) out;
     // Uncomment this to enable even-odd scanline rendering (looks terrible)
     //row1 += 2*start * next_row;
     //lum += start * cols;

@@ -137,7 +137,9 @@ void float_idct P((short* block ));
 /* 16bit.c */
 void InitColorDither P(( int bpp, Uint32 Rmask, Uint32 Gmask, Uint32 Bmask ));
 void Color16DitherImageMod P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod ));
+void Color16DitherImageMMX P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod ));
 void Color32DitherImageMod P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod ));
+void Color32DitherImageMMX P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod ));
 void Color16DitherImageModInterlace P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod, int start ));
 void Color32DitherImage P((unsigned char *lum , unsigned char *cr , unsigned char *cb , unsigned char *out , int rows , int cols ));
 void ScaleColor16DitherImageMod P((unsigned char *lum, unsigned char *cr, unsigned char *cb, unsigned char *out, int rows, int cols, int mod, int scale ));
