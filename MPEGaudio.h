@@ -149,7 +149,8 @@ private:
 /* The actual MPEG audio class */
 class MPEGaudio : public MPEGerror, public MPEGaudioaction {
 
-    friend void Play_MPEGaudio(void *udata, Uint8 *stream, int len);
+    friend void Play_MPEGaudioSDL(void *udata, Uint8 *stream, int len);
+    friend int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len);
 #ifdef THREADED_AUDIO
     friend int Decode_MPEGaudio(void *udata);
 #endif

@@ -278,10 +278,15 @@ SMPEG_Filter * SMPEG_filter( SMPEG* mpeg, SMPEG_Filter * filter )
     return((SMPEG_Filter *) mpeg->obj->Filter((SMPEG_Filter *) filter));
 }
 
-/* Exported function for SDL audio playback */
-void SMPEG_playAudio(void *udata, Uint8 *stream, int len)
+/* Exported function for general audio playback */
+int SMPEG_playAudio( SMPEG* mpeg, Uint8 *stream, int len)
 {
-    MPEGaudio *audio = ((SMPEG *)udata)->obj->GetAudio();
+    MPEGaudio *audio = mpeg->obj->GetAudio();
+    return Play_MPEGaudio(audio, stream, len);
+}
+void SMPEG_playAudioSDL( void* mpeg, Uint8 *stream, int len)
+{
+    MPEGaudio *audio = ((SMPEG *)mpeg)->obj->GetAudio();
     Play_MPEGaudio(audio, stream, len);
 }
 

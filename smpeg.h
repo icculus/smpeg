@@ -181,10 +181,16 @@ extern DECLSPEC SMPEG_Filter * SMPEG_filter( SMPEG* mpeg, SMPEG_Filter * filter 
 */
 extern DECLSPEC char *SMPEG_error( SMPEG* mpeg );
 
-/* Exported callback function for SDL audio playback.
-   The data parameter must be a pointer to the SMPEG object, casted to void *.
+/* Exported callback function for audio playback.
+   The function takes a buffer and the amount of data to fill, and returns
+   the amount of data in bytes that was actually written.  This will be the
+   amount requested unless the MPEG audio has finished.
 */
-extern DECLSPEC void SMPEG_playAudio( void *mpeg, Uint8 *stream, int len );
+extern DECLSPEC int SMPEG_playAudio( SMPEG *mpeg, Uint8 *stream, int len );
+
+/* Wrapper for SMPEG_playAudio() that can be passed to SDL and SDL_mixer
+*/
+extern DECLSPEC void SMPEG_playAudioSDL( void *mpeg, Uint8 *stream, int len );
 
 /* Get the best SDL audio spec for the audio stream */
 extern DECLSPEC int SMPEG_wantedSpec( SMPEG *mpeg, SDL_AudioSpec *wanted );

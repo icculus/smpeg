@@ -349,18 +349,20 @@ int Decode_MPEGaudio(void *udata)
 #endif /* THREADED_AUDIO */
 
 // Helper function for SDL audio
-void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
+int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
 {
-    MPEGaudio *audio = (MPEGaudio *)udata;
     int volume;
     long copylen;
+    int mixed = 0;
 
     /* Bail if audio isn't playing */
     if ( audio->Status() != MPEG_PLAYING ) {
-        return;
+        return(0);
     }
     volume = audio->volume;
 
+printf("Requested %d bytes ... ", len);
+fflush(stdout);
     /* Increment the current play time (assuming fixed frag size) */
     switch (audio->frags_playing++) {
       // Vivien: Well... the theorical way seems good to me :-)
@@ -389,6 +391,7 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
         copylen = audio->ring->NextReadBuffer(&rbuf);
         if ( copylen > len ) {
             SDL_MixAudio(stream, rbuf, len, volume);
+            mixed += len;
             audio->ring->ReadSome(len);
             len = 0;
 	    for (int i=0; i < N_TIMESTAMPS -1; i++)
@@ -396,6 +399,7 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
 	    audio->timestamp[N_TIMESTAMPS-1] = audio->ring->ReadTimeStamp();
         } else {
             SDL_MixAudio(stream, rbuf, copylen, volume);
+            mixed += copylen;
             ++audio->currentframe;
             audio->ring->ReadDone();
 //fprintf(stderr, "-");
@@ -423,6 +427,7 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
 	    audio->timestamp[0] = -1;
 	}
     } while ( copylen && (len > 0) && ((audio->currentframe < audio->decodedframe) || audio->decoding));
+printf("copylen = %d, len = %d, audio->currentframe = %d, audio->decodedframe = %d, audio->decoding = %d\n", copylen, len, audio->currentframe, audio->decodedframe, audio->decoding);
 #else
     /* The length is interpreted as being in samples */
     len /= 2;
@@ -434,11 +439,13 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
         if ( copylen >= len ) {
             SDL_MixAudio(stream, (Uint8 *)&audio->spillover[audio->rawdatareadoffset],
                                                        len*2, volume);
+            mixed += len*2;
             audio->rawdatareadoffset += len;
-            return;
+            goto finished_mixing;
         }
         SDL_MixAudio(stream, (Uint8 *)&audio->spillover[audio->rawdatareadoffset],
                                                        copylen*2, volume);
+        mixed += copylen*2;
         len -= copylen;
         stream += copylen*2;
     }
@@ -447,6 +454,7 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
     audio->rawdata = (Sint16 *)stream;
     audio->rawdatawriteoffset = 0;
     audio->run(len/audio->samplesperframe);
+    mixed += audio->rawdatawriteoffset*2;
     len -= audio->rawdatawriteoffset;
     stream += audio->rawdatawriteoffset*2;
 
@@ -456,11 +464,20 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
     if ( audio->run(1) ) {
         assert(audio->rawdatawriteoffset > len);
         SDL_MixAudio(stream, (Uint8 *) audio->spillover, len*2, volume);
+        mixed += len*2;
         audio->rawdatareadoffset = len;
     } else {
         audio->rawdatareadoffset = 0;
     }
 #endif
+finished_mixing:
+printf("mixed %d bytes (%sfinished)\n", mixed, (audio->Status() == MPEG_PLAYING) ? "not " : "");
+    return(mixed);
+}
+void Play_MPEGaudioSDL(void *udata, Uint8 *stream, int len)
+{
+    MPEGaudio *audio = (MPEGaudio *)udata;
+    Play_MPEGaudio(audio, stream, len);
 }
 
 // EOF

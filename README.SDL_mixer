@@ -27,7 +27,7 @@ the SDL mixer music hooks:
                 SMPEG_actualSpec(mpeg, &audiofmt);
 
                 /* Hook in the MPEG music mixer */
-                Mix_HookMusic(SMPEG_playAudio, mpeg);
+                Mix_HookMusic(SMPEG_playAudioSDL, mpeg);
                 SMPEG_enableaudio(mpeg, 1);
         }
         SMPEG_play(mpeg);
