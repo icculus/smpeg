@@ -1,5 +1,107 @@
 *************************************************************************
 *** Applied ***
+smpeg-0.3.3-fixes
+by Bill Kendrick
+
+Apply CHANGES.patch to smpeg-0.3.3's "CHANGES" to see what's been changed.
+
+Enjoy!
+
+-bill!
+3/Feb/2000
+----------
+--- smpeg-0.3.3/smpeg.h Tue Dec 21 09:17:35 1999
++++ smpeg-0.3.3-patched/smpeg.h Sat Jan 22 17:28:15 2000
+@@ -30,6 +30,26 @@
+ extern "C" {
+ #endif
+
++#define SMPEG_MAJOR_VERSION      0
++#define SMPEG_MINOR_VERSION      3
++#define SMPEG_PATCHLEVEL         3
++
++typedef struct {
++        Uint8 major;
++        Uint8 minor;
++        Uint8 patch;
++} SMPEG_version;
++
++/* This macro can be used to fill a version structure with the compile-time
++ * version of the SDL library.
++ */
++#define SMPEG_VERSION(X)                                                \
++{                                                                       \
++        (X)->major = SMPEG_MAJOR_VERSION;                               \
++        (X)->minor = SMPEG_MINOR_VERSION;                               \
++        (X)->patch = SMPEG_PATCHLEVEL;                                  \
++}
++
+ /* This is the actual SMPEG object */
+ typedef struct _SMPEG SMPEG;
+----------
+35c35,37
+< "	--volume N or -v N Set audio volume to N (0-100)\n", argv0);
+---
+> "	--volume N or -v N Set audio volume to N (0-100)\n"
+> "	--help or -h\n"
+> "	--version or -V\n", argv0);
+53a56
+>     int video_inited = 0, audio_inited = 0;
+58,63c61,62
+< 
+<     /* Initialize SDL */
+<     if ( SDL_Init(SDL_INIT_AUDIO|SDL_INIT_VIDEO) < 0 ) {
+<         fprintf(stderr, "Couldn't init SDL: %s\n", SDL_GetError());
+<         exit(1);
+<     }
+---
+>     SDL_version sdlver;
+>     SMPEG_version smpegver;
+89a89,93
+> 	    if (i >= argc)
+> 	      {
+> 		fprintf(stderr, "Please specify volume when using --volume or -v\n");
+> 		exit(1);
+> 	      }
+96a101,110
+> 	} else
+>         if ((strcmp(argv[i], "--version") == 0) ||
+> 	    (strcmp(argv[i], "-V") == 0)) {
+>             SDL_VERSION(&sdlver);
+>             SMPEG_VERSION(&smpegver);
+> 	    printf("SDL version: %d.%d.%d\n"
+>                    "SMPEG version: %d.%d.%d\n",
+> 		   sdlver.major, sdlver.minor, sdlver.patch,
+> 		   smpegver.major, smpegver.minor, smpegver.patch);
+>             exit(0);
+137a152,176
+> 	/* Initialize SDL */
+> 	if (info.has_video && !video_inited && use_video) {
+> 	  if ( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
+> 	    fprintf(stderr, "Warning: Couldn't init SDL video: %s\n",
+> 		    SDL_GetError());
+> 	    fprintf(stderr, "Will ignore video stream\n");
+> 	    use_video = 0;
+> 	  }
+> 	  else
+> 	    video_inited = 1;
+> 	}
+> 	
+> 	if (info.has_audio && !audio_inited && use_audio) {
+> 	  if ( SDL_Init(SDL_INIT_AUDIO) < 0 ) {
+> 	    fprintf(stderr, "Warning: Couldn't init SDL audio: %s\n",
+> 		    SDL_GetError());
+> 	    fprintf(stderr, "Will ignore audio stream\n");
+> 	    use_audio = 0;
+> 	  }
+> 	  else
+> 	    audio_inited = 1;
+> 	}
+> 	
+> 	
+> 	
+*************************************************************************
+*** Applied ***
 From: Jesper Pedersen <jep@systematic.dk>
 Subject: Patch for SMPEG_pause() bug
 Date: Mon, 31 Jan 2000 15:12:52 +0100

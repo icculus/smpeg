@@ -30,6 +30,26 @@
 extern "C" {
 #endif
 
+#define SMPEG_MAJOR_VERSION      0
+#define SMPEG_MINOR_VERSION      3
+#define SMPEG_PATCHLEVEL         4
+
+typedef struct {
+        Uint8 major;
+        Uint8 minor;
+        Uint8 patch;
+} SMPEG_version;
+
+/* This macro can be used to fill a version structure with the compile-time
+ * version of the SDL library.
+ */
+#define SMPEG_VERSION(X)                                                \
+{                                                                       \
+        (X)->major = SMPEG_MAJOR_VERSION;                               \
+        (X)->minor = SMPEG_MINOR_VERSION;                               \
+        (X)->patch = SMPEG_PATCHLEVEL;                                  \
+}
+
 /* This is the actual SMPEG object */
 typedef struct _SMPEG SMPEG;
 

@@ -4,20 +4,27 @@
  * X11 variable type... blech.
  */
 #include "smpeg.h"
-#include <GL/glx.h>
 #include "SDL.h"
 #include <stdlib.h>
 #include <malloc.h>
 #include <string.h>
 #include <unistd.h>
-
 #include "glmovie.h"
+
+/* SDL 1.1 and newer has native OpenGL support */
+#if (SDL_MAJOR_VERSION > 1) || (SDL_MINOR_VERSION >= 1)
+#define SDL_HAS_OPENGL
+#else
+#include <GL/glx.h>
+#endif
 
 static void glmpeg_create_window( unsigned int, unsigned int );
 static void glmpeg_update( SDL_Surface*, Sint32, Sint32, Uint32, Uint32 );
 
+#ifndef SDL_HAS_OPENGL
 static Display* display = NULL;
 static Window window = 0;
+#endif
 
 int main( int argc, char* argv[] )
 {
@@ -32,7 +39,9 @@ int main( int argc, char* argv[] )
 	return 1;
     }
 
+#ifndef SDL_HAS_OPENGL
     display = XOpenDisplay( NULL );
+#endif
 
     if( SDL_Init( SDL_INIT_VIDEO | SDL_INIT_AUDIO ) < 0 ) {
 	fprintf( stderr, "glmpeg-test: I couldn't initizlize SDL (shrug)\n" );
@@ -49,7 +58,9 @@ int main( int argc, char* argv[] )
     window_width = glmovie_next_power_of_2( mpeg_info.width );
     window_height = glmovie_next_power_of_2( mpeg_info.height );
     glmpeg_create_window( 640, 480 );
+#ifndef SDL_HAS_OPENGL
     XMapWindow( display, window );
+#endif
 
     /* Everything needs to be in RGB for GL, but needs to be 32-bit for SMPEG. */
     surface = SDL_AllocSurface( SDL_SWSURFACE,
@@ -99,11 +110,18 @@ static void glmpeg_update( SDL_Surface* surface, Sint32 x, Sint32 y, Uint32 w, U
 	exit( 1 );
     }
 
+#ifdef SDL_HAS_OPENGL
+    SDL_GL_SwapBuffers();
+#else
     glXSwapBuffers( display, window );
+#endif
 }
 
 static void glmpeg_create_window( unsigned int width, unsigned int height )
 {
+#ifdef SDL_HAS_OPENGL
+    SDL_SetVideoMode(width, height, 0, SDL_OPENGL);
+#else
     int screen;
     Window root;
     int glx_attributes[] = { GLX_RGBA,
@@ -145,4 +163,5 @@ static void glmpeg_create_window( unsigned int width, unsigned int height )
 
     context = glXCreateContext( display, visual_info, NULL, True );
     glXMakeCurrent( display, window, context );
+#endif
 }

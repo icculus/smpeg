@@ -33,7 +33,9 @@ void usage(char *argv0)
 "	--double or -2	     Play MPEG at double size\n"
 "	--loop or -l	     Play MPEG over and over\n"
 "	--volume N or -v N   Set audio volume to N (0-100)\n"
-"	--scale S or -s S    Play MPEG at size S (1-)\n", argv0);
+"	--scale S or -s S    Play MPEG at size S (1-)\n"
+"	--help or -h\n"
+"	--version or -V\n", argv0);
 }
 
 void update(SDL_Surface *screen, Sint32 x, Sint32 y, Uint32 w, Uint32 h)
@@ -51,6 +53,7 @@ int main(int argc, char *argv[])
     int video_bpp;
     int use_audio, use_video;
     int fullscreen;
+    int video_inited = 0, audio_inited = 0;
     int scalesize;
     int loop_play;
     int i, done, pause;
@@ -58,12 +61,8 @@ int main(int argc, char *argv[])
     SMPEG *mpeg;
     SMPEG_Info info;
     char *basefile;
-
-    /* Initialize SDL */
-    if ( SDL_Init(SDL_INIT_AUDIO|SDL_INIT_VIDEO) < 0 ) {
-        fprintf(stderr, "Couldn't init SDL: %s\n", SDL_GetError());
-        exit(1);
-    }
+    SDL_version sdlver;
+    SMPEG_version smpegver;
 
     /* Get the command line options */
     use_audio = 1;
@@ -90,6 +89,11 @@ int main(int argc, char *argv[])
         } else
         if ((strcmp(argv[i], "--volume") == 0)||(strcmp(argv[i], "-v") == 0)) {
             ++i;
+	    if (i >= argc)
+	      {
+		fprintf(stderr, "Please specify volume when using --volume or -v\n");
+		exit(1);
+	      }
             if ( argv[i] ) {
                 volume = atoi(argv[i]);
             }
@@ -97,6 +101,16 @@ int main(int argc, char *argv[])
 	      fprintf(stderr, "Volume must be between 0 and 100\n");
 	      volume = 100;
 	    }
+	} else
+        if ((strcmp(argv[i], "--version") == 0) ||
+	    (strcmp(argv[i], "-V") == 0)) {
+            SDL_VERSION(&sdlver);
+            SMPEG_VERSION(&smpegver);
+	    printf("SDL version: %d.%d.%d\n"
+                   "SMPEG version: %d.%d.%d\n",
+		   sdlver.major, sdlver.minor, sdlver.patch,
+		   smpegver.major, smpegver.minor, smpegver.patch);
+            exit(0);
         } else
         if ((strcmp(argv[i], "--scale") == 0)||(strcmp(argv[i], "-s") == 0)) {
             ++i;
@@ -138,6 +152,31 @@ int main(int argc, char *argv[])
         
     /* Play the mpeg files! */
     for ( ; argv[i]; ++i ) {
+	/* Initialize SDL */
+	if (info.has_video && !video_inited && use_video) {
+	  if ( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
+	    fprintf(stderr, "Warning: Couldn't init SDL video: %s\n",
+		    SDL_GetError());
+	    fprintf(stderr, "Will ignore video stream\n");
+	    use_video = 0;
+	  }
+	  else
+	    video_inited = 1;
+	}
+	
+	if (info.has_audio && !audio_inited && use_audio) {
+	  if ( SDL_Init(SDL_INIT_AUDIO) < 0 ) {
+	    fprintf(stderr, "Warning: Couldn't init SDL audio: %s\n",
+		    SDL_GetError());
+	    fprintf(stderr, "Will ignore audio stream\n");
+	    use_audio = 0;
+	  }
+	  else
+	    audio_inited = 1;
+	}
+	
+	
+	
         /* Create the MPEG stream */
         mpeg = SMPEG_new(argv[i], &info, 1);
         if ( SMPEG_error(mpeg) ) {
