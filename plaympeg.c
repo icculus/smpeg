@@ -52,7 +52,8 @@ void usage(char *argv0)
 "	--loop or -l	     Play MPEG over and over\n"
 "	--volume N or -v N   Set audio volume to N (0-100)\n"
 "	--scale wxh or -s wxh  Play MPEG at given resolution\n"
-"       --skip N or -S N     Skip N seconds\n"
+"       --seek N             Skip N bytes\n"
+"       --skip N             Skip N seconds\n"
 "	--help or -h\n"
 "	--version or -V\n"
 "Specifying - as filename will use stdin for input\n", argv0);
@@ -83,6 +84,7 @@ int main(int argc, char *argv[])
     int loop_play;
     int i, done, pause;
     int volume;
+    int seek;
     float skip;
     SDL_Surface *screen;
     SMPEG *mpeg;
@@ -100,7 +102,8 @@ int main(int argc, char *argv[])
     scale_height = 0;
     loop_play = 0;
     volume = 100;
-    skip = 0;
+    seek = 0;
+    skip = 0.0;
     for ( i=1; argv[i] && (argv[i][0] == '-') && (argv[i][1] != 0); ++i ) {
         if ( (strcmp(argv[i], "--noaudio") == 0) ||
              (strcmp(argv[i], "--nosound") == 0) ) {
@@ -118,10 +121,16 @@ int main(int argc, char *argv[])
         if ((strcmp(argv[i], "--loop") == 0) || (strcmp(argv[i], "-l") == 0)) {
             loop_play = 1;
         } else
-        if ((strcmp(argv[i], "--skip") == 0)||(strcmp(argv[i], "-S") == 0)) {
+	if ((strcmp(argv[i], "--seek") == 0)) {
             ++i;
             if ( argv[i] ) {
-                skip = (float)atof(argv[i]);
+                seek = atoi(argv[i]);
+            }
+        } else
+	if ((strcmp(argv[i], "--skip") == 0)) {
+            ++i;
+            if ( argv[i] ) {
+                skip = (float) atof(argv[i]);
             }
         } else
         if ((strcmp(argv[i], "--volume") == 0)||(strcmp(argv[i], "-v") == 0)) {
@@ -352,10 +361,12 @@ int main(int argc, char *argv[])
         if ( loop_play ) {
             SMPEG_loop(mpeg, 1);
         }
-	
-	/* Skip to starting position */
-	if(skip) SMPEG_skip(mpeg, skip);
 
+	/* Seek starting position */
+	if(seek) SMPEG_seek(mpeg, seek);
+	/* Skip seconds to starting position */
+	if(skip) SMPEG_skip(mpeg, skip);
+	
         /* Play it, and wait for playback to complete */
         SMPEG_play(mpeg);
         done = 0;
@@ -432,11 +443,11 @@ int main(int argc, char *argv[])
 			} else if ( event.key.keysym.sym == SDLK_RIGHT ) {
 			  // Forward
 			  if ( event.key.keysym.mod & KMOD_SHIFT ) {
-
+			    SMPEG_skip(mpeg, 100);
 			  } else if ( event.key.keysym.mod & KMOD_CTRL ) {
-
+			    SMPEG_skip(mpeg, 50);
 			  } else {
-			    
+			    SMPEG_skip(mpeg, 5);
 			  }
                         } else if ( event.key.keysym.sym == SDLK_LEFT ) {
 			  // Reverse
@@ -466,6 +477,7 @@ int main(int argc, char *argv[])
             }
             SDL_Delay(1000/2);
         }
+
         SMPEG_delete(mpeg);
     }
     SDL_Quit();

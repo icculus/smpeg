@@ -101,8 +101,10 @@ void MPEG::Init(int Mpeg_FD, bool Sdlaudio)
 
 MPEG::~MPEG()
 {
-  if(audio) delete audio;
+  Stop();
+
   if(video) delete video;
+  if(audio) delete audio;
 
   if(system) delete system;
 
@@ -175,23 +177,7 @@ void MPEG::Stop(void) {
 }
 
 void MPEG::Rewind(void) {
-  Stop();
-
-  /* Go to the beginning of the file */
-  system->Rewind();
-
-  /* Skip the first empty buffer made when creating a mpegstream */
-  /* which would otherwise be interpreted as end of file */
-  if(audiostream) audiostream->next_packet();
-  if(videostream) videostream->next_packet();
-
-  if ( AudioEnabled() ) {
-    audioaction->Rewind();
-  }
-
-  if ( VideoEnabled() ) {
-    videoaction->Rewind();
-  }
+  seekIntoStream(0);
 }
 
 void MPEG::Pause(void) {
@@ -256,6 +242,7 @@ MPEGstatus MPEG::Status(void) {
 
   return(status);
 }
+
 
 /* MPEG audio actions */
 bool MPEG::GetAudioInfo(MPEG_AudioInfo *info) {
@@ -328,16 +315,64 @@ void MPEG::RenderFinal(SDL_Surface *dst, int x, int y) {
 
   if( audiostream ) audiostream->enable(true);
 }
-
+  
 void MPEG::Skip(float seconds)
 {
+  if(system->get_stream(SYSTEM_STREAMID))
+  {
+    system->Skip(seconds);
+  }
+  else
+  {
+    /* No system information in MPEG */
+    if( VideoEnabled() ) videoaction->Skip(seconds);
+    if( AudioEnabled() ) audioaction->Skip(seconds);
+  }
+}
+
+void MPEG::Seek(int position)
+{
+  int were_playing = 0;
+  
+  /* get info wether we need to restart playing at the end */
+  if( Status() == MPEG_PLAYING )
+    were_playing = 1;
+
+  seekIntoStream(position);
+
+  /* If we were playing and not rewind then play again */
+  if (were_playing)
+    Play();
+}
+
+void MPEG::seekIntoStream(int position)
+{
+  double time;
+
+  /* First we stop everything */
+  Stop();
+
+  /* Go to the desired position into file */
+  time = system->Seek(position);
+
+  /* Skip the first empty buffer made when creating a mpegstream */
+  /* which would otherwise be interpreted as end of file */
+
+  if(audiostream) audiostream->next_packet();
+  if(videostream) videostream->next_packet();
+
+  /* And forget what we previouly buffered */
+
   if ( AudioEnabled() ) {
-    audioaction->Skip(seconds);
+    audioaction->Rewind();
+    audioaction->ResetSynchro(time);
   }
 
   if ( VideoEnabled() ) {
-    videoaction->Skip(seconds);
+    videoaction->Rewind();
+    videoaction->ResetSynchro(time);
   }
+
 }
 
 void MPEG::parse_stream_list()

@@ -33,6 +33,8 @@ public:
 
   inline Uint32 IsLocked() { return(lock); };
 
+  double TimeStamp;
+
 private:
   class MPEGlist * next;
   class MPEGlist * prev;

@@ -142,8 +142,11 @@ extern DECLSPEC void SMPEG_stop( SMPEG* mpeg );
 /* Rewind the play position of an SMPEG object to the beginning of the MPEG */
 extern DECLSPEC void SMPEG_rewind( SMPEG* mpeg );
 
-/* Skip 'seconds' seconds of the MPEG stream */
-void DECLSPEC SMPEG_skip( SMPEG* mpeg, float seconds );
+/* Skip 'seconds' seconds of the MPEG */
+void SMPEG_skip( SMPEG* mpeg, float seconds );
+
+/* Seek 'bytes' bytes in the MPEG stream */
+void SMPEG_seek( SMPEG* mpeg, int bytes );
 
 /* Render a particular frame in the MPEG video
    API CHANGE: This function no longer takes a target surface and position.

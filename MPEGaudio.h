@@ -167,6 +167,7 @@ public:
     void Play(void);
     void Stop(void);
     void Rewind(void);
+    void ResetSynchro(double time);
     void Skip(float seconds);
     void Volume(int vol);
     MPEGstatus Status(void);
@@ -246,7 +247,7 @@ private:
   /*******************/
 public:
   void initialize();
-  bool run(int frames);
+  bool run(int frames, double *timestamp = NULL);
   void clearbuffer(void);
 
   /*****************************/
