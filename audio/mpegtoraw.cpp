@@ -311,10 +311,13 @@ bool MPEGaudio::run( int frames, double *timestamp)
             }
         }
 
-        ++decodedframe;
+        // Sam 10/5 - If there is no data, don't increment frames
+        if ( rawdatawriteoffset ) {
+            ++decodedframe;
 #ifndef THREADED_AUDIO
-        ++currentframe;
+            ++currentframe;
 #endif
+        }
     }
 
     return(true);
