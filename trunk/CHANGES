@@ -1,4 +1,6 @@
 0.4.4:
+Sam Lantinga - Fri Apr 27 13:30:27 PDT 2001
+ * Fixed memory leak when sound was disabled
 Sam Lantinga - Fri Apr 27 10:32:04 PDT 2001
  * Widened initial search for audio streams in MPEG files
 Sam Lantinga - Fri Apr 27 10:15:37 PDT 2001

@@ -177,10 +177,8 @@ void MPEG::EnableAudio(bool enabled) {
       videoaction->SetTimeSource(NULL);
     }
   }
-/*
   if(audiostream)
     audiostream->enable(enabled);
-*/
 }
 bool MPEG::VideoEnabled(void) {
   return(videoaction_enabled);
@@ -195,6 +193,8 @@ void MPEG::EnableVideo(bool enabled) {
   if ( videoaction && ! videoaction_enabled ) {
     videoaction->Stop();
   } 
+  if(videostream)
+    videostream->enable(enabled);
 }
 
 /* MPEG actions */
