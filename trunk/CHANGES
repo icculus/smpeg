@@ -1,3 +1,7 @@
+0.4.1:
+Vivien Chappelier - Wed Jun 14 12:43:54 PDT 2000
+ * Added VCD and URL support to plaympeg
+
 0.4.0:
 Vivien Chappelier - Fri Jun  9 14:20:16 PDT 2000
  * Fixed rendering the final frame in a video stream

@@ -17,26 +17,38 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#ifdef unix
-#define NET_SUPPORT
-#endif
-
-#include <stdlib.h>
-#include <string.h>
-#ifdef NET_SUPPORT
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <string.h>
 #include <stdio.h>
-#include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
+
+#ifdef unix
 #include <unistd.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <sys/time.h>
+
+#define NET_SUPPORT  /* General network support */
+#define RAW_SUPPORT  /* Raw data transport support */
+#define HTTP_SUPPORT /* HTTP support */
+#define FTP_SUPPORT  /* FTP support */
+#define VCD_SUPPORT  /* Video CD support */
 #endif
+
+#ifdef NET_SUPPORT
+#include <netinet/in.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#endif
+
+#ifdef VCD_SUPPORT
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <linux/cdrom.h>
+#endif
+
 #include "smpeg.h"
 
 
@@ -67,6 +79,351 @@ int is_address_multicast(unsigned long address)
   if((address & 255) >= 224 && (address & 255) <= 239) return(1);
   return(0);
 }
+
+int tcp_open(char * address, int port)
+{
+  struct sockaddr_in stAddr;
+  struct hostent * host;
+  int sock;
+  struct linger l;
+
+  memset(&stAddr,0,sizeof(stAddr));
+  stAddr.sin_family = AF_INET ;
+  stAddr.sin_port = htons(port);
+
+  if((host = gethostbyname(address)) == NULL) return(0);
+
+  stAddr.sin_addr = *((struct in_addr *) host->h_addr_list[0]) ;
+
+  if((sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) return(0);
+
+  l.l_onoff = 1; l.l_linger = 5;
+  if(setsockopt(sock, SOL_SOCKET, SO_LINGER, (char*) &l, sizeof(l)) < 0) return(0);
+
+  if(connect(sock, (struct sockaddr *) &stAddr, sizeof(stAddr)) < 0) return(0);
+
+  return(sock);
+}
+
+int udp_open(char * address, int port)
+{
+  int enable = 1L;
+  struct sockaddr_in stAddr;
+  struct sockaddr_in stLclAddr;
+  struct ip_mreq stMreq;
+  struct hostent * host;
+  int sock;
+
+  stAddr.sin_family = AF_INET; 
+  stAddr.sin_port = htons(port);
+
+  if((host = gethostbyname(address)) == NULL) return(0);
+
+  stAddr.sin_addr = *((struct in_addr *) host->h_addr_list[0]) ;
+
+  /* Create a UDP socket */
+  if((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) return(0);
+	    
+  /* Allow multiple instance of the client to share the same address and port */
+  if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *) &enable, sizeof(unsigned long int)) < 0) return(0);
+  
+  /* If the address is multicast, register to the multicast group */
+  if(is_address_multicast(stAddr.sin_addr.s_addr))
+  {
+    /* Bind the socket to port */
+    stLclAddr.sin_family      = AF_INET;
+    stLclAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    stLclAddr.sin_port        = stAddr.sin_port;
+    if(bind(sock, (struct sockaddr*) & stLclAddr, sizeof(stLclAddr)) < 0) return(0);
+      
+    /* Register to a multicast address */
+    stMreq.imr_multiaddr.s_addr = stAddr.sin_addr.s_addr;
+    stMreq.imr_interface.s_addr = INADDR_ANY;
+    if(setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *) & stMreq, sizeof(stMreq)) < 0) return(0);
+  }
+  else
+  {
+    /* Bind the socket to port */
+    if(bind(sock, (struct sockaddr *) & stAddr, sizeof(stAddr)) < 0) return(0);
+  }
+  
+  return(sock);
+}
+
+#ifdef RAW_SUPPORT
+int raw_open(char * arg)
+{
+  char * host;
+  int port;
+  int sock;
+
+  /* Check for URL syntax */
+  if(strncmp(arg, "raw://", strlen("raw://"))) return(0);
+
+  /* Parse URL */
+  port = 0;
+  host = arg + strlen("raw://");
+  if(strchr(host, ':') != NULL) /* port is specified */
+  {
+    port = atoi(strchr(host, ':') + 1);
+    *strchr(host, ':') = 0;
+  }
+
+  /* Open a UDP socket */
+  if(!(sock = udp_open(host, port)))
+    perror("raw_open");
+  
+  return(sock);
+}
+#endif
+
+#ifdef HTTP_SUPPORT
+int http_open(char * arg)
+{
+  char * host;
+  int port;
+  char * request;
+  int tcp_sock;
+  char http_request[1024];
+  int i;
+  char c;
+
+  /* Check for URL syntax */
+  if(strncmp(arg, "http://", strlen("http://"))) return(0);
+
+  /* Parse URL */
+  port = 80;
+  host = arg + strlen("http://");
+  if((request = strchr(host, '/')) == NULL) return(0);
+  *request++ = 0;
+  if(strchr(host, ':') != NULL) /* port is specified */
+  {
+    port = atoi(strchr(host, ':') + 1);
+    *strchr(host, ':') = 0;
+  } 
+
+  /* Open a TCP socket */
+  if(!(tcp_sock = tcp_open(host, port)))
+  {
+    perror("http_open");
+    return(0);
+  }
+
+  /* Send HTTP GET request */
+  sprintf(http_request, 
+	  "GET /%s HTTP/1.0\r\n"
+	  "User-Agent: Mozilla/2.0 (Win95; I)\r\n"
+	  "Pragma: no-cache\r\n"
+	  "Host: %s\r\n"
+	  "Accept: */*\r\n"
+	  "\r\n",
+	  request, host);
+  send(tcp_sock, http_request, strlen(http_request), 0);
+  
+  /* Parse server reply */
+  do read(tcp_sock, &c, sizeof(char)); while(c != ' ');
+  read(tcp_sock, http_request, 4*sizeof(char));
+  http_request[4] = 0;
+  if(strcmp(http_request, "200 "))
+  {
+    fprintf(stderr, "http_open: ");
+    do { 
+      read(tcp_sock, &c, sizeof(char));
+      fprintf(stderr, "%c", c); 
+    }
+    while(c != '\r');
+    fprintf(stderr, "\n");
+    return(0);
+  }
+  
+  return(tcp_sock);
+}
+#endif
+#ifdef FTP_SUPPORT
+int ftp_get_reply(int tcp_sock)
+{
+  int i;
+  char c;
+  char answer[1024];
+
+  do {
+    /* Read a line */
+    for(i = 0, c = 0; i < 1024 && c != '\n'; i++)
+    {
+      read(tcp_sock, &c, sizeof(char));
+      answer[i] = c;
+    }
+    answer[i] = 0;
+    fprintf(stderr, answer + 4);
+  }
+  while(answer[3] == '-');
+
+  answer[3] = 0;
+
+  return(atoi(answer));
+}
+
+int ftp_open(char * arg)
+{
+  char * host;
+  int port;
+  char * dir;
+  char * file;
+  int tcp_sock;
+  int data_sock;
+  int read_size;
+  char ftp_request[1024];
+  struct sockaddr_in stLclAddr;
+  int i;
+  char c;
+
+  /* Check for URL syntax */
+  if(strncmp(arg, "ftp://", strlen("ftp://"))) return(0);
+
+  /* Parse URL */
+  port = 21;
+  host = arg + strlen("ftp://");
+  if((dir = strchr(host, '/')) == NULL) return(0);
+  *dir++ = 0;
+  if((file = strrchr(dir, '/')) == NULL) {
+    file = dir;
+    dir = NULL;
+  } else
+    *file++ = 0;
+
+  if(strchr(host, ':') != NULL) /* port is specified */
+  {
+    port = atoi(strchr(host, ':') + 1);
+    *strchr(host, ':') = 0;
+  }
+
+  /* Open a TCP socket */
+  if(!(tcp_sock = tcp_open(host, port)))
+  {
+    perror("ftp_open");
+    return(0);
+  }
+
+  /* Send FTP USER and PASS request */
+  ftp_get_reply(tcp_sock);
+  sprintf(ftp_request, "USER anonymous\r\n");
+  send(tcp_sock, ftp_request, strlen(ftp_request), 0);
+  if(ftp_get_reply(tcp_sock) != 331) return(0);
+  sprintf(ftp_request, "PASS smpeguser@\r\n");
+  send(tcp_sock, ftp_request, strlen(ftp_request), 0);
+  if(ftp_get_reply(tcp_sock) != 230) return(0);
+  sprintf(ftp_request, "TYPE I\r\n");
+  send(tcp_sock, ftp_request, strlen(ftp_request), 0);
+  if(ftp_get_reply(tcp_sock) != 200) return(0);
+  if(dir != NULL)
+  {
+    sprintf(ftp_request, "CWD %s\r\n", dir);
+    send(tcp_sock, ftp_request, strlen(ftp_request), 0);
+    if(ftp_get_reply(tcp_sock) != 250) return(0);
+  }
+    
+  /* Get interface address */
+  i = sizeof(stLclAddr);
+  if(getsockname(tcp_sock, (struct sockaddr *) &stLclAddr, &i) < 0) return(0);
+
+  /* Open data socket */
+  if ((data_sock = socket(PF_INET, SOCK_STREAM, 0)) < 0) return(0);
+
+  stLclAddr.sin_family = AF_INET;
+
+  /* Get the first free port */
+  for(i = 0; i < 0xC000; i++) {
+    stLclAddr.sin_port = htons(0x4000 + i);
+    if(bind(data_sock, (struct sockaddr *) &stLclAddr, sizeof(stLclAddr)) >= 0) break;
+  }
+  port = 0x4000 + i;
+
+  if(listen(data_sock, 1) < 0) return(0);
+
+  i = ntohl(stLclAddr.sin_addr.s_addr);
+  sprintf(ftp_request, "PORT %d,%d,%d,%d,%d,%d\r\n",
+	    (i >> 24) & 0xFF, (i >> 16) & 0xFF,
+	    (i >> 8) & 0xFF, i & 0xFF,
+	    (port >> 8) & 0xFF, port & 0xFF);
+  send(tcp_sock, ftp_request, strlen(ftp_request), 0);
+  if(ftp_get_reply(tcp_sock) != 200) return(0);
+
+  sprintf(ftp_request, "RETR %s\r\n", file);
+  send(tcp_sock, ftp_request, strlen(ftp_request), 0);
+  if(ftp_get_reply(tcp_sock) != 150) return(0);
+
+  return(accept(data_sock, NULL, NULL));
+}
+#endif
+#endif
+
+#ifdef VCD_SUPPORT
+int vcd_read(int fd, int lba, unsigned char *buf)
+{
+    struct cdrom_msf *msf;
+    int    rc;
+
+    msf = (struct cdrom_msf*) buf;
+    msf->cdmsf_min0   = (lba + CD_MSF_OFFSET) / CD_FRAMES / CD_SECS; 
+    msf->cdmsf_sec0   = (lba + CD_MSF_OFFSET) / CD_FRAMES % CD_SECS;
+    msf->cdmsf_frame0 = (lba + CD_MSF_OFFSET) % CD_FRAMES;
+    return(ioctl(fd, CDROMREADMODE2, buf));
+}
+
+int vcd_open(char * arg)
+{
+  struct stat buf;
+  struct cdrom_tocentry toc;
+  int pipe_fd[2];
+  int fd;
+  int pid, parent;
+  unsigned char * buffer;
+  
+
+  if(stat(arg, &buf)) return(0);
+  if(!S_ISBLK(buf.st_mode)) return(0);
+
+  if((fd = open(arg,O_RDONLY)) < 0) return(0);
+
+  /* Track 02 contains MPEG data */
+  toc.cdte_track  = 2; 
+  toc.cdte_format = CDROM_LBA;
+  if(ioctl(fd, CDROMREADTOCENTRY, &toc) < 0) return(0);
+
+  if(pipe(pipe_fd) < 0) return(0);
+
+  parent = getpid();
+  pid = fork();
+
+  if(pid < 0) return(0);
+
+  if(!pid)
+  {
+    /* Child process fills the pipe */
+    int pos;
+    struct timeval timeout;
+    fd_set fdset;
+
+    buffer = (unsigned char *) malloc(CD_FRAMESIZE_RAW0);
+
+    for(pos = toc.cdte_addr.lba; vcd_read(fd, pos, buffer) >= 0; pos ++)
+    {
+      if(kill(parent, 0) < 0) break;
+
+      FD_ZERO(&fdset);
+      FD_SET(pipe_fd[1], &fdset);
+      timeout.tv_sec = 10;
+      timeout.tv_usec = 0;
+      if(select(pipe_fd[1]+1, NULL, &fdset, NULL, &timeout) <= 0) break;
+      if(write(pipe_fd[1], buffer, CD_FRAMESIZE_RAW0) < 0) break;
+    }
+
+    free(buffer);
+    exit(0);
+  }
+  
+  return(pipe_fd[0]);
+}
 #endif
 
 void update(SDL_Surface *screen, Sint32 x, Sint32 y, Uint32 w, Uint32 h)
@@ -94,6 +451,7 @@ int main(int argc, char *argv[])
     char *basefile;
     SDL_version sdlver;
     SMPEG_version smpegver;
+    int fd;
 
     /* Get the command line options */
     use_audio = 1;
@@ -106,6 +464,7 @@ int main(int argc, char *argv[])
     volume = 100;
     seek = 0;
     skip = 0;
+    fd = 0;
     for ( i=1; argv[i] && (argv[i][0] == '-') && (argv[i][1] != 0); ++i ) {
         if ( (strcmp(argv[i], "--noaudio") == 0) ||
              (strcmp(argv[i], "--nosound") == 0) ) {
@@ -206,71 +565,29 @@ int main(int argc, char *argv[])
 	
         /* Create the MPEG stream */
 #ifdef NET_SUPPORT
-        /* Check if source is a file or an ip address */
-        if((access(argv[i], F_OK) < 0) && (strchr(argv[i], ':') != NULL))
-	{
-	  char * address;
-	  int port;
-	  int enable = 1L;
-	  struct sockaddr_in stAddr;
-	  struct sockaddr_in stLclAddr;
-	  struct ip_mreq stMreq;
-	  int sock;
-
-	  /* Source is an ip adress */
-	  port = atoi(strchr(argv[i], ':') + sizeof(char));
-	  *strchr(argv[i], ':') = '\0';
-	  address = argv[i];
-	  
-	  printf("Connecting to %s port %d...\n", address, port);
-	  
-          stAddr.sin_family = AF_INET; 
-	  stAddr.sin_addr.s_addr = inet_addr(address); 
-	  stAddr.sin_port = htons(port);
-
-	  /* Open socket */
-	  sock = socket(AF_INET, SOCK_DGRAM, 0);
-	  if (sock <= 0)
-	    fprintf(stderr, "socket() failed\n");
-	    
-	  /* Allow multiple instance of the client to share */
-	  /* the same address and port */
- 	  if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
-		        (char *) &enable, sizeof(unsigned long int)) < 0)
-	    fprintf(stderr, "setsockopt() SO_REUSEADDR failed, %s\n",
-		    strerror(errno));
-
-	  /* Do protocol specific initialization */
-	  /* If the address is multicast, register to the multicast group */
-	  if(is_address_multicast(stAddr.sin_addr.s_addr))
-	  {
-	    /* Bind the socket to port */
-	    stLclAddr.sin_family      = AF_INET;
-	    stLclAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	    stLclAddr.sin_port        = stAddr.sin_port;
-      
-	    if(bind(sock, (struct sockaddr*) & stLclAddr,
-		    sizeof(stLclAddr)) < 0)
-	    fprintf(stderr, "bind() failed, %s\n", strerror(errno));
-      
-	    /* Register to a multicast address */
-	    stMreq.imr_multiaddr.s_addr = stAddr.sin_addr.s_addr;
-	    stMreq.imr_interface.s_addr = INADDR_ANY;
-      
-	    if(setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-		 	  (char *) & stMreq, sizeof(stMreq)) < 0)
-	      fprintf(stderr, "setsockopt() IP_ADD_MEMBERSHIP failed\n");
-	  }
-	  else
-	  {
-	    /* Bind the socket to port */
-	    if(bind(sock, (struct sockaddr *) & stAddr, sizeof(stAddr)) < 0)
-	      fprintf(stderr, "bind() failed, %s\n", strerror(errno));
-	  }
-
-	  /* Connected, now the socket is just like a regular file */
-	  mpeg = SMPEG_new_descr(sock, &info, use_audio);
-	}
+#ifdef RAW_SUPPORT
+        /* Check if source is an IP address and port*/
+        if((fd = raw_open(argv[i])) != 0)
+	  mpeg = SMPEG_new_descr(fd, &info, use_audio);
+	else
+#endif
+#ifdef HTTP_SUPPORT
+        /* Check if source is an http URL */
+        if((fd = http_open(argv[i])) != 0)
+	  mpeg = SMPEG_new_descr(fd, &info, use_audio);
+	else
+#endif
+#ifdef FTP_SUPPORT
+        /* Check if source is an http URL */
+        if((fd = ftp_open(argv[i])) != 0)
+	  mpeg = SMPEG_new_descr(fd, &info, use_audio);
+	else
+#endif
+#endif
+#ifdef VCD_SUPPORT
+	/* Check if source is a CDROM device */
+	if((fd = vcd_open(argv[i])) != 0)
+	  mpeg = SMPEG_new_descr(fd, &info, use_audio);
 	else
 #endif
 	{
@@ -486,6 +803,8 @@ int main(int argc, char *argv[])
         SMPEG_delete(mpeg);
     }
     SDL_Quit();
+
+    if(fd) close(fd);
 
     exit(0);
 }
