@@ -8,7 +8,7 @@ Name:      smpeg
 Version:   %ver
 Release:   %rel
 Copyright: LGPL
-Group:     Libraries
+Group:     System Environment/Libraries
 Source0:   @PACKAGE@-%{PACKAGE_VERSION}.tar.gz
 URL:       http://www.lokigames.com/development/smpeg.php3
 BuildRoot: /tmp/@PACKAGE@-%{PACKAGE_VERSION}-root
@@ -21,9 +21,24 @@ and SPLAY, an mpeg audio decoder created by Woo-jae Jung. We have
 completed the initial work to wed these two projects in order to 
 create a general purpose MPEG video/audio player for the Linux OS. 
 
-%prep
+%package devel
+Summary: Libraries, includes and more to develop SMPEG applications.
+Group: Development/Libraries
+Requires: %{name}
 
-%setup
+%description devel
+SMPEG is based on UC Berkeley's mpeg_play software MPEG decoder
+and SPLAY, an mpeg audio decoder created by Woo-jae Jung. We have
+completed the initial work to wed these two projects in order to 
+create a general purpose MPEG video/audio player for the Linux OS. 
+
+This is the libraries, include files and other resources you can use
+to develop SMPEG applications.
+
+%prep
+rm -rf ${RPM_BUILD_ROOT}
+
+%setup -q
 
 %build
 # Needed for snapshot releases.
@@ -57,10 +72,17 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-, root, root)
 %doc CHANGES COPYING README
-%{prefix}/include/*
-%{prefix}/lib/*
+%{prefix}/lib/lib*.so.*
 %{prefix}/bin/*
 %{prefix}/man/*
 
-%changelog
+%files devel
+%defattr(-, root, root)
+%doc CHANGES COPYING README
+%{prefix}/include/*
+%{prefix}/lib/lib*.a
+%{prefix}/lib/lib*.so
 
+%changelog
+* Fri Mar  3 2000 Sam Lantinga <hercules@lokigames.com>
+- Split package into development and runtime packages
