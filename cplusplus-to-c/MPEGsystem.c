@@ -404,13 +404,11 @@ Uint32 skip_zeros(Uint8 * pointer, Uint32 size)
 
 #undef _THIS
 #define _THIS MPEGsystem *self
-#undef METH
-#define METH(m) MPEGsystem_##m
 
 
 
 MPEGsystem *
-METH(init) (_THIS)
+MPEGsystem_init (_THIS)
 {
   MAKE_OBJECT(MPEGsystem);
 
@@ -419,7 +417,7 @@ METH(init) (_THIS)
 }
 
 MPEGsystem *
-METH(init_mpeg_source) (_THIS, SDL_RWops *mpeg_source)
+MPEGsystem_init_mpeg_source (_THIS, SDL_RWops *mpeg_source)
 {
 //    MPEGsystem *self = MPEGsystem_init(NULL);
     int tries = 0;
@@ -502,7 +500,7 @@ METH(init_mpeg_source) (_THIS, SDL_RWops *mpeg_source)
 }
 
 void
-METH(destroy) (_THIS)
+MPEGsystem_destroy (_THIS)
 {
     MPEGstream ** list;
 
@@ -535,13 +533,13 @@ METH(destroy) (_THIS)
 }
 
 MPEGstream **
-METH(GetStreamList) (_THIS)
+MPEGsystem_GetStreamList (_THIS)
 {
     return(self->stream_list);
 }
 
 void
-METH(Read) (_THIS)
+MPEGsystem_Read (_THIS)
 {
     int remaining;
     int timeout;
@@ -642,7 +640,7 @@ METH(Read) (_THIS)
 /* ASSUME: stream_list[0] = system stream */
 /*         packet length < MPEG_BUFFER_SIZE */
 Uint8
-METH(FillBuffer) (_THIS)
+MPEGsystem_FillBuffer (_THIS)
 {
     Uint8 stream_id;
     Uint32 packet_size;
@@ -953,7 +951,7 @@ METH(FillBuffer) (_THIS)
 }
 
 void
-METH(Skip) (_THIS, double time)
+MPEGsystem_Skip (_THIS, double time)
 {
     if (self->skip_timestamp < self->timestamp)
 	self->skip_timestamp = self->timestamp;
@@ -961,7 +959,7 @@ METH(Skip) (_THIS, double time)
 }
  
 Uint32
-METH(Tell) (_THIS)
+MPEGsystem_Tell (_THIS)
 {
     register Uint32 t;
     register int i;
@@ -977,7 +975,7 @@ METH(Tell) (_THIS)
 }
 
 Uint32
-METH(TotalSize) (_THIS)
+MPEGsystem_TotalSize (_THIS)
 {
     off_t size;
     off_t pos;
@@ -1025,7 +1023,7 @@ METH(TotalSize) (_THIS)
 }
 
 double
-METH(TotalTime) (_THIS)
+MPEGsystem_TotalTime (_THIS)
 {
     off_t size, pos;
     off_t file_ptr;
@@ -1167,7 +1165,7 @@ METH(TotalTime) (_THIS)
 }
 
 double
-METH(TimeElapsedAudio) (_THIS, int atByte)
+MPEGsystem_TimeElapsedAudio (_THIS, int atByte)
 {
     off_t size, pos;
     off_t file_ptr;
@@ -1264,13 +1262,13 @@ METH(TimeElapsedAudio) (_THIS, int atByte)
 }
 
 void
-METH(Rewind) (_THIS)
+MPEGsystem_Rewind (_THIS)
 {
     MPEGsystem_Seek(self, 0);
 }
 
 bool
-METH(Seek) (_THIS, int length)
+MPEGsystem_Seek (_THIS, int length)
 {
     /* Stop the system thread */
     MPEGsystem_Stop(self);
@@ -1310,13 +1308,13 @@ METH(Seek) (_THIS, int length)
 }
 
 void
-METH(RequestBuffer) (_THIS)
+MPEGsystem_RequestBuffer (_THIS)
 {
     SDL_SemPost(self->request_wait);
 }
 
 void
-METH(Start) (_THIS)
+MPEGsystem_Start (_THIS)
 {
     if(self->system_thread_running) return;
 
@@ -1343,7 +1341,7 @@ METH(Start) (_THIS)
 }
 
 void
-METH(Stop) (_THIS)
+MPEGsystem_Stop (_THIS)
 {
     if(!self->system_thread_running) return;
 
@@ -1359,7 +1357,7 @@ METH(Stop) (_THIS)
 }
 
 bool
-METH(Wait) (_THIS)
+MPEGsystem_Wait (_THIS)
 {
 #ifdef USE_SYSTEM_THREAD
     if ( ! self->errorstream ) {
@@ -1374,13 +1372,13 @@ METH(Wait) (_THIS)
 }
 
 bool
-METH(Eof) (_THIS) //const
+MPEGsystem_Eof (_THIS) //const
 {
     return(self->errorstream || self->endofstream);
 }
 
 bool
-METH(SystemLoop) (MPEGsystem *system)
+MPEGsystem_SystemLoop (MPEGsystem *system)
 {
     /* Check for end of file */
     if(MPEGsystem_Eof(system))
@@ -1426,7 +1424,7 @@ METH(SystemLoop) (MPEGsystem *system)
 }
 
 int
-METH(SystemThread) (void * udata)
+MPEGsystem_SystemThread (void * udata)
 {
     MPEGsystem * system = (MPEGsystem *) udata;
 
@@ -1442,7 +1440,7 @@ METH(SystemThread) (void * udata)
 }
 
 void
-METH(add_stream) (_THIS, MPEGstream * stream)
+MPEGsystem_add_stream (_THIS, MPEGstream * stream)
 {
     register int i;
 
@@ -1461,7 +1459,7 @@ METH(add_stream) (_THIS, MPEGstream * stream)
 }
 
 MPEGstream *
-METH(get_stream) (_THIS, Uint8 stream_id)
+MPEGsystem_get_stream (_THIS, Uint8 stream_id)
 {
     register int i;
 
@@ -1473,7 +1471,7 @@ METH(get_stream) (_THIS, Uint8 stream_id)
 }
 
 Uint8
-METH(exist_stream) (_THIS, Uint8 stream_id, Uint8 mask)
+MPEGsystem_exist_stream (_THIS, Uint8 stream_id, Uint8 mask)
 {
     register int i;
 
@@ -1485,7 +1483,7 @@ METH(exist_stream) (_THIS, Uint8 stream_id, Uint8 mask)
 }
 
 void
-METH(reset_all_streams) (_THIS)
+MPEGsystem_reset_all_streams (_THIS)
 {
     register int i;
 
@@ -1496,7 +1494,7 @@ METH(reset_all_streams) (_THIS)
 }
 
 void
-METH(end_all_streams) (_THIS)
+MPEGsystem_end_all_streams (_THIS)
 {
     register int i;
 
@@ -1508,7 +1506,7 @@ METH(end_all_streams) (_THIS)
 }
 
 bool
-METH(seek_first_header) (_THIS)
+MPEGsystem_seek_first_header (_THIS)
 {
     MPEGsystem_Read(self);
 
@@ -1531,7 +1529,7 @@ METH(seek_first_header) (_THIS)
 }
 
 bool
-METH(seek_next_header) (_THIS)
+MPEGsystem_seek_next_header (_THIS)
 {
     MPEGsystem_Read(self);
 

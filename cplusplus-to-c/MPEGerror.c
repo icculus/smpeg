@@ -67,23 +67,21 @@ protected:
 /* Error methods. */
 #undef _THIS
 #define _THIS MPEGerror *self
-#undef METH
-#define METH(method) MPEGerror_##method
 
 
-MPEGerror * METH(init) (_THIS)
+MPEGerror * MPEGerror_init (_THIS)
 {
   MAKE_OBJECT(MPEGerror);
   MPEGerror_ClearError(self);
   return self;
 }
 
-void METH(destroy) (_THIS)
+void MPEGerror_destroy (_THIS)
 {
   return;
 }
 
-void METH(SetError) (_THIS, char *fmt, ...)
+void MPEGerror_SetError (_THIS, char *fmt, ...)
 {
   va_list ap;
 
@@ -93,17 +91,17 @@ void METH(SetError) (_THIS, char *fmt, ...)
   self->error = self->errbuf;
 }
 
-bool METH(WasError) (_THIS)
+bool MPEGerror_WasError (_THIS)
 {
   return (self->error != NULL);
 }
 
-char *METH(TheError) (_THIS)
+char *MPEGerror_TheError (_THIS)
 {
   return (self->error);
 }
 
-void METH(ClearError) (_THIS)
+void MPEGerror_ClearError (_THIS)
 {
   self->error = NULL;
 }

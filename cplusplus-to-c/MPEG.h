@@ -84,55 +84,53 @@ typedef struct MPEG MPEG;
 
 #undef _THIS
 #define _THIS MPEG *self
-#undef METH
-#define METH(m) MPEG_##m
 
-void METH(parse_stream_list) (_THIS);
-bool METH(seekIntoStream) (_THIS, int position);
+void MPEG_parse_stream_list (_THIS);
+bool MPEG_seekIntoStream (_THIS, int position);
 
-MPEG * METH(init) (_THIS);
-MPEG * METH(init_name) (_THIS, const char *path, bool SDLaudio);
-MPEG * METH(init_descr) (_THIS, int Mpeg_FD, bool SDLaudio);
-MPEG * METH(init_data) (_THIS, void *data, int size, bool SDLaudio);
-MPEG * METH(init_rwops) (_THIS, SDL_RWops *mpeg_source, bool SDLaudio);
-void METH(destroy) (_THIS);
+MPEG * MPEG_init (_THIS);
+MPEG * MPEG_init_name (_THIS, const char *path, bool SDLaudio);
+MPEG * MPEG_init_descr (_THIS, int Mpeg_FD, bool SDLaudio);
+MPEG * MPEG_init_data (_THIS, void *data, int size, bool SDLaudio);
+MPEG * MPEG_init_rwops (_THIS, SDL_RWops *mpeg_source, bool SDLaudio);
+void MPEG_destroy (_THIS);
 
-void METH(Init) (_THIS, SDL_RWops *mpeg_source, bool SDLaudio);
-void METH(InitErrorState) (_THIS);
+void MPEG_Init (_THIS, SDL_RWops *mpeg_source, bool SDLaudio);
+void MPEG_InitErrorState (_THIS);
 
-bool METH(AudioEnabled) (_THIS);
-void METH(EnableAudio) (_THIS, bool enabled);
-bool METH(VideoEnabled) (_THIS);
-void METH(EnableVideo) (_THIS, bool enabled);
+bool MPEG_AudioEnabled (_THIS);
+void MPEG_EnableAudio (_THIS, bool enabled);
+bool MPEG_VideoEnabled (_THIS);
+void MPEG_EnableVideo (_THIS, bool enabled);
 
 /* Dethreaded video. */
-void METH(run) (_THIS);
-int METH(frametime) (_THIS);
+void MPEG_run (_THIS);
+int MPEG_frametime (_THIS);
 
-void METH(Loop) (_THIS, bool toggle);
-void METH(Play) (_THIS);
-void METH(Stop) (_THIS);
-void METH(Rewind) (_THIS);
-void METH(Pause) (_THIS);
+void MPEG_Loop (_THIS, bool toggle);
+void MPEG_Play (_THIS);
+void MPEG_Stop (_THIS);
+void MPEG_Rewind (_THIS);
+void MPEG_Pause (_THIS);
 
-void METH(Skip) (_THIS, float seconds);
-void METH(Seek) (_THIS, int bytes);
-MPEGstatus METH(GetStatus) (_THIS);
-void METH(GetSystemInfo) (_THIS, MPEG_SystemInfo *info);
+void MPEG_Skip (_THIS, float seconds);
+void MPEG_Seek (_THIS, int bytes);
+MPEGstatus MPEG_GetStatus (_THIS);
+void MPEG_GetSystemInfo (_THIS, MPEG_SystemInfo *info);
 
-bool METH(GetAudioInfo) (_THIS, MPEG_AudioInfo *info);
-void METH(Volume) (_THIS, int vol);
-bool METH(WantedSpec) (_THIS, SDL_AudioSpec *wanted);
-void METH(ActualSpec) (_THIS, const SDL_AudioSpec *actual);
-MPEGaudio * METH(GetAudio) (_THIS);
+bool MPEG_GetAudioInfo (_THIS, MPEG_AudioInfo *info);
+void MPEG_Volume (_THIS, int vol);
+bool MPEG_WantedSpec (_THIS, SDL_AudioSpec *wanted);
+void MPEG_ActualSpec (_THIS, const SDL_AudioSpec *actual);
+MPEGaudio * MPEG_GetAudio (_THIS);
 
-bool METH(GetVideoInfo) (_THIS, MPEG_VideoInfo *info);
-bool METH(SetDisplay) (_THIS, SDL_Surface *dst, SDL_mutex *lock, MPEG_DisplayCallback callback);
-void METH(MoveDisplay) (_THIS, int x, int y);
-void METH(ScaleDisplayXY) (_THIS, int w, int h);
-void METH(SetDisplayRegion) (_THIS, int x, int y, int w, int h);
-void METH(RenderFrame) (_THIS, int frame);
-void METH(RenderFinal) (_THIS, SDL_Surface *dst, int x, int y);
-SMPEG_Filter * METH(Filter) (_THIS, SMPEG_Filter * filter);
+bool MPEG_GetVideoInfo (_THIS, MPEG_VideoInfo *info);
+bool MPEG_SetDisplay (_THIS, SDL_Surface *dst, SDL_mutex *lock, MPEG_DisplayCallback callback);
+void MPEG_MoveDisplay (_THIS, int x, int y);
+void MPEG_ScaleDisplayXY (_THIS, int w, int h);
+void MPEG_SetDisplayRegion (_THIS, int x, int y, int w, int h);
+void MPEG_RenderFrame (_THIS, int frame);
+void MPEG_RenderFinal (_THIS, SDL_Surface *dst, int x, int y);
+SMPEG_Filter * MPEG_Filter (_THIS, SMPEG_Filter * filter);
 
 #endif /* _MPEG_H_ */

@@ -112,12 +112,10 @@ static RATIOS rat_1[16],rat_2[2][64];
 
 #undef _THIS
 #define _THIS MPEGaudio *self
-#undef METH
-#define METH(m) MPEGaudio_##m
 
 
 void
-METH(layer3initialize) (_THIS)
+MPEGaudio_layer3initialize (_THIS)
 {
   static bool initializedlayer3=false;
   register int i;
@@ -246,7 +244,7 @@ printf( "B\n" );
 }
 
 bool
-METH(layer3getsideinfo) (_THIS)
+MPEGaudio_layer3getsideinfo (_THIS)
 {
   int gr, ch;
 
@@ -323,7 +321,7 @@ METH(layer3getsideinfo) (_THIS)
 }
 
 bool
-METH(layer3getsideinfo_2) (_THIS)
+MPEGaudio_layer3getsideinfo_2 (_THIS)
 {
   int ch;
 
@@ -386,7 +384,7 @@ METH(layer3getsideinfo_2) (_THIS)
 }
 
 void
-METH(layer3getscalefactors) (_THIS, int ch,int gr)
+MPEGaudio_layer3getscalefactors (_THIS, int ch,int gr)
 {
   static int slen[2][16]={{0, 0, 0, 0, 3, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4},
 			  {0, 1, 2, 3, 0, 1, 2, 3, 1, 2, 3, 1, 2, 3, 2, 3}};
@@ -512,7 +510,7 @@ METH(layer3getscalefactors) (_THIS, int ch,int gr)
 }
 
 void
-METH(layer3getscalefactors_2) (_THIS, int ch)
+MPEGaudio_layer3getscalefactors_2 (_THIS, int ch)
 {
   static int sfbblockindex[6][3][4]=
   {
@@ -653,7 +651,7 @@ typedef unsigned int HUFFBITS;
 /* note! for counta,countb -the 4 bit value is returned in y, discard x */
 // Huffman decoder for tablename<32
 void
-METH(huffmandecoder_1) (_THIS, const HUFFMANCODETABLE *h,int *x,int *y)
+MPEGaudio_huffmandecoder_1 (_THIS, const HUFFMANCODETABLE *h,int *x,int *y)
 {  
   HUFFBITS level=(1<<(sizeof(HUFFBITS)*8-1));
   int point=0;
@@ -708,7 +706,7 @@ METH(huffmandecoder_1) (_THIS, const HUFFMANCODETABLE *h,int *x,int *y)
 
 // Huffman decoder tablenumber>=32
 void
-METH(huffmandecoder_2) (_THIS, const HUFFMANCODETABLE *h, int *x,int *y,int *v,int *w)
+MPEGaudio_huffmandecoder_2 (_THIS, const HUFFMANCODETABLE *h, int *x,int *y,int *v,int *w)
 {  
   HUFFBITS level=(1<<(sizeof(HUFFBITS)*8-1));
   int point=0;
@@ -766,7 +764,7 @@ static SFBANDINDEX sfBandIndextable[2][3]=
 
 
 void 
-METH(layer3huffmandecode) (_THIS, int ch,int gr,int out[SBLIMIT][SSLIMIT])
+MPEGaudio_layer3huffmandecode (_THIS, int ch,int gr,int out[SBLIMIT][SSLIMIT])
 {
   layer3grinfo *gi=&(self->sideinfo.ch[ch].gr[gr]);
   int part2_3_end=self->layer3part2start+(gi->part2_3_length);
@@ -811,7 +809,7 @@ METH(layer3huffmandecode) (_THIS, int ch,int gr,int out[SBLIMIT][SSLIMIT])
     if(h->treelen)
       while(i<end)
       {
-	METH(huffmandecoder_1)(self, h,&out[0][i],&out[0][i+1]);
+	MPEGaudio_huffmandecoder_1(self, h,&out[0][i],&out[0][i+1]);
 	i+=2;
       }
     else
@@ -824,7 +822,7 @@ METH(layer3huffmandecode) (_THIS, int ch,int gr,int out[SBLIMIT][SSLIMIT])
   const HUFFMANCODETABLE *h=&MPEGaudio_ht[gi->count1table_select+32];
   while(Mpegbitwindow_gettotalbit(&(self->bitwindow))<part2_3_end)
   {
-    METH(huffmandecoder_2)(self, h,&out[0][i+2],&out[0][i+3],
+    MPEGaudio_huffmandecoder_2(self, h,&out[0][i+2],&out[0][i+3],
 		     &out[0][i  ],&out[0][i+1]);
     i+=4;
 
@@ -843,7 +841,7 @@ METH(layer3huffmandecode) (_THIS, int ch,int gr,int out[SBLIMIT][SSLIMIT])
 static int pretab[22]={0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,2,2,3,3,3,2,0};
 
 REAL
-METH(layer3twopow2) (_THIS, int scale,int preflag, int pretab_offset,int l)
+MPEGaudio_layer3twopow2 (_THIS, int scale,int preflag, int pretab_offset,int l)
 {
   int index=l;
   
@@ -852,13 +850,13 @@ METH(layer3twopow2) (_THIS, int scale,int preflag, int pretab_offset,int l)
 }
 
 REAL
-METH(layer3twopow2_1) (_THIS, int a,int b,int c)
+MPEGaudio_layer3twopow2_1 (_THIS, int a,int b,int c)
 {
   return POW2_1[a][b][c];
 }
 
 void 
-METH(layer3dequantizesample) (_THIS, int ch,int gr,
+MPEGaudio_layer3dequantizesample (_THIS, int ch,int gr,
 			       int   in[SBLIMIT][SSLIMIT],
 			       REAL out[SBLIMIT][SSLIMIT])
 {
@@ -881,7 +879,7 @@ METH(layer3dequantizesample) (_THIS, int ch,int gr,
     {
       next_cb_boundary=sfBandIndex->l[(++cb)+1];
       factor=globalgain*
-	     METH(layer3twopow2)(self, gi->scalefac_scale,gi->preflag,
+	     MPEGaudio_layer3twopow2(self, gi->scalefac_scale,gi->preflag,
 			   pretab[cb],self->scalefactors[ch].l[cb]);
       for(;index<next_cb_boundary;)
       {
@@ -905,7 +903,7 @@ METH(layer3dequantizesample) (_THIS, int ch,int gr,
 	register int count=cb_width;
 
 	factor=globalgain*
-	       METH(layer3twopow2_1)(self, gi->subblock_gain[k],gi->scalefac_scale,
+	       MPEGaudio_layer3twopow2_1(self, gi->subblock_gain[k],gi->scalefac_scale,
 			       self->scalefactors[ch].s[k][cb]);
 	do{
 	  out[0][index]=factor*TO_FOUR_THIRDS[in[0][index]];index++;
@@ -967,7 +965,7 @@ METH(layer3dequantizesample) (_THIS, int ch,int gr,
 	}
       }
       /* LONG block types 0,1,3 & 1st 2 subbands of switched blocks */
-      out[0][index]*=METH(layer3twopow2)(self, gi->scalefac_scale,gi->preflag,
+      out[0][index]*=MPEGaudio_layer3twopow2(self, gi->scalefac_scale,gi->preflag,
 				   pretab[cb],self->scalefactors[ch].l[cb]);
     }
 
@@ -997,7 +995,7 @@ METH(layer3dequantizesample) (_THIS, int ch,int gr,
       }
       {
 	int t_index=(index-cb_begin)/cb_width;
-	out[0][index]*=METH(layer3twopow2_1)(self, gi->subblock_gain[t_index],
+	out[0][index]*=MPEGaudio_layer3twopow2_1(self, gi->subblock_gain[t_index],
 				       gi->scalefac_scale,
 				       self->scalefactors[ch].s[t_index][cb]);
       }
@@ -1006,7 +1004,7 @@ METH(layer3dequantizesample) (_THIS, int ch,int gr,
 }
 
 void
-METH(layer3fixtostereo) (_THIS, int gr,REAL in[2][SBLIMIT][SSLIMIT])
+MPEGaudio_layer3fixtostereo (_THIS, int gr,REAL in[2][SBLIMIT][SSLIMIT])
 {
   layer3grinfo *gi=&(self->sideinfo.ch[0].gr[gr]);
   SFBANDINDEX *sfBandIndex=&(sfBandIndextable[self->version][self->frequency]);
@@ -1305,7 +1303,7 @@ METH(layer3fixtostereo) (_THIS, int gr,REAL in[2][SBLIMIT][SSLIMIT])
 }
 
 inline void
-METH(layer3reorder_1) (_THIS, int version,int frequency,
+MPEGaudio_layer3reorder_1 (_THIS, int version,int frequency,
 			    REAL  in[SBLIMIT][SSLIMIT],
 			    REAL out[SBLIMIT][SSLIMIT])
 {
@@ -1348,7 +1346,7 @@ METH(layer3reorder_1) (_THIS, int version,int frequency,
 }
 
 inline void
-METH(layer3reorder_2) (_THIS, int version,int frequency,
+MPEGaudio_layer3reorder_2 (_THIS, int version,int frequency,
 			    REAL  in[SBLIMIT][SSLIMIT],
 			    REAL out[SBLIMIT][SSLIMIT])
 {
@@ -1377,7 +1375,7 @@ METH(layer3reorder_2) (_THIS, int version,int frequency,
 
 
 inline void
-METH(layer3antialias_1) (_THIS, REAL  in[SBLIMIT][SSLIMIT])
+MPEGaudio_layer3antialias_1 (_THIS, REAL  in[SBLIMIT][SSLIMIT])
 {
   int ss;
   for(ss=0;ss<8;ss++)
@@ -1392,7 +1390,7 @@ METH(layer3antialias_1) (_THIS, REAL  in[SBLIMIT][SSLIMIT])
 
 inline
 void
-METH(layer3antialias_2) (_THIS,
+MPEGaudio_layer3antialias_2 (_THIS,
 			    REAL  in[SBLIMIT][SSLIMIT],
 			    REAL out[SBLIMIT][SSLIMIT])
 {
@@ -1425,7 +1423,7 @@ METH(layer3antialias_2) (_THIS,
 }
 
 void
-METH(layer3reorderandantialias) (_THIS, int ch,int gr,
+MPEGaudio_layer3reorderandantialias (_THIS, int ch,int gr,
 					  REAL  in[SBLIMIT][SSLIMIT],
 					  REAL out[SBLIMIT][SSLIMIT])
 {
@@ -1436,14 +1434,14 @@ METH(layer3reorderandantialias) (_THIS, int ch,int gr,
     if(gi->mixed_block_flag)
     {
       fprintf(stderr,"Notchecked!");
-      METH(layer3reorder_1)  (self, self->version,self->frequency,in,out);    // Not checked...
-      METH(layer3antialias_1)(self, out);
+      MPEGaudio_layer3reorder_1  (self, self->version,self->frequency,in,out);    // Not checked...
+      MPEGaudio_layer3antialias_1(self, out);
     }
     else
-      METH(layer3reorder_2)(self, self->version,self->frequency,in,out);
+      MPEGaudio_layer3reorder_2(self, self->version,self->frequency,in,out);
   }
   else
-    METH(layer3antialias_2)(self, in,out);
+    MPEGaudio_layer3antialias_2(self, in,out);
 }
 
 static void dct36(REAL *inbuf,REAL *prevblk1,REAL *prevblk2,REAL *wi,REAL *out)
@@ -1675,7 +1673,7 @@ static void dct12(REAL *in,REAL *prevblk1,REAL *prevblk2,register REAL *wi,regis
 }
 
 void 
-METH(layer3hybrid) (_THIS, int ch,int gr,REAL in[SBLIMIT][SSLIMIT],
+MPEGaudio_layer3hybrid (_THIS, int ch,int gr,REAL in[SBLIMIT][SSLIMIT],
 			                   REAL out[SSLIMIT][SBLIMIT])
 {
   layer3grinfo *gi=&(self->sideinfo.ch[ch].gr[gr]);
@@ -1734,7 +1732,7 @@ METH(layer3hybrid) (_THIS, int ch,int gr,REAL in[SBLIMIT][SSLIMIT],
 #define NEG(a)  (a)=-(a)
 
 void
-METH(extractlayer3) (_THIS)
+MPEGaudio_extractlayer3 (_THIS)
 {
   int gr;
   int ss;
@@ -1752,7 +1750,7 @@ METH(extractlayer3) (_THIS)
 
   if(self->version)
   {
-    METH(extractlayer3_2)(self);
+    MPEGaudio_extractlayer3_2(self);
     return;
   }
 
@@ -1761,9 +1759,9 @@ METH(extractlayer3) (_THIS)
     int bytes_to_discard;
     register int i;
 
-    METH(layer3getsideinfo)(self);
+    MPEGaudio_layer3getsideinfo(self);
 	 
-    if(METH(issync)(self))
+    if(MPEGaudio_issync(self))
     {
       for(i=self->layer3slots;i>0;i--)  // read main data.
 	Mpegbitwindow_putbyte(&(self->bitwindow), getbyte());
@@ -1804,26 +1802,26 @@ METH(extractlayer3) (_THIS)
   for(gr=0;gr<2;gr++)
   {
       self->layer3part2start=Mpegbitwindow_gettotalbit(&(self->bitwindow));
-      METH(layer3getscalefactors) (self, LS,gr);
-      METH(layer3huffmandecode)   (self, LS,gr      ,b1.is);
-      METH(layer3dequantizesample)(self, LS,gr,b1.is,b2.ro[LS]);
+      MPEGaudio_layer3getscalefactors (self, LS,gr);
+      MPEGaudio_layer3huffmandecode   (self, LS,gr      ,b1.is);
+      MPEGaudio_layer3dequantizesample(self, LS,gr,b1.is,b2.ro[LS]);
     if(self->inputstereo)
     {
       self->layer3part2start=Mpegbitwindow_gettotalbit(&(self->bitwindow));
-      METH(layer3getscalefactors) (self, RS,gr);
-      METH(layer3huffmandecode)   (self, RS,gr      ,b1.is);
-      METH(layer3dequantizesample)(self, RS,gr,b1.is,b2.ro[RS]);
+      MPEGaudio_layer3getscalefactors (self, RS,gr);
+      MPEGaudio_layer3huffmandecode   (self, RS,gr      ,b1.is);
+      MPEGaudio_layer3dequantizesample(self, RS,gr,b1.is,b2.ro[RS]);
     }
 
-    METH(layer3fixtostereo)(self, gr,b2.ro);   // b2.ro -> b2.lr
+    MPEGaudio_layer3fixtostereo(self, gr,b2.ro);   // b2.ro -> b2.lr
     
     self->currentprevblock^=1;
-      METH(layer3reorderandantialias)(self, LS,gr,b2.lr[LS],b1.hin[LS]);
-      METH(layer3hybrid) (self, LS,gr,b1.hin[LS],b2.hout[LS]);
+      MPEGaudio_layer3reorderandantialias(self, LS,gr,b2.lr[LS],b1.hin[LS]);
+      MPEGaudio_layer3hybrid (self, LS,gr,b1.hin[LS],b2.hout[LS]);
     if(self->outputstereo)
     {
-      METH(layer3reorderandantialias)(self, RS,gr,b2.lr[RS],b1.hin[RS]);
-      METH(layer3hybrid) (self, RS,gr,b1.hin[RS],b2.hout[RS]);
+      MPEGaudio_layer3reorderandantialias(self, RS,gr,b2.lr[RS],b1.hin[RS]);
+      MPEGaudio_layer3hybrid (self, RS,gr,b1.hin[RS],b2.hout[RS]);
 
       register int i=2*SSLIMIT*SBLIMIT-1;
       do{
@@ -1853,12 +1851,12 @@ METH(extractlayer3) (_THIS)
     }
 
     for(ss=0;ss<SSLIMIT;ss++)
-      METH(subbandsynthesis) (self, b2.hout[LS][ss],b2.hout[RS][ss]);
+      MPEGaudio_subbandsynthesis (self, b2.hout[LS][ss],b2.hout[RS][ss]);
   }
 }
 
 void
-METH(extractlayer3_2) (_THIS)
+MPEGaudio_extractlayer3_2 (_THIS)
 {
   int ss;
   {
@@ -1866,9 +1864,9 @@ METH(extractlayer3_2) (_THIS)
     int bytes_to_discard;
     register int i;
 
-    METH(layer3getsideinfo_2)(self);
+    MPEGaudio_layer3getsideinfo_2(self);
 	 
-    if(METH(issync)(self))
+    if(MPEGaudio_issync(self))
     {
       for(i=self->layer3slots;i>0;i--)  // read main data.
 	Mpegbitwindow_putbyte(&(self->bitwindow), getbyte());
@@ -1917,26 +1915,26 @@ METH(extractlayer3_2) (_THIS)
 
 
       self->layer3part2start=Mpegbitwindow_gettotalbit(&(self->bitwindow));
-      METH(layer3getscalefactors_2)(self, LS);
-      METH(layer3huffmandecode)    (self, LS,0      ,b1.is);
-      METH(layer3dequantizesample) (self, LS,0,b1.is,b2.ro[LS]);
+      MPEGaudio_layer3getscalefactors_2(self, LS);
+      MPEGaudio_layer3huffmandecode    (self, LS,0      ,b1.is);
+      MPEGaudio_layer3dequantizesample (self, LS,0,b1.is,b2.ro[LS]);
     if(self->inputstereo)
     {
       self->layer3part2start=Mpegbitwindow_gettotalbit(&(self->bitwindow));
-      METH(layer3getscalefactors_2)(self, RS);
-      METH(layer3huffmandecode)    (self, RS,0      ,b1.is);
-      METH(layer3dequantizesample) (self, RS,0,b1.is,b2.ro[RS]);
+      MPEGaudio_layer3getscalefactors_2(self, RS);
+      MPEGaudio_layer3huffmandecode    (self, RS,0      ,b1.is);
+      MPEGaudio_layer3dequantizesample (self, RS,0,b1.is,b2.ro[RS]);
     }
 
-    METH(layer3fixtostereo)(self, 0,b2.ro);          // b2.ro -> b2.lr
+    MPEGaudio_layer3fixtostereo(self, 0,b2.ro);          // b2.ro -> b2.lr
     
     self->currentprevblock^=1;
-      METH(layer3reorderandantialias)(self, LS,0,b2.lr[LS],b1.hin[LS]);
-      METH(layer3hybrid) (self, LS,0,b1.hin[LS],b2.hout[LS]);
+      MPEGaudio_layer3reorderandantialias(self, LS,0,b2.lr[LS],b1.hin[LS]);
+      MPEGaudio_layer3hybrid (self, LS,0,b1.hin[LS],b2.hout[LS]);
     if(self->outputstereo)
     {
-      METH(layer3reorderandantialias)(self, RS,0,b2.lr[RS],b1.hin[RS]);
-      METH(layer3hybrid) (self, RS,0,b1.hin[RS],b2.hout[RS]);
+      MPEGaudio_layer3reorderandantialias(self, RS,0,b2.lr[RS],b1.hin[RS]);
+      MPEGaudio_layer3hybrid (self, RS,0,b1.hin[RS],b2.hout[RS]);
 
       register int i=2*SSLIMIT*SBLIMIT-1;
       do{
@@ -1958,6 +1956,6 @@ METH(extractlayer3_2) (_THIS)
     }
 
     for(ss=0;ss<SSLIMIT;ss++)
-      METH(subbandsynthesis) (self, b2.hout[LS][ss],b2.hout[RS][ss]);
+      MPEGaudio_subbandsynthesis (self, b2.hout[LS][ss],b2.hout[RS][ss]);
   }
 }

@@ -53,11 +53,9 @@ typedef struct MPEG_ring MPEG_ring;
 
 #undef _THIS
 #define _THIS MPEG_ring* self
-#undef METH
-#define METH(m) MPEG_ring_##m
 
 /* Create a ring with 'count' buffers, each 'size' bytes long */
-MPEG_ring *METH(init) (_THIS, Uint32, Uint32);
+MPEG_ring * MPEG_ring_init (_THIS, Uint32, Uint32);
 
 /* Release any waiting threads on the ring so they can be cleaned up.
    The ring isn't valid after this call, so when threads are done you

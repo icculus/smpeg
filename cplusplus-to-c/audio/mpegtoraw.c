@@ -31,10 +31,6 @@
 
 #undef _THIS
 #define _THIS MPEGaudio *self
-#undef METH
-#define METH(m) MPEGaudio_##m
-#undef PROP
-#define PROP(p) (self->p)
 
 #define hcos_64 MPEGaudio_hcos_64
 #define hcos_32 MPEGaudio_hcos_32
@@ -44,7 +40,7 @@
 
 
 int
-METH(getbits)( _THIS, int bits )
+MPEGaudio_getbits( _THIS, int bits )
 {
     union
     {
@@ -57,17 +53,17 @@ METH(getbits)( _THIS, int bits )
         return 0;
 
     u.current = 0;
-    bi = (PROP(bitindex) & 7);
-    u.store[ _KEY ] = PROP(_buffer[ PROP(bitindex) >> 3 ]) << bi;
+    bi = (self->bitindex & 7);
+    u.store[ _KEY ] = self->_buffer[ self->bitindex >> 3 ] << bi;
     bi = 8 - bi;
-    PROP(bitindex) += bi;
+    self->bitindex += bi;
 
     while( bits )
     {
         if( ! bi )
         {
-            u.store[ _KEY ] = PROP(_buffer[ PROP(bitindex) >> 3 ]);
-            PROP(bitindex) += 8;
+            u.store[ _KEY ] = self->_buffer[ self->bitindex >> 3 ];
+            self->bitindex += 8;
             bi = 8;
         }
 
@@ -84,7 +80,7 @@ METH(getbits)( _THIS, int bits )
             bits = 0;
         }
     }
-    PROP(bitindex) -= bi;
+    self->bitindex -= bi;
 
     return( u.current >> 8 );
 }
@@ -93,7 +89,7 @@ METH(getbits)( _THIS, int bits )
 // Convert mpeg to raw
 // Mpeg headder class
 void
-METH(initialize) (_THIS)
+MPEGaudio_initialize (_THIS)
 {
   static bool initialized = false;
 
@@ -101,24 +97,24 @@ METH(initialize) (_THIS)
   register REAL *s1,*s2;
   REAL *s3,*s4;
 
-  PROP(last_speed) = 0;
-  PROP(stereo) = true;
-  PROP(forcetomonoflag) = false;
-  PROP(forcetostereoflag) = false;
-  PROP(downfrequency) = 0;
+  self->last_speed = 0;
+  self->stereo = true;
+  self->forcetomonoflag = false;
+  self->forcetostereoflag = false;
+  self->downfrequency = 0;
 
-  PROP(scalefactor)=SCALE;
-  PROP(calcbufferoffset)=15;
-  PROP(currentcalcbuffer)=0;
+  self->scalefactor=SCALE;
+  self->calcbufferoffset=15;
+  self->currentcalcbuffer=0;
 
-  s1 = PROP(calcbufferL[0]);
-  s2 = PROP(calcbufferR[0]);
-  s3 = PROP(calcbufferL[1]);
-  s4 = PROP(calcbufferR[1]);
+  s1 = self->calcbufferL[0];
+  s2 = self->calcbufferR[0];
+  s3 = self->calcbufferL[1];
+  s4 = self->calcbufferR[1];
   for(i=CALCBUFFERSIZE-1;i>=0;i--)
   {
-    PROP(calcbufferL[0][i])=PROP(calcbufferL[1][i])=
-    PROP(calcbufferR[0][i])=PROP(calcbufferR[1][i])=0.0;
+    self->calcbufferL[0][i]=self->calcbufferL[1][i]=
+    self->calcbufferR[0][i]=self->calcbufferR[1][i]=0.0;
   }
 
   if( ! initialized )
@@ -135,19 +131,19 @@ METH(initialize) (_THIS)
     initialized = true;
   }
 
-  METH(layer3initialize)(self);
+  MPEGaudio_layer3initialize(self);
 
 #ifdef THREADED_AUDIO
-  PROP(decode_thread) = NULL;
-  PROP(ring) = NULL;
+  self->decode_thread = NULL;
+  self->ring = NULL;
 #endif
-  METH(Rewind)(self);
-  METH(ResetSynchro)(self, 0);
+  MPEGaudio_Rewind(self);
+  MPEGaudio_ResetSynchro(self, 0);
 };
 
 
 bool
-METH(loadheader) (_THIS)
+MPEGaudio_loadheader (_THIS)
 {
     register int c;
     bool flag;
@@ -155,14 +151,14 @@ METH(loadheader) (_THIS)
     flag = false;
     do
     {
-        if( (c = MPEGstream_copy_byte(PROP(mpeg))) < 0 )
+        if( (c = MPEGstream_copy_byte(self->mpeg)) < 0 )
             break;
 
         if( c == 0xff )
         {
             while( ! flag )
             {
-                if( (c = MPEGstream_copy_byte(PROP(mpeg))) < 0 )
+                if( (c = MPEGstream_copy_byte(self->mpeg)) < 0 )
                 {
                     flag = true;
                     break;
@@ -187,121 +183,121 @@ METH(loadheader) (_THIS)
     // Analyzing
 
     c &= 0xf;
-    PROP(protection) = c & 1;
-    PROP(layer) = 4 - ((c >> 1) & 3);
-    PROP(version) = (MPEGaudio_mpegversion) ((c >> 3) ^ 1);
+    self->protection = c & 1;
+    self->layer = 4 - ((c >> 1) & 3);
+    self->version = (MPEGaudio_mpegversion) ((c >> 3) ^ 1);
 
-    c = MPEGstream_copy_byte(PROP(mpeg)) >> 1;
-    PROP(padding) = (c & 1);
+    c = MPEGstream_copy_byte(self->mpeg) >> 1;
+    self->padding = (c & 1);
     c >>= 1;
-    PROP(frequency) = (MPEGaudio_frequency) (c&3);
-    if (PROP(frequency) == 3)
+    self->frequency = (MPEGaudio_frequency) (c&3);
+    if (self->frequency == 3)
         return false;
     c >>= 2;
-    PROP(bitrateindex) = (int) c;
-    if( PROP(bitrateindex) == 15 )
+    self->bitrateindex = (int) c;
+    if( self->bitrateindex == 15 )
         return false;
 
-    c = ((unsigned int)MPEGstream_copy_byte(PROP(mpeg))) >> 4;
-    PROP(extendedmode) = c & 3;
-    PROP(mode) = (MPEGaudio_mode) (c >> 2);
+    c = ((unsigned int)MPEGstream_copy_byte(self->mpeg)) >> 4;
+    self->extendedmode = c & 3;
+    self->mode = (MPEGaudio_mode) (c >> 2);
 
 
     // Making information
 
-    PROP(inputstereo) = (PROP(mode) == single) ? 0 : 1;
+    self->inputstereo = (self->mode == single) ? 0 : 1;
 
-    PROP(forcetomonoflag) = (!PROP(stereo) && PROP(inputstereo));
-    PROP(forcetostereoflag) = (PROP(stereo) && !PROP(inputstereo));
+    self->forcetomonoflag = (!self->stereo && self->inputstereo);
+    self->forcetostereoflag = (self->stereo && !self->inputstereo);
 
-    if(PROP(forcetomonoflag))
-        PROP(outputstereo)=0;
+    if(self->forcetomonoflag)
+        self->outputstereo=0;
     else
-        PROP(outputstereo)=PROP(inputstereo);
+        self->outputstereo=self->inputstereo;
 
-    PROP(channelbitrate)=PROP(bitrateindex);
-    if(PROP(inputstereo))
+    self->channelbitrate=self->bitrateindex;
+    if(self->inputstereo)
     {
-        if(PROP(channelbitrate)==4)
-            PROP(channelbitrate)=1;
+        if(self->channelbitrate==4)
+            self->channelbitrate=1;
         else
-            PROP(channelbitrate)-=4;
+            self->channelbitrate-=4;
     }
 
-    if(PROP(channelbitrate)==1 || PROP(channelbitrate)==2)
-        PROP(tableindex)=0;
+    if(self->channelbitrate==1 || self->channelbitrate==2)
+        self->tableindex=0;
     else
-        PROP(tableindex)=1;
+        self->tableindex=1;
 
-  if(PROP(layer)==1)
-      PROP(subbandnumber)=MAXSUBBAND;
+  if(self->layer==1)
+      self->subbandnumber=MAXSUBBAND;
   else
   {
-    if(!PROP(tableindex))
-      if(PROP(frequency)==frequency32000)PROP(subbandnumber)=12; else PROP(subbandnumber)=8;
-    else if(PROP(frequency)==frequency48000||
-        (PROP(channelbitrate)>=3 && PROP(channelbitrate)<=5))
-      PROP(subbandnumber)=27;
-    else PROP(subbandnumber)=30;
+    if(!self->tableindex)
+      if(self->frequency==frequency32000)self->subbandnumber=12; else self->subbandnumber=8;
+    else if(self->frequency==frequency48000||
+        (self->channelbitrate>=3 && self->channelbitrate<=5))
+      self->subbandnumber=27;
+    else self->subbandnumber=30;
   }
 
-  if(PROP(mode)==single)PROP(stereobound)=0;
-  else if(PROP(mode)==joint)PROP(stereobound)=(PROP(extendedmode)+1)<<2;
-  else PROP(stereobound)=PROP(subbandnumber);
+  if(self->mode==single)self->stereobound=0;
+  else if(self->mode==joint)self->stereobound=(self->extendedmode+1)<<2;
+  else self->stereobound=self->subbandnumber;
 
-  if(PROP(stereobound)>PROP(subbandnumber))PROP(stereobound)=PROP(subbandnumber);
+  if(self->stereobound>self->subbandnumber)self->stereobound=self->subbandnumber;
 
   // framesize & slots
-  if(PROP(layer)==1)
+  if(self->layer==1)
   {
-    PROP(framesize)=(12000*MPEGaudio_bitrate[PROP(version)][0][PROP(bitrateindex)])/
-              MPEGaudio_frequencies[PROP(version)][PROP(frequency)];
-    if(PROP(frequency)==frequency44100 && PROP(padding))PROP(framesize)++;
-    PROP(framesize)<<=2;
+    self->framesize=(12000*MPEGaudio_bitrate[self->version][0][self->bitrateindex])/
+              MPEGaudio_frequencies[self->version][self->frequency];
+    if(self->frequency==frequency44100 && self->padding)self->framesize++;
+    self->framesize<<=2;
   }
   else
   {
-    PROP(framesize)=(144000*MPEGaudio_bitrate[PROP(version)][PROP(layer)-1][PROP(bitrateindex)])/
-      (MPEGaudio_frequencies[PROP(version)][PROP(frequency)]<<PROP(version));
-    if(PROP(padding))PROP(framesize)++;
-    if(PROP(layer)==3)
+    self->framesize=(144000*MPEGaudio_bitrate[self->version][self->layer-1][self->bitrateindex])/
+      (MPEGaudio_frequencies[self->version][self->frequency]<<self->version);
+    if(self->padding)self->framesize++;
+    if(self->layer==3)
     {
-      if(PROP(version))
-    PROP(layer3slots)=PROP(framesize)-((PROP(mode)==single)?9:17)
-                         -(PROP(protection)?0:2)
+      if(self->version)
+    self->layer3slots=self->framesize-((self->mode==single)?9:17)
+                         -(self->protection?0:2)
                          -4;
       else
-    PROP(layer3slots)=PROP(framesize)-((PROP(mode)==single)?17:32)
-                         -(PROP(protection)?0:2)
+    self->layer3slots=self->framesize-((self->mode==single)?17:32)
+                         -(self->protection?0:2)
                          -4;
     }
   }
 
 #ifdef DEBUG_AUDIO
-  fprintf(stderr, "MPEG %d audio layer %d (%d kbps), at %d Hz %s [%d]\n", PROP(version)+1, PROP(layer),  MPEGaudio_bitrate[PROP(version)][PROP(layer)-1][PROP(bitrateindex)], MPEGaudio_frequencies[PROP(version)][PROP(frequency)], (PROP(mode )== single) ? "mono" : "stereo", PROP(framesize));
+  fprintf(stderr, "MPEG %d audio layer %d (%d kbps), at %d Hz %s [%d]\n", self->version+1, self->layer,  MPEGaudio_bitrate[self->version][self->layer-1][self->bitrateindex], MPEGaudio_frequencies[self->version][self->frequency], (self->mode == single) ? "mono" : "stereo", self->framesize);
 #endif
 
   /* Fill the buffer with new data */
-  if(!METH(fillbuffer)(self, PROP(framesize)-4))
+  if(!MPEGaudio_fillbuffer(self, self->framesize-4))
     return false;
 
-  if(!PROP(protection))
+  if(!self->protection)
   {
-    METH(getbyte)(self);                      // CRC, Not check!!
-    METH(getbyte)(self);
+    MPEGaudio_getbyte(self);                      // CRC, Not check!!
+    MPEGaudio_getbyte(self);
   }
 
   // Sam 7/17 - skip sequences of quickly varying frequencies
-  int speed = MPEGaudio_frequencies[PROP(version)][PROP(frequency)];
-  if ( speed != PROP(last_speed )) {
-    PROP(last_speed )= speed;
-    if ( PROP(rawdatawriteoffset )) {
-        ++PROP(decodedframe);
+  int speed = MPEGaudio_frequencies[self->version][self->frequency];
+  if ( speed != self->last_speed ) {
+    self->last_speed = speed;
+    if ( self->rawdatawriteoffset ) {
+        ++self->decodedframe;
 #ifndef THREADED_AUDIO
-        ++PROP(currentframe);
+        ++self->currentframe;
 #endif
     }
-    return METH(loadheader)(self);
+    return MPEGaudio_loadheader(self);
   }
 
   return true;
@@ -309,38 +305,38 @@ METH(loadheader) (_THIS)
 
 
 bool
-METH(run) ( _THIS, int frames, double *timestamp)
+MPEGaudio_run ( _THIS, int frames, double *timestamp)
 {
     double last_timestamp = -1;
     int totFrames = frames;
 
     for( ; frames; frames-- )
     {
-        if( METH(loadheader)(self) == false ) {
+        if( MPEGaudio_loadheader(self) == false ) {
 	  return false;	  
         }
 
         if (frames == totFrames  && timestamp != NULL) {
-            if (last_timestamp != PROP(mpeg->timestamp)){
-		if (PROP(mpeg->timestamp_pos) <= PROP(_buffer_pos))
-		    last_timestamp = *timestamp = PROP(mpeg->timestamp);
+            if (last_timestamp != self->mpeg->timestamp){
+		if (self->mpeg->timestamp_pos <= self->_buffer_pos)
+		    last_timestamp = *timestamp = self->mpeg->timestamp;
 	    }
             else
                 *timestamp = -1;
         }
 
-        if     ( PROP(layer) == 3 ) METH(extractlayer3)(self);
-        else if( PROP(layer) == 2 ) METH(extractlayer2)(self);
-        else if( PROP(layer) == 1 ) METH(extractlayer1)(self);
+        if     ( self->layer == 3 ) MPEGaudio_extractlayer3(self);
+        else if( self->layer == 2 ) MPEGaudio_extractlayer2(self);
+        else if( self->layer == 1 ) MPEGaudio_extractlayer1(self);
 
         /* Handle expanding to stereo output */
-        if ( PROP(forcetostereoflag) ) {
+        if ( self->forcetostereoflag ) {
             Sint16 *in, *out;
 
-            in = PROP(rawdata)+PROP(rawdatawriteoffset);
-            PROP(rawdatawriteoffset )*= 2;
-            out = PROP(rawdata)+PROP(rawdatawriteoffset);
-            while ( in > PROP(rawdata )) {
+            in = self->rawdata+self->rawdatawriteoffset;
+            self->rawdatawriteoffset *= 2;
+            out = self->rawdata+self->rawdatawriteoffset;
+            while ( in > self->rawdata ) {
                 --in;
                 *(--out) = *in;
                 *(--out) = *in;
@@ -348,10 +344,10 @@ METH(run) ( _THIS, int frames, double *timestamp)
         }
 
         // Sam 10/5 - If there is no data, don't increment frames
-        if ( PROP(rawdatawriteoffset) ) {
-            ++PROP(decodedframe);
+        if ( self->rawdatawriteoffset ) {
+            ++self->decodedframe;
 #ifndef THREADED_AUDIO
-            ++PROP(currentframe);
+            ++self->currentframe;
 #endif
         }
     }

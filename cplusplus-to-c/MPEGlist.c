@@ -11,11 +11,9 @@ Doubly-linked list.
 
 #undef _THIS
 #define _THIS MPEGlist *self
-#undef METH
-#define METH(m) MPEGlist_##m
 
 MPEGlist *
-METH(init) (_THIS)
+MPEGlist_init (_THIS)
 {
   MAKE_OBJECT(MPEGlist);
 //  self = (MPEGlist*)malloc(sizeof(MPEGlist));
@@ -29,7 +27,7 @@ METH(init) (_THIS)
 }
 
 void
-METH(destroy) (_THIS)
+MPEGlist_destroy (_THIS)
 {
   if (self->next) self->next->prev = self->prev;
   if (self->prev) self->prev->next = self->next;
@@ -41,16 +39,16 @@ METH(destroy) (_THIS)
 }
 
 void
-METH(delete) (_THIS)
+MPEGlist_delete (_THIS)
 {
-  METH(destroy) (self);
+  MPEGlist_destroy (self);
   free(self);
 }
 
 
 /* Return the next free buffer or allocate a new one if none is empty */
 MPEGlist *
-METH(Alloc) (_THIS, Uint32 bufsize)
+MPEGlist_Alloc (_THIS, Uint32 bufsize)
 {
   MPEGlist *tmp;
 
@@ -80,45 +78,45 @@ METH(Alloc) (_THIS, Uint32 bufsize)
 
 /* Lock current buffer */
 void
-METH(Lock) (_THIS)
+MPEGlist_Lock (_THIS)
 {
   self->lock++;
 }
 
 /* Unlock current buffer */
 void
-METH(Unlock) (_THIS)
+MPEGlist_Unlock (_THIS)
 {
   if (self->lock != 0)
       self->lock--;
 }
 
 void*
-METH(Buffer) (_THIS)
+MPEGlist_Buffer (_THIS)
 {
   return self->data;
 }
 
 Uint32
-METH(Size) (_THIS)
+MPEGlist_Size (_THIS)
 {
   return self->size;
 }
 
 MPEGlist*
-METH(Next) (_THIS)
+MPEGlist_Next (_THIS)
 {
   return self->next;
 }
 
 MPEGlist*
-METH(Prev) (_THIS)
+MPEGlist_Prev (_THIS)
 {
   return self->prev;
 }
 
 Uint32
-METH(IsLocked) (_THIS)
+MPEGlist_IsLocked (_THIS)
 {
   return self->lock;
 }

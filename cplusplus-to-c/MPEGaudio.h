@@ -162,12 +162,10 @@ typedef struct Mpegbitwindow Mpegbitwindow;
 
 #undef _THIS
 #define _THIS struct Mpegbitwindow *self
-#undef METH
-#define METH(name) Mpegbitwindow_##name
 //  Mpegbitwindow(){bitindex=point=0;};
 //#define Mpegbitwindow_new() (Mpegbitwindow*)(calloc(sizeof(struct Mpegbitwindow)))
-Mpegbitwindow * METH(new) (_THIS);
-Mpegbitwindow * METH(init) (_THIS);
+Mpegbitwindow * Mpegbitwindow_new (_THIS);
+Mpegbitwindow * Mpegbitwindow_init (_THIS);
 
 //  void initialize(void)  {bitindex=point=0;};
 #define Mpegbitwindow_initialize(self) ((self)->bitindex = (self)->point = 0)
@@ -180,7 +178,7 @@ Mpegbitwindow * METH(init) (_THIS);
 #define Mpegbitwindow_putbyte(self, c) ((self)->buffer [ (self)->point & (WINDOWSIZE-1) ] = c, (self)->point++, 0)
 
 //  void wrap(void);
-void METH(wrap) (_THIS);
+void Mpegbitwindow_wrap (_THIS);
 
 //  void rewind(int bits)  {bitindex-=bits;};
 #define Mpegbitwindow_rewind(self, bits) ((self)->bitindex -= bits)
@@ -195,7 +193,7 @@ void METH(wrap) (_THIS);
 //      return r;
 //  }
 #if 0
-inline static int METH(getbit) (_THIS) {
+inline static int Mpegbitwindow_getbit (_THIS) {
   register int r=(self->buffer[self->bitindex>>3]>>(7-(self->bitindex&7)))&1;
   self->bitindex++;
   return r;
@@ -214,7 +212,7 @@ inline static int METH(getbit) (_THIS) {
 //      return (int)((unsigned int)(a>>(16-bits)));
 //  }
 #if 0
-inline static int METH(getbits9) (_THIS, int bits)
+inline static int Mpegbitwindow_getbits9 (_THIS, int bits)
 {
   register unsigned short a;
   int offset = self->bitindex>>3;
@@ -228,9 +226,9 @@ inline static int METH(getbits9) (_THIS, int bits)
 #endif /* 0 */
 
 
-int METH(getbit) (_THIS);
-int METH(getbits9) (_THIS, int bits);
-int METH(getbits) (_THIS, int bits);
+int Mpegbitwindow_getbit (_THIS);
+int Mpegbitwindow_getbits9 (_THIS, int bits);
+int Mpegbitwindow_getbits (_THIS, int bits);
 
 
 
@@ -634,8 +632,6 @@ typedef struct MPEGaudio MPEGaudio;
 
 #undef _THIS
 #define _THIS struct MPEGaudio*
-#undef METH
-#define METH(name) MPEGaudio_##name
 /* The actual MPEG audio class */
 
 void Play_MPEGaudioSDL(void *udata, Uint8 *stream, int len);
@@ -644,32 +640,32 @@ int Play_MPEGaudio(struct MPEGaudio *audio, Uint8 *stream, int len);
 int Decode_MPEGaudio(void *udata);
 #endif
 
-_THIS METH(init) (_THIS, struct MPEGstream *stream, bool initSDL);
-void METH(destroy) (_THIS);
+_THIS MPEGaudio_init (_THIS, struct MPEGstream *stream, bool initSDL);
+void MPEGaudio_destroy (_THIS);
 
 /* MPEG actions */
-bool METH(GetAudioInfo) (_THIS, MPEG_AudioInfo *info);
-double METH(Time) (_THIS);
-void METH(Play) (_THIS);
-void METH(Stop) (_THIS);
-void METH(Rewind) (_THIS);
-void METH(Pause) (_THIS);
-void METH(ResetSynchro) (_THIS, double time);
-void METH(Skip) (_THIS, float seconds);
-void METH(Volume) (_THIS, int vol);
+bool MPEGaudio_GetAudioInfo (_THIS, MPEG_AudioInfo *info);
+double MPEGaudio_Time (_THIS);
+void MPEGaudio_Play (_THIS);
+void MPEGaudio_Stop (_THIS);
+void MPEGaudio_Rewind (_THIS);
+void MPEGaudio_Pause (_THIS);
+void MPEGaudio_ResetSynchro (_THIS, double time);
+void MPEGaudio_Skip (_THIS, float seconds);
+void MPEGaudio_Volume (_THIS, int vol);
 		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name in popcorn */
-MPEGstatus METH(GetStatus) (_THIS);
+MPEGstatus MPEGaudio_GetStatus (_THIS);
 
 /* Returns the desired SDL audio spec for this stream */
-bool METH(WantedSpec) (_THIS, SDL_AudioSpec *wanted);
+bool MPEGaudio_WantedSpec (_THIS, SDL_AudioSpec *wanted);
 
 /* Inform SMPEG of the actual audio format if configuring SDL
    outside of this class */
-void METH(ActualSpec) (_THIS, const SDL_AudioSpec *actual);
+void MPEGaudio_ActualSpec (_THIS, const SDL_AudioSpec *actual);
 
 #ifdef THREADED_AUDIO
-void METH(StartDecoding) (_THIS);
-void METH(StopDecoding) (_THIS);
+void MPEGaudio_StartDecoding (_THIS);
+void MPEGaudio_StopDecoding (_THIS);
 #endif
 
 /* from splay 1.8.2 */
@@ -691,8 +687,8 @@ void METH(StopDecoding) (_THIS);
   /***************************************/
   /* Interface for setting music quality */
   /***************************************/
-void METH(setforcetomono) (_THIS, bool flag);
-void METH(setdownfrequency) (_THIS, int value);
+void MPEGaudio_setforcetomono (_THIS, bool flag);
+void MPEGaudio_setdownfrequency (_THIS, int value);
 
   /******************************/
   /* Frame management variables */
@@ -705,21 +701,21 @@ void METH(setdownfrequency) (_THIS, int value);
   /*******************/
   /* Mpegtoraw class */
   /*******************/
-void METH(initialize) (_THIS);
-bool METH(run) (_THIS, int frames, double *timestamp);
-void METH(clearbuffer) (_THIS);
+void MPEGaudio_initialize (_THIS);
+bool MPEGaudio_run (_THIS, int frames, double *timestamp);
+void MPEGaudio_clearbuffer (_THIS);
 
   /*****************************/
   /* Loading MPEG-Audio stream */
   /*****************************/
-bool METH(fillbuffer) (_THIS, int size);
-void METH(sync) (_THIS);
-bool METH(issync) (_THIS);
-int METH(getbyte) (_THIS);
-int METH(getbit) (_THIS);
-int METH(getbits8) (_THIS);
-int METH(getbits9) (_THIS, int bits);
-int METH(getbits) (_THIS, int bits);
+bool MPEGaudio_fillbuffer (_THIS, int size);
+void MPEGaudio_sync (_THIS);
+bool MPEGaudio_issync (_THIS);
+int MPEGaudio_getbyte (_THIS);
+int MPEGaudio_getbit (_THIS);
+int MPEGaudio_getbits8 (_THIS);
+int MPEGaudio_getbits9 (_THIS, int bits);
+int MPEGaudio_getbits (_THIS, int bits);
 
 
   /********************/
@@ -730,49 +726,49 @@ int METH(getbits) (_THIS, int bits);
   /*************************************/
   /* Decoding functions for each layer */
   /*************************************/
-bool METH(loadheader) (_THIS);
+bool MPEGaudio_loadheader (_THIS);
 
   //
   // Subbandsynthesis
   //
 
-void METH(computebuffer) (_THIS, REAL *fraction,REAL buffer[2][CALCBUFFERSIZE]);
-void METH(generatesingle) (_THIS);
-void METH(generate) (_THIS);
-void METH(subbandsynthesis) (_THIS, REAL *fractionL,REAL *fractionR);
+void MPEGaudio_computebuffer (_THIS, REAL *fraction,REAL buffer[2][CALCBUFFERSIZE]);
+void MPEGaudio_generatesingle (_THIS);
+void MPEGaudio_generate (_THIS);
+void MPEGaudio_subbandsynthesis (_THIS, REAL *fractionL,REAL *fractionR);
 
-void METH(computebuffer_2) (_THIS, REAL *fraction,REAL buffer[2][CALCBUFFERSIZE]);
-void METH(generatesingle_2) (_THIS);
-void METH(generate_2) (_THIS);
-void METH(subbandsynthesis_2) (_THIS, REAL *fractionL,REAL *fractionR);
+void MPEGaudio_computebuffer_2 (_THIS, REAL *fraction,REAL buffer[2][CALCBUFFERSIZE]);
+void MPEGaudio_generatesingle_2 (_THIS);
+void MPEGaudio_generate_2 (_THIS);
+void MPEGaudio_subbandsynthesis_2 (_THIS, REAL *fractionL,REAL *fractionR);
 
   // Extractor
-void METH(extractlayer1) (_THIS);    // MPEG-1
-void METH(extractlayer2) (_THIS);
-void METH(extractlayer3) (_THIS);
-void METH(extractlayer3_2) (_THIS);  // MPEG-2
+void MPEGaudio_extractlayer1 (_THIS);    // MPEG-1
+void MPEGaudio_extractlayer2 (_THIS);
+void MPEGaudio_extractlayer3 (_THIS);
+void MPEGaudio_extractlayer3_2 (_THIS);  // MPEG-2
 
 
   // Functions for layer 3
-void METH(layer3initialize) (_THIS);
-bool METH(layer3getsideinfo) (_THIS);
-bool METH(layer3getsideinfo_2) (_THIS);
-void METH(layer3getscalefactors) (_THIS, int ch,int gr);
-void METH(layer3getscalefactors_2) (_THIS, int ch);
-void METH(layer3huffmandecode) (_THIS, int ch,int gr,int out[SBLIMIT][SSLIMIT]);
-REAL METH(layer3twopow2) (_THIS, int scale,int preflag,int pretab_offset,int l);
-REAL METH(layer3twopow2_1) (_THIS, int a,int b,int c);
-void METH(layer3dequantizesample) (_THIS, int ch,int gr,int   in[SBLIMIT][SSLIMIT],
+void MPEGaudio_layer3initialize (_THIS);
+bool MPEGaudio_layer3getsideinfo (_THIS);
+bool MPEGaudio_layer3getsideinfo_2 (_THIS);
+void MPEGaudio_layer3getscalefactors (_THIS, int ch,int gr);
+void MPEGaudio_layer3getscalefactors_2 (_THIS, int ch);
+void MPEGaudio_layer3huffmandecode (_THIS, int ch,int gr,int out[SBLIMIT][SSLIMIT]);
+REAL MPEGaudio_layer3twopow2 (_THIS, int scale,int preflag,int pretab_offset,int l);
+REAL MPEGaudio_layer3twopow2_1 (_THIS, int a,int b,int c);
+void MPEGaudio_layer3dequantizesample (_THIS, int ch,int gr,int   in[SBLIMIT][SSLIMIT],
                                 REAL out[SBLIMIT][SSLIMIT]);
-void METH(layer3fixtostereo) (_THIS, int gr,REAL  in[2][SBLIMIT][SSLIMIT]);
-void METH(layer3reorderandantialias) (_THIS, int ch,int gr,REAL  in[SBLIMIT][SSLIMIT],
+void MPEGaudio_layer3fixtostereo (_THIS, int gr,REAL  in[2][SBLIMIT][SSLIMIT]);
+void MPEGaudio_layer3reorderandantialias (_THIS, int ch,int gr,REAL  in[SBLIMIT][SSLIMIT],
                                REAL out[SBLIMIT][SSLIMIT]);
 
-void METH(layer3hybrid) (_THIS, int ch,int gr,REAL in[SBLIMIT][SSLIMIT],
+void MPEGaudio_layer3hybrid (_THIS, int ch,int gr,REAL in[SBLIMIT][SSLIMIT],
                           REAL out[SSLIMIT][SBLIMIT]);
   
-void METH(huffmandecoder_1) (_THIS, const HUFFMANCODETABLE *h,int *x,int *y);
-void METH(huffmandecoder_2) (_THIS, const HUFFMANCODETABLE *h,int *x,int *y,int *v,int *w);
+void MPEGaudio_huffmandecoder_1 (_THIS, const HUFFMANCODETABLE *h,int *x,int *y);
+void MPEGaudio_huffmandecoder_2 (_THIS, const HUFFMANCODETABLE *h,int *x,int *y,int *v,int *w);
 
   /********************/
   /* Playing raw data */
@@ -802,7 +798,7 @@ REAL MPEGaudio_hcos_64[16],
 
 
 /* other virtual methods in MPEGaction */
-void METH(ResetPause) (_THIS);
+void MPEGaudio_ResetPause (_THIS);
 
 
 #endif /* _MPEGAUDIO_H_ */

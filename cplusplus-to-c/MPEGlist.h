@@ -21,19 +21,17 @@ typedef struct MPEGlist MPEGlist;
 
 #undef _THIS
 #define _THIS MPEGlist *self
-#undef METH
-#define METH(m) MPEGlist_##m
 
-MPEGlist* METH(init) (_THIS);
-void METH(destroy) (_THIS);
-void METH(delete) (_THIS);
-MPEGlist* METH(Alloc) (_THIS, Uint32);
-void METH(Lock) (_THIS);
-void METH(Unlock) (_THIS);
-void* METH(Buffer) (_THIS);
-Uint32 METH(Size) (_THIS);
-MPEGlist* METH(Next) (_THIS);
-MPEGlist* METH(Prev) (_THIS);
-Uint32 METH(IsLocked) (_THIS);
+MPEGlist* MPEGlist_init (_THIS);
+void MPEGlist_destroy (_THIS);
+void MPEGlist_delete (_THIS);
+MPEGlist* MPEGlist_Alloc (_THIS, Uint32);
+void MPEGlist_Lock (_THIS);
+void MPEGlist_Unlock (_THIS);
+void* MPEGlist_Buffer (_THIS);
+Uint32 MPEGlist_Size (_THIS);
+MPEGlist* MPEGlist_Next (_THIS);
+MPEGlist* MPEGlist_Prev (_THIS);
+Uint32 MPEGlist_IsLocked (_THIS);
 
 #endif

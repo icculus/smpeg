@@ -30,11 +30,9 @@
 
 #undef _THIS
 #define _THIS MPEGstream *self
-#undef METH
-#define METH(m) MPEGstream_##m
 
 MPEGstream *
-METH(init) (_THIS, MPEGsystem *System, Uint8 Streamid)
+MPEGstream_init (_THIS, MPEGsystem *System, Uint8 Streamid)
 {
     MAKE_OBJECT(MPEGstream);
     
@@ -56,7 +54,7 @@ METH(init) (_THIS, MPEGsystem *System, Uint8 Streamid)
 }
 
 void
-METH(destroy) (_THIS)
+MPEGstream_destroy (_THIS)
 {
     MPEGlist *newbr;
 
@@ -75,7 +73,7 @@ METH(destroy) (_THIS)
 }
 
 void
-METH(reset_stream) (_THIS)
+MPEGstream_reset_stream (_THIS)
 {
     MPEGlist *newbr;
 
@@ -101,7 +99,7 @@ METH(reset_stream) (_THIS)
 }
 
 void
-METH(rewind_stream) (_THIS)
+MPEGstream_rewind_stream (_THIS)
 {
     /* Note that this will rewind all streams, and other streams than this one */
     /* will finish reading their prebuffured data (they are not reseted) */
@@ -114,7 +112,7 @@ METH(rewind_stream) (_THIS)
 }
 
 bool
-METH(next_system_buffer) (_THIS)
+MPEGstream_next_system_buffer (_THIS)
 {
     bool has_data = true;
     
@@ -136,7 +134,7 @@ METH(next_system_buffer) (_THIS)
 }
 
 bool
-METH(next_packet) (_THIS, bool recurse, bool update_timestamp)
+MPEGstream_next_packet (_THIS, bool recurse, bool update_timestamp)
 {
     SDL_mutexP(self->mutex);
     
@@ -171,7 +169,7 @@ METH(next_packet) (_THIS, bool recurse, bool update_timestamp)
 }
 
 MPEGstream_marker *
-METH(new_marker) (_THIS, int offset)
+MPEGstream_new_marker (_THIS, int offset)
 {
     MPEGstream_marker *marker;
 
@@ -204,7 +202,7 @@ METH(new_marker) (_THIS, int offset)
 }
 
 bool
-METH(seek_marker) (_THIS, MPEGstream_marker const *marker)
+MPEGstream_seek_marker (_THIS, MPEGstream_marker const *marker)
 {
     SDL_mutexP(self->mutex);
 
@@ -228,7 +226,7 @@ METH(seek_marker) (_THIS, MPEGstream_marker const *marker)
 }
 
 void
-METH(delete_marker) (_THIS, MPEGstream_marker *marker)
+MPEGstream_delete_marker (_THIS, MPEGstream_marker *marker)
 {
     if (self && marker->marked_buffer) {
         MPEGlist_Unlock(marker->marked_buffer);
@@ -237,7 +235,7 @@ METH(delete_marker) (_THIS, MPEGstream_marker *marker)
 }
 
 Uint32
-METH(copy_data) (_THIS, Uint8 *area, Sint32 size, bool short_read)
+MPEGstream_copy_data (_THIS, Uint8 *area, Sint32 size, bool short_read)
 {
     Uint32 copied = 0;
     bool timestamped = false;
@@ -283,7 +281,7 @@ METH(copy_data) (_THIS, Uint8 *area, Sint32 size, bool short_read)
 }
 
 int
-METH(copy_byte) (_THIS)
+MPEGstream_copy_byte (_THIS)
 {
     /* Get new data if necessary */
     if (self->data == self->stop) {
@@ -296,13 +294,13 @@ METH(copy_byte) (_THIS)
 }
 
 bool
-METH(eof) (_THIS)
+MPEGstream_eof (_THIS)
 {
     return(!MPEGlist_Size(self->br));
 }
 
 void
-METH(insert_packet) (_THIS, Uint8 *Data, Uint32 Size, double timestamp)
+MPEGstream_insert_packet (_THIS, Uint8 *Data, Uint32 Size, double timestamp)
 {
     MPEGlist *newbr;
 
@@ -329,7 +327,7 @@ METH(insert_packet) (_THIS, Uint8 *Data, Uint32 Size, double timestamp)
 
 /* - Check for unused buffers and free them - */
 void
-METH(garbage_collect) (_THIS)
+MPEGstream_garbage_collect (_THIS)
 {
     MPEGlist *newbr;
     
@@ -353,13 +351,13 @@ METH(garbage_collect) (_THIS)
 }
 
 void
-METH(enable) (_THIS, bool toggle)
+MPEGstream_enable (_THIS, bool toggle)
 {
     self->enabled = toggle;
 }
 
 double
-METH(time) (_THIS)
+MPEGstream_time (_THIS)
 {
     return (self->br->TimeStamp);
 }

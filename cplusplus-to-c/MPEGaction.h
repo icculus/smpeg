@@ -221,23 +221,21 @@ typedef struct MPEGaction MPEGaction;
 
 #undef _THIS
 #define _THIS MPEGaction *self
-#undef METH
-#define METH(m) MPEGaction_##m
 
 
 /* base methods. */
-MPEGaction * METH(init) (_THIS);
-void METH(destroy) (_THIS);
-void METH(ResetPause) (_THIS);
-/*virtual*/ void METH(Loop) (_THIS, bool toggle);
-/*virtual*/ double METH(Time) (_THIS); /* Returns the time in seconds since start */
-/*virtual*/ double METH(Play) (_THIS);
-/*virtual*/ double METH(Stop) (_THIS);
-/*virtual*/ double METH(Rewind) (_THIS);
-/*virtual*/ double METH(ResetSynchro) (_THIS, double);
-/*virtual*/ double METH(Skip) (_THIS, float);
-/*virtual*/ void METH(Pause) (_THIS); /* A toggle action */
-/*virtual*/ MPEGstatus METH(GetStatus) (_THIS);
+MPEGaction * MPEGaction_init (_THIS);
+void MPEGaction_destroy (_THIS);
+void MPEGaction_ResetPause (_THIS);
+/*virtual*/ void MPEGaction_Loop (_THIS, bool toggle);
+/*virtual*/ double MPEGaction_Time (_THIS); /* Returns the time in seconds since start */
+/*virtual*/ double MPEGaction_Play (_THIS);
+/*virtual*/ double MPEGaction_Stop (_THIS);
+/*virtual*/ double MPEGaction_Rewind (_THIS);
+/*virtual*/ double MPEGaction_ResetSynchro (_THIS, double);
+/*virtual*/ double MPEGaction_Skip (_THIS, float);
+/*virtual*/ void MPEGaction_Pause (_THIS); /* A toggle action */
+/*virtual*/ MPEGstatus MPEGaction_GetStatus (_THIS);
 
 #endif /* 0 */
 

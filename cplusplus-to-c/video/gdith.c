@@ -150,11 +150,9 @@ inline double CurrentTime( VidStream* vid_stream )
 
 #undef _THIS
 #define _THIS MPEGvideo *self
-#undef METH
-#define METH(m) MPEGvideo_##m
 
 int
-METH(timeSync) ( _THIS, VidStream* vid_stream )
+MPEGvideo_timeSync ( _THIS, VidStream* vid_stream )
 {
     static double correction = -1;
 
@@ -229,7 +227,7 @@ METH(timeSync) ( _THIS, VidStream* vid_stream )
         double time_behind;
 
         /* Calculate the frame time relative to real time */
-        time_behind = CurrentTime(vid_stream) - METH(Time)(self);
+        time_behind = CurrentTime(vid_stream) - MPEGvideo_Time(self);
 
 #ifdef DEBUG_MPEG_SCHEDULING
 printf("Frame %d: frame time: %f, real time: %f, time behind: %f\n", vid_stream->totNumFrames, Time(), CurrentTime(vid_stream), time_behind);
@@ -292,7 +290,7 @@ printf("A lot behind, skipping %d frames\n", vid_stream->_skipFrame);
    screen display and then calling the update callback.
 */
 void
-METH(DisplayFrame) ( _THIS, VidStream * vid_stream )
+MPEGvideo_DisplayFrame ( _THIS, VidStream * vid_stream )
 {
   SMPEG_FilterInfo info;
 
@@ -400,22 +398,22 @@ METH(DisplayFrame) ( _THIS, VidStream * vid_stream )
 
 
 void
-METH(ExecuteDisplay) (_THIS, VidStream* vid_stream )
+MPEGvideo_ExecuteDisplay (_THIS, VidStream* vid_stream )
 {
     if( ! vid_stream->_skipFrame )
     {
-      METH(DisplayFrame) (self, vid_stream);
+      MPEGvideo_DisplayFrame (self, vid_stream);
 
 #ifdef CALCULATE_FPS
       TimestampFPS(vid_stream);
 #endif
     }
-    METH(timeSync) ( self, vid_stream );
+    MPEGvideo_timeSync ( self, vid_stream );
 }
 
 
 SMPEG_Filter *
-METH(Filter) (_THIS, SMPEG_Filter *filter)
+MPEGvideo_Filter (_THIS, SMPEG_Filter *filter)
 {
   SMPEG_Filter * old_filter;
 

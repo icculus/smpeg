@@ -124,11 +124,9 @@ int qualityFlag = 0;
 
 #undef _THIS
 #define _THIS MPEGvideo *self
-#undef METH
-#define METH(m) MPEGvideo_##m
 
 MPEGvideo *
-METH(init) (_THIS, struct MPEGstream *stream)
+MPEGvideo_init (_THIS, struct MPEGstream *stream)
 {
     Uint32 start_code;
     MPEGstream_marker *marker;
@@ -235,10 +233,10 @@ METH(init) (_THIS, struct MPEGstream *stream)
 }
 
 void
-METH(destroy) (_THIS)
+MPEGvideo_destroy (_THIS)
 {
     /* Stop it before we free everything */
-    METH(Stop) (self);
+    MPEGvideo_Stop (self);
 
     /* Free actual video stream */
     if( self->_stream )
@@ -315,7 +313,7 @@ int Play_MPEGvideo( void *udata )
 
 /* Dethreaded video.  Call regularly (such as every 10ms).  Automagic synchronise to audio. */
 int
-METH(run) (_THIS)
+MPEGvideo_run (_THIS)
 {
 #ifndef THREADED_VIDEO
   int mark = self->_stream->totNumFrames;
@@ -339,16 +337,16 @@ METH(run) (_THIS)
 }
 
 void
-METH(Play) (_THIS)
+MPEGvideo_Play (_THIS)
 {
   self->_stream->realTimeStart += ReadSysClock(); /* dethreaded. */
   self->start_frames = self->_stream->totNumFrames;
   self->start_time = SDL_GetTicks();
 
-    METH(ResetPause) (self);
+    MPEGvideo_ResetPause (self);
     if ( self->_stream ) {
 		if ( self->playing ) {
-			METH(Stop) (self);
+			MPEGvideo_Stop (self);
 		}
         self->playing = true;
 #ifdef PROFILE_VIDEO	/* Profiling doesn't work well with threads */
@@ -367,7 +365,7 @@ METH(Play) (_THIS)
 }
 
 void
-METH(Stop) (_THIS)
+MPEGvideo_Stop (_THIS)
 {
 #ifndef THREADED_VIDEO
 /* Dethreaded. */
@@ -392,13 +390,13 @@ METH(Stop) (_THIS)
         self->_thread = NULL;
     }
 #endif /* THREADED_VIDEO */
-    METH(ResetPause) (self);
+    MPEGvideo_ResetPause (self);
 }
 
 void
-METH(Rewind) (_THIS)
+MPEGvideo_Rewind (_THIS)
 {
-    METH(Stop) (self);
+    MPEGvideo_Stop (self);
     if ( self->_stream ) {
       /* Reinitialize vid_stream pointers */
       ResetVidStream( self->_stream );
@@ -409,7 +407,7 @@ METH(Rewind) (_THIS)
 }
 
 void
-METH(ResetSynchro) (_THIS, double time)
+MPEGvideo_ResetSynchro (_THIS, double time)
 {
   if( self->_stream )
   {
@@ -435,7 +433,7 @@ METH(ResetSynchro) (_THIS, double time)
 
 
 void
-METH(Skip) (_THIS, float seconds)
+MPEGvideo_Skip (_THIS, float seconds)
 {
   int frame;
 
@@ -452,12 +450,12 @@ METH(Skip) (_THIS, float seconds)
     {
       mpegVidRsrc( 0, self->_stream, 0 );
     }
-    METH(ResetSynchro) (self, 0);
+    MPEGvideo_ResetSynchro (self, 0);
   }
 }
 
 MPEGstatus
-METH(GetStatus) (_THIS)
+MPEGvideo_GetStatus (_THIS)
 {
     if ( self->_stream ) {
 #ifndef THREADED_VIDEO
@@ -474,7 +472,7 @@ METH(GetStatus) (_THIS)
 }
 
 bool
-METH(GetVideoInfo) (_THIS, MPEG_VideoInfo *info)
+MPEGvideo_GetVideoInfo (_THIS, MPEG_VideoInfo *info)
 {
     if ( info ) {
         info->width = self->_ow;
@@ -522,7 +520,7 @@ METH(GetVideoInfo) (_THIS, MPEG_VideoInfo *info)
    callback - called on every frame, for display update
 */
 bool
-METH(SetDisplay) (_THIS, SDL_Surface *dst, SDL_mutex *lock, MPEG_DisplayCallback callback)
+MPEGvideo_SetDisplay (_THIS, SDL_Surface *dst, SDL_mutex *lock, MPEG_DisplayCallback callback)
 {
     self->_mutex = lock;
     self->_dst = dst;
@@ -565,7 +563,7 @@ METH(SetDisplay) (_THIS, SDL_Surface *dst, SDL_mutex *lock, MPEG_DisplayCallback
    for clearing the old area and coordinating with the update callback.
 */
 void
-METH(MoveDisplay) (_THIS, int x, int y)
+MPEGvideo_MoveDisplay (_THIS, int x, int y)
 {
     SDL_mutexP( self->_mutex );
     self->_dstrect.x = x;
@@ -574,7 +572,7 @@ METH(MoveDisplay) (_THIS, int x, int y)
 }
 
 void
-METH(ScaleDisplayXY) (_THIS, int w, int h)
+MPEGvideo_ScaleDisplayXY (_THIS, int w, int h)
 {
     SDL_mutexP( self->_mutex );
     self->_dstrect.w = w;
@@ -583,7 +581,7 @@ METH(ScaleDisplayXY) (_THIS, int w, int h)
 }
 
 void
-METH(SetDisplayRegion) (_THIS, int x, int y, int w, int h)
+MPEGvideo_SetDisplayRegion (_THIS, int x, int y, int w, int h)
 {
     SDL_mutexP( self->_mutex );
     self->_srcrect.x = x;
@@ -604,14 +602,14 @@ METH(SetDisplayRegion) (_THIS, int x, int y, int w, int h)
    You must use SetDisplay() and MoveDisplay() to set those attributes.
 */
 void
-METH(RenderFrame) (_THIS, int frame)
+MPEGvideo_RenderFrame (_THIS, int frame)
 {
     self->_stream->need_frameadjust = true;
 
     if( self->_stream->current_frame > frame ) {
         MPEGstream_rewind_stream(self->mpeg);
         MPEGstream_next_packet(self->mpeg, true, true);
-        METH(Rewind) (self);
+        MPEGvideo_Rewind (self);
     }
 
     self->_stream->_jumpFrame = frame;
@@ -626,20 +624,20 @@ METH(RenderFrame) (_THIS, int frame)
 }
 
 void
-METH(RenderFinal) (_THIS, SDL_Surface *dst, int x, int y)
+MPEGvideo_RenderFinal (_THIS, SDL_Surface *dst, int x, int y)
 {
     SDL_Surface *saved_dst;
     int saved_x, saved_y;
 
     /* This operation can only be performed when stopped */
-    METH(Stop) (self);
+    MPEGvideo_Stop (self);
 
     /* Set (and save) the destination and location */
     saved_dst = self->_dst;
     saved_x = self->_dstrect.x;
     saved_y = self->_dstrect.y;
-    METH(SetDisplay) (self, dst, self->_mutex, self->_callback);
-    METH(MoveDisplay) (self, x, y);
+    MPEGvideo_SetDisplay (self, dst, self->_mutex, self->_callback);
+    MPEGvideo_MoveDisplay (self, x, y);
 
     if ( ! self->_stream->film_has_ended ) {
         /* Search for the last "group of pictures" start code */
@@ -677,50 +675,50 @@ METH(RenderFinal) (_THIS, SDL_Surface *dst, int x, int y)
         /* Process all frames without displaying any */
         self->_stream->_skipFrame = 1;
 
-        METH(RenderFrame) (self, INT_MAX );
+        MPEGvideo_RenderFrame (self, INT_MAX );
 
         MPEGstream_garbage_collect(self->mpeg);
     }
 
     /* Display the frame */
-    METH(DisplayFrame) (self, self->_stream);
+    MPEGvideo_DisplayFrame (self, self->_stream);
 
     /* Restore the destination and location */
-    METH(SetDisplay) (self, saved_dst, self->_mutex, self->_callback);
-    METH(MoveDisplay) (self, saved_x, saved_y);
+    MPEGvideo_SetDisplay (self, saved_dst, self->_mutex, self->_callback);
+    MPEGvideo_MoveDisplay (self, saved_x, saved_y);
 }
 
 
 
 /* virtual methods of MPEGaction. */
 
-void METH(SetTimeSource) (_THIS, struct MPEGaudio *source)
+void MPEGvideo_SetTimeSource (_THIS, struct MPEGaudio *source)
 {
   self->time_source = source;
 }
 
-void METH(Loop) (_THIS, bool toggle)
+void MPEGvideo_Loop (_THIS, bool toggle)
 {
   self->looping = toggle;
 }
 
-double METH(Time) (_THIS)
+double MPEGvideo_Time (_THIS)
 {
   return self->play_time;
 }
 
-void METH(ResetPause) (_THIS)
+void MPEGvideo_ResetPause (_THIS)
 {
   self->paused = false;
 }
 
-/*virtual*/ void METH(Pause) (_THIS) /* A toggle action */
+/*virtual*/ void MPEGvideo_Pause (_THIS) /* A toggle action */
 {
     if ( self->paused ) {
         self->paused = false;
-        METH(Play) (self);
+        MPEGvideo_Play (self);
     } else {
-        METH(Stop) (self);
+        MPEGvideo_Stop (self);
         self->paused = true;
     }
 }
@@ -730,7 +728,7 @@ void METH(ResetPause) (_THIS)
 /* other odds and ends. */
 
 struct MPEGaudio *
-METH(TimeSource) (_THIS)
+MPEGvideo_TimeSource (_THIS)
 {
   return self->time_source;
 }

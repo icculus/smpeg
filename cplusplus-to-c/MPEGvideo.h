@@ -131,8 +131,6 @@ struct vid_stream;
 
 #undef _THIS
 #define _THIS struct MPEGvideo *self
-#undef METH
-#define METH(m) MPEGvideo_##m
 
 struct MPEGvideo {
   MPEGerror *error;
@@ -180,7 +178,7 @@ typedef struct MPEGvideo MPEGvideo;
 
 
 
-void METH(RewindStream) (_THIS);
+void MPEGvideo_RewindStream (_THIS);
 
 //    /* Thread to play the video asynchronously */
 //    friend int Play_MPEGvideo(void *udata);
@@ -189,36 +187,36 @@ void METH(RewindStream) (_THIS);
 //    friend VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first );
 //    friend int get_more_data( VidStream* vid_stream );
 
-MPEGvideo * METH(init) (_THIS, struct MPEGstream *stream);
-void METH(destroy) (_THIS);
+MPEGvideo * MPEGvideo_init (_THIS, struct MPEGstream *stream);
+void MPEGvideo_destroy (_THIS);
 
 /* dethreading. */
-int METH(run) (_THIS);
+int MPEGvideo_run (_THIS);
 
     /* MPEG actions */
-void METH(Play) (_THIS);
-void METH(Stop) (_THIS);
-void METH(Rewind) (_THIS);
-void METH(ResetSynchro) (_THIS, double time);
-void METH(Skip) (_THIS, float seconds);
-MPEGstatus METH(GetStatus) (_THIS);
+void MPEGvideo_Play (_THIS);
+void MPEGvideo_Stop (_THIS);
+void MPEGvideo_Rewind (_THIS);
+void MPEGvideo_ResetSynchro (_THIS, double time);
+void MPEGvideo_Skip (_THIS, float seconds);
+MPEGstatus MPEGvideo_GetStatus (_THIS);
 
     /* MPEG video actions */
-bool METH(GetVideoInfo) (_THIS, MPEG_VideoInfo *info);
-bool METH(SetDisplay) (_THIS, SDL_Surface *dst, SDL_mutex *lock, MPEG_DisplayCallback callback);
-void METH(MoveDisplay) (_THIS, int x, int y);
-void METH(ScaleDisplayXY) (_THIS, int w, int h);
-void METH(SetDisplayRegion) (_THIS, int x, int y, int w, int h);
-void METH(RenderFrame) (_THIS, int frame);
-void METH(RenderFinal) (_THIS, SDL_Surface *dst, int x, int y);
-SMPEG_Filter * METH(Filter) (_THIS, SMPEG_Filter * filter);
+bool MPEGvideo_GetVideoInfo (_THIS, MPEG_VideoInfo *info);
+bool MPEGvideo_SetDisplay (_THIS, SDL_Surface *dst, SDL_mutex *lock, MPEG_DisplayCallback callback);
+void MPEGvideo_MoveDisplay (_THIS, int x, int y);
+void MPEGvideo_ScaleDisplayXY (_THIS, int w, int h);
+void MPEGvideo_SetDisplayRegion (_THIS, int x, int y, int w, int h);
+void MPEGvideo_RenderFrame (_THIS, int frame);
+void MPEGvideo_RenderFinal (_THIS, SDL_Surface *dst, int x, int y);
+SMPEG_Filter * MPEGvideo_Filter (_THIS, SMPEG_Filter * filter);
 
 /* Display and sync functions */
-void METH(DisplayFrame) ( _THIS, VidStream* vid_stream );
-void METH(ExecuteDisplay) ( _THIS, VidStream* vid_stream );
-int METH(timeSync) ( _THIS, VidStream* vid_stream );
+void MPEGvideo_DisplayFrame ( _THIS, VidStream* vid_stream );
+void MPEGvideo_ExecuteDisplay ( _THIS, VidStream* vid_stream );
+int MPEGvideo_timeSync ( _THIS, VidStream* vid_stream );
 
-struct MPEGaudio * METH(TimeSource) (_THIS);
+struct MPEGaudio * MPEGvideo_TimeSource (_THIS);
 
 //    MPEGaudioaction *TimeSource(void ) {
 //        return time_source;
@@ -227,11 +225,11 @@ struct MPEGaudio * METH(TimeSource) (_THIS);
 
 /* virtual methods of MPEGaction. */
 
-void METH(SetTimeSource) (_THIS, struct MPEGaudio *source);
-void METH(Loop) (_THIS, bool toggle);
-double METH(Time) (_THIS);
-void METH(ResetPause) (_THIS);
-void METH(Pause) (_THIS);
+void MPEGvideo_SetTimeSource (_THIS, struct MPEGaudio *source);
+void MPEGvideo_Loop (_THIS, bool toggle);
+double MPEGvideo_Time (_THIS);
+void MPEGvideo_ResetPause (_THIS);
+void MPEGvideo_Pause (_THIS);
 
 
 

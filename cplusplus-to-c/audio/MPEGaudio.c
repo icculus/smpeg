@@ -30,13 +30,9 @@
 
 #undef _THIS
 #define _THIS MPEGaudio *self
-#undef METH
-#define METH(m) MPEGaudio_##m
-#undef PROP
-#define PROP(p) (self->p)
 
 MPEGaudio *
-METH(init) (_THIS, MPEGstream *stream, bool initSDL)
+MPEGaudio_init (_THIS, MPEGstream *stream, bool initSDL)
 {
     int i;
 
@@ -44,100 +40,100 @@ METH(init) (_THIS, MPEGstream *stream, bool initSDL)
     self->sdl_audio = initSDL;
     self->error = MPEGerror_init(self->error);
 //    self->action = MPEGaction_init(self->action);
-    PROP(playing) = false;
-    PROP(paused) = false;
-    PROP(looping) = false;
-    PROP(play_time) = 0.0;
+    self->playing = false;
+    self->paused = false;
+    self->looping = false;
+    self->play_time = 0.0;
 
     /* Initialize MPEG audio */
-    PROP(mpeg) = stream;
-    METH(initialize) (self);
+    self->mpeg = stream;
+    MPEGaudio_initialize (self);
 
     /* Just be paranoid.  If all goes well, this will be set to true */
-    PROP(valid_stream) = false;
+    self->valid_stream = false;
 
     /* Analyze the MPEG audio stream */
-    if ( METH(loadheader)(self) ) {
+    if ( MPEGaudio_loadheader(self) ) {
         SDL_AudioSpec wanted;
-        METH(WantedSpec)(self, &wanted);
+        MPEGaudio_WantedSpec(self, &wanted);
 
         /* Calculate the samples per frame */
-        PROP(samplesperframe) = 32*wanted.channels;
-        if( PROP(layer) == 3 ) {
-            PROP(samplesperframe) *= 18;
-            if ( PROP(version) == 0 ) {
-                PROP(samplesperframe) *= 2;
+        self->samplesperframe = 32*wanted.channels;
+        if( self->layer == 3 ) {
+            self->samplesperframe *= 18;
+            if ( self->version == 0 ) {
+                self->samplesperframe *= 2;
             }
         } else {
-            PROP(samplesperframe) *= SCALEBLOCK;
-            if ( PROP(layer) == 2 ) {
-                PROP(samplesperframe) *= 3;
+            self->samplesperframe *= SCALEBLOCK;
+            if ( self->layer == 2 ) {
+                self->samplesperframe *= 3;
             }
         }
-        if ( PROP(sdl_audio) ) {
+        if ( self->sdl_audio ) {
             /* Open the audio, get actual audio hardware format and convert */
             bool audio_active;
             SDL_AudioSpec actual;
             audio_active = (SDL_OpenAudio(&wanted, &actual) == 0);
             if ( audio_active ) {
-                METH(ActualSpec)(self, &actual);
-                PROP(valid_stream) = true;
+                MPEGaudio_ActualSpec(self, &actual);
+                self->valid_stream = true;
             } else {
-                MPEGerror_SetError(PROP(error), SDL_GetError());
+                MPEGerror_SetError(self->error, SDL_GetError());
             }
             SDL_PauseAudio(0);
         } else { /* The stream is always valid if we don't initialize SDL */
-            PROP(valid_stream) = true; 
+            self->valid_stream = true; 
         }
-        METH(Volume)(self, 100);
+        MPEGaudio_Volume(self, 100);
     }
 
     /* For using system timestamp */
     for (i=0; i<N_TIMESTAMPS; i++)
-      PROP(timestamp[i]) = -1;
+      self->timestamp[i] = -1;
 
   return self;
 }
 
 void
-METH(destroy) (_THIS)
+MPEGaudio_destroy (_THIS)
 {
 #ifdef THREADED_AUDIO
     /* Stop the decode thread */
-    METH(StopDecoding)(self);
+    MPEGaudio_StopDecoding(self);
 #endif
 
     /* Remove ourselves from the mixer hooks */
-    METH(Stop)(self);
-    if ( PROP(sdl_audio) ) {
+    MPEGaudio_Stop(self);
+    if ( self->sdl_audio ) {
         /* Close up the audio so others may play */
         SDL_CloseAudio();
     }
 
-//  MPEGaction_destroy(PROP(action));
-//  free(PROP(action));
-//  PROP(action) = NULL;
-  PROP(playing) = false;
-  PROP(paused) = false;
-  PROP(looping) = false;
-  PROP(play_time) = 0.0;
+//  MPEGaction_destroy(self->action);
+//  free(self->action);
+//  self->action = NULL;
+  self->playing = false;
+  self->paused = false;
+  self->looping = false;
+  self->play_time = 0.0;
 
-  MPEGerror_destroy(PROP(error));
-  free(PROP(error));
-  PROP(error) = NULL;
+  MPEGerror_destroy(self->error);
+  free(self->error);
+  self->error = NULL;
 
 }
 
 bool
-METH(WantedSpec) (_THIS, SDL_AudioSpec *wanted)
+MPEGaudio_WantedSpec (_THIS, SDL_AudioSpec *wanted)
 {
-    wanted->freq = MPEGaudio_frequencies[PROP(version)][PROP(frequency)];
+    wanted->freq = MPEGaudio_frequencies[self->version][self->frequency];
 #if SDL_BYTEORDER == SDL_LIL_ENDIAN
     wanted->format = AUDIO_S16LSB;
 #else
     wanted->format = AUDIO_S16MSB;
 #endif
-    if ( PROP(outputstereo) ) {
+    if ( self->outputstereo ) {
         wanted->channels = 2;
     } else {
         wanted->channels = 1;
@@ -149,23 +145,23 @@ METH(WantedSpec) (_THIS, SDL_AudioSpec *wanted)
 }
 
 void
-METH(ActualSpec) (_THIS, const SDL_AudioSpec *actual)
+MPEGaudio_ActualSpec (_THIS, const SDL_AudioSpec *actual)
 {
     /* Splay can optimize some of the conversion */
-    if ( actual->channels == 1 && PROP(outputstereo) ) {
-        PROP(forcetomonoflag) = true;
+    if ( actual->channels == 1 && self->outputstereo ) {
+        self->forcetomonoflag = true;
     }
-    if ( actual->channels == 2 && !PROP(outputstereo) ) {
-        PROP(forcetostereoflag) = true;
-        PROP(samplesperframe) *= 2;
+    if ( actual->channels == 2 && !self->outputstereo ) {
+        self->forcetostereoflag = true;
+        self->samplesperframe *= 2;
     }
     /* FIXME: Create an audio conversion block */
-    if ( (actual->freq/100) == ((MPEGaudio_frequencies[PROP(version)][PROP(frequency)]/2)/100) ) {
-        PROP(downfrequency) = 1;
-    } else if ( actual->freq != MPEGaudio_frequencies[PROP(version)][PROP(frequency)] ) {
+    if ( (actual->freq/100) == ((MPEGaudio_frequencies[self->version][self->frequency]/2)/100) ) {
+        self->downfrequency = 1;
+    } else if ( actual->freq != MPEGaudio_frequencies[self->version][self->frequency] ) {
 #ifdef VERBOSE_WARNINGS
         fprintf(stderr, "Warning: wrong audio frequency (wanted %d, got %d)\n",
-		MPEGaudio_frequencies[PROP(version)][PROP(frequency)], actual->freq);
+		MPEGaudio_frequencies[self->version][self->frequency], actual->freq);
 #else
 	;
 #endif
@@ -178,134 +174,134 @@ METH(ActualSpec) (_THIS, const SDL_AudioSpec *actual)
     {
         fprintf(stderr, "Warning: incorrect audio format\n");
     }
-    PROP(rate_in_s)=((double)((actual->format&0xFF)/8)*actual->channels*actual->freq);
-    PROP(stereo)=((actual->channels-1) > 0);
+    self->rate_in_s=((double)((actual->format&0xFF)/8)*actual->channels*actual->freq);
+    self->stereo=((actual->channels-1) > 0);
 }
 
 #ifdef THREADED_AUDIO
 void
-METH(StartDecoding) (_THIS)
+MPEGaudio_StartDecoding (_THIS)
 {
-    PROP(decoding) = true;
+    self->decoding = true;
     /* Create the ring buffer to hold audio */
-    if ( ! PROP(ring) ) {
+    if ( ! self->ring ) {
 //        ring = new MPEG_ring(samplesperframe*2);
-        PROP(ring) = MPEG_ring_init(NULL, PROP(samplesperframe) * 2, 16);
+        self->ring = MPEG_ring_init(NULL, self->samplesperframe * 2, 16);
     }
-    if ( ! PROP(decode_thread) ) {
-        PROP(decode_thread) = SDL_CreateThread(Decode_MPEGaudio, self);
+    if ( ! self->decode_thread ) {
+        self->decode_thread = SDL_CreateThread(Decode_MPEGaudio, self);
     }
 }
 void
-METH(StopDecoding) (_THIS)
+MPEGaudio_StopDecoding (_THIS)
 {
-    PROP(decoding) = false;
-    if ( PROP(decode_thread) ) {
-        if( PROP(ring) ) MPEG_ring_ReleaseThreads(PROP(ring));
-        SDL_WaitThread(PROP(decode_thread), NULL);
-        PROP(decode_thread) = NULL;
+    self->decoding = false;
+    if ( self->decode_thread ) {
+        if( self->ring ) MPEG_ring_ReleaseThreads(self->ring);
+        SDL_WaitThread(self->decode_thread, NULL);
+        self->decode_thread = NULL;
     }
-    if ( PROP(ring) ) {
-        MPEG_ring_destroy(PROP(ring));
-        free(PROP(ring));
-        PROP(ring) = NULL;
+    if ( self->ring ) {
+        MPEG_ring_destroy(self->ring);
+        free(self->ring);
+        self->ring = NULL;
     }
 }
 #endif
 
 /* MPEG actions */
 double
-METH(Time) (_THIS)
+MPEGaudio_Time (_THIS)
 {
     double now;
 
-    if ( PROP(frag_time) ) {
-        now = (PROP(play_time) + (double)(SDL_GetTicks() - PROP(frag_time))/1000.0);
+    if ( self->frag_time ) {
+        now = (self->play_time + (double)(SDL_GetTicks() - self->frag_time)/1000.0);
     } else {
-        now = PROP(play_time);
+        now = self->play_time;
     }
     return now;
 }
 void
-METH(Play) (_THIS)
+MPEGaudio_Play (_THIS)
 {
-    METH(ResetPause)(self);
-    if ( PROP(valid_stream) ) {
+    MPEGaudio_ResetPause(self);
+    if ( self->valid_stream ) {
 #ifdef THREADED_AUDIO
-        METH(StartDecoding)(self);
+        MPEGaudio_StartDecoding(self);
 #endif
-        PROP(playing) = true;
+        self->playing = true;
     }
 }
 void
-METH(Stop) (_THIS)
+MPEGaudio_Stop (_THIS)
 {
-    if ( PROP(valid_stream) ) {
-        if ( PROP(sdl_audio) )
+    if ( self->valid_stream ) {
+        if ( self->sdl_audio )
             SDL_LockAudio();
 
-        PROP(playing) = false;
+        self->playing = false;
 
-        if ( PROP(sdl_audio) )
+        if ( self->sdl_audio )
             SDL_UnlockAudio();
     }
-    METH(ResetPause)(self);
+    MPEGaudio_ResetPause(self);
 }
 void
-METH(Rewind) (_THIS)
+MPEGaudio_Rewind (_THIS)
 {
-    METH(Stop)(self);
+    MPEGaudio_Stop(self);
 
 #ifdef THREADED_AUDIO
     /* Stop the decode thread */
-    METH(StopDecoding)(self);
+    MPEGaudio_StopDecoding(self);
 #endif
 
-    METH(clearrawdata)(self);
-    PROP(decodedframe) = 0;
-    PROP(currentframe) = 0;
-    PROP(frags_playing) = 0;
+    MPEGaudio_clearrawdata(self);
+    self->decodedframe = 0;
+    self->currentframe = 0;
+    self->frags_playing = 0;
 }
 void
-METH(ResetSynchro) (_THIS, double time)
+MPEGaudio_ResetSynchro (_THIS, double time)
 {
     int i;
 
-    PROP(play_time) = time;
-    PROP(frag_time) = 0;
+    self->play_time = time;
+    self->frag_time = 0;
 
     /* Reinit the timestamp FIFO */
     for (i=0; i<N_TIMESTAMPS; i++)
-      PROP(timestamp)[i] = -1;
+      self->timestamp[i] = -1;
 }
 void
-METH(Skip) (_THIS, float seconds)
+MPEGaudio_Skip (_THIS, float seconds)
 {
    /* Called only when there is no timestamp info in the MPEG */
    printf("Audio: Skipping %f seconds...\n", seconds);
    while(seconds > 0)
    {
-     seconds -= (float) PROP(samplesperframe) / ((float) MPEGaudio_frequencies[PROP(version)][PROP(frequency)]*(1+PROP(inputstereo)));
-     if(!METH(loadheader)(self)) break;
+     seconds -= (float) self->samplesperframe / ((float) MPEGaudio_frequencies[self->version][self->frequency]*(1+self->inputstereo));
+     if(!MPEGaudio_loadheader(self)) break;
    }
  }
 void
-METH(Volume) (_THIS, int vol)
+MPEGaudio_Volume (_THIS, int vol)
 {
     if ( (vol >= 0) && (vol <= 100) ) {
-        PROP(volume) = (vol*SDL_MIX_MAXVOLUME)/100;
+        self->volume = (vol*SDL_MIX_MAXVOLUME)/100;
     }
 }
 MPEGstatus
-METH(GetStatus) (_THIS)
+MPEGaudio_GetStatus (_THIS)
 {
-    if ( PROP(valid_stream) ) {
+    if ( self->valid_stream ) {
         /* Has decoding stopped because of end of stream? */
-        if ( MPEGstream_eof(PROP(mpeg)) && (PROP(decodedframe) <= PROP(currentframe)) ) {
+        if ( MPEGstream_eof(self->mpeg) && (self->decodedframe <= self->currentframe) ) {
             return(MPEG_STOPPED);
         }
         /* Have we been told to play? */
-        if ( PROP(playing) ) {
+        if ( self->playing ) {
             return(MPEG_PLAYING);
         } else {
             return(MPEG_STOPPED);
@@ -316,83 +312,83 @@ METH(GetStatus) (_THIS)
 }
 
 bool
-METH(GetAudioInfo) (_THIS, MPEG_AudioInfo *info)
+MPEGaudio_GetAudioInfo (_THIS, MPEG_AudioInfo *info)
 {
     if ( info ) {
-      info->mpegversion = PROP(version);
-      info->mode = PROP(mode);
-      info->frequency = MPEGaudio_frequencies[PROP(version)][PROP(frequency)];
-      info->layer = PROP(layer);
-      info->bitrate = MPEGaudio_bitrate[PROP(version)][PROP(layer)-1][PROP(bitrateindex)];
-      info->current_frame = PROP(currentframe);
+      info->mpegversion = self->version;
+      info->mode = self->mode;
+      info->frequency = MPEGaudio_frequencies[self->version][self->frequency];
+      info->layer = self->layer;
+      info->bitrate = MPEGaudio_bitrate[self->version][self->layer-1][self->bitrateindex];
+      info->current_frame = self->currentframe;
     }
     return true;
 }
 bool
-METH(fillbuffer) (_THIS, int size)
+MPEGaudio_fillbuffer (_THIS, int size)
   {
-      PROP(bitindex)=0;
-      PROP(_buffer_pos) = PROP(mpeg)->pos;
-      return (MPEGstream_copy_data(PROP(mpeg), PROP(_buffer), size, false) > 0);
+      self->bitindex=0;
+      self->_buffer_pos = self->mpeg->pos;
+      return (MPEGstream_copy_data(self->mpeg, self->_buffer, size, false) > 0);
   };
   
 void
-METH(sync) (_THIS)
+MPEGaudio_sync (_THIS)
 {
-  PROP(bitindex)=(PROP(bitindex)+7)&0xFFFFFFF8;
+  self->bitindex=(self->bitindex+7)&0xFFFFFFF8;
 }
   
 bool
-METH(issync) (_THIS)
+MPEGaudio_issync (_THIS)
 {
-  return (PROP(bitindex)&7) != 0;
+  return (self->bitindex&7) != 0;
 }
   
 int 
-METH(getbyte) (_THIS)
+MPEGaudio_getbyte (_THIS)
 {
 //  int r=(unsigned char)_buffer[bitindex>>3];
   int r;
 
-  r = (unsigned char)(PROP(_buffer)[PROP(bitindex)>>3]);
+  r = (unsigned char)(self->_buffer[self->bitindex>>3]);
 
-  PROP(bitindex)+=8;
+  self->bitindex+=8;
   return r;
 }
   
 int 
-METH(getbit) (_THIS)
+MPEGaudio_getbit (_THIS)
 {
-  register int r=(PROP(_buffer)[PROP(bitindex)>>3]>>(7-(PROP(bitindex)&7)))&1;
+  register int r=(self->_buffer[self->bitindex>>3]>>(7-(self->bitindex&7)))&1;
 
-  PROP(bitindex)++;
+  self->bitindex++;
   return r;
 }
   
 int 
-METH(getbits8) (_THIS)
+MPEGaudio_getbits8 (_THIS)
 {
   register unsigned short a;
-  { int offset=PROP(bitindex)>>3;
+  { int offset=self->bitindex>>3;
 
 //  a=(((unsigned char)_buffer[offset])<<8) | ((unsigned char)_buffer[offset+1]);
-  a=(((unsigned char)(PROP(_buffer)[offset]))<<8) | ((unsigned char)(PROP(_buffer)[offset+1]));
+  a=(((unsigned char)(self->_buffer[offset]))<<8) | ((unsigned char)(self->_buffer[offset+1]));
   }
-  a<<=(PROP(bitindex)&7);
-  PROP(bitindex)+=8;
+  a<<=(self->bitindex&7);
+  self->bitindex+=8;
   return (int)((unsigned int)(a>>8));
 }
   
 int 
-METH(getbits9) (_THIS, int bits)
+MPEGaudio_getbits9 (_THIS, int bits)
 {
   register unsigned short a;
-  { int offset=PROP(bitindex)>>3;
+  { int offset=self->bitindex>>3;
 
-  a=(((unsigned char)(PROP(_buffer)[offset]))<<8) | ((unsigned char)(PROP(_buffer)[offset+1]));
+  a=(((unsigned char)(self->_buffer[offset]))<<8) | ((unsigned char)(self->_buffer[offset+1]));
   }
-  a<<=(PROP(bitindex)&7);
-  PROP(bitindex)+=bits;
+  a<<=(self->bitindex&7);
+  self->bitindex+=bits;
   return (int)((unsigned int)(a>>(16-bits)));
 }
 
@@ -402,23 +398,23 @@ METH(getbits9) (_THIS, int bits)
 /* other virtual methods of MPEGaction. */
 
 void
-METH(ResetPause) (_THIS)
+MPEGaudio_ResetPause (_THIS)
 {
-  PROP(paused) = false;
+  self->paused = false;
 }
 
 void
-METH(Pause) (_THIS)
+MPEGaudio_Pause (_THIS)
 {
-  if (PROP(paused))
+  if (self->paused)
     {
-      PROP(paused) = false;
-      METH(Play)(self);
+      self->paused = false;
+      MPEGaudio_Play(self);
     }
   else
     {
-      METH(Stop)(self);
-      PROP(paused) = true;
+      MPEGaudio_Stop(self);
+      self->paused = true;
     }
 } 
 

@@ -172,63 +172,61 @@ typedef struct MPEGsystem MPEGsystem;
 
 #undef _THIS
 #define _THIS MPEGsystem *self
-#undef METH
-#define METH(m) MPEGsystem_##m
 
 
 /* Run the loop to fill the stream buffers */
-bool METH(SystemLoop) (MPEGsystem *system);
+bool MPEGsystem_SystemLoop (MPEGsystem *system);
 /* Fill a buffer */
-/*virtual*/ Uint8 METH(FillBuffer) (_THIS);
+/*virtual*/ Uint8 MPEGsystem_FillBuffer (_THIS);
 /* Read a new packet */
-/*virtual*/ void METH(Read) (_THIS);
+/*virtual*/ void MPEGsystem_Read (_THIS);
 /* The system thread which fills the FIFO */
-int METH(SystemThread) (void * udata);
+int MPEGsystem_SystemThread (void * udata);
 
 
-MPEGsystem * METH(init) (_THIS);
-MPEGsystem * METH(init_mpeg_source) (_THIS, SDL_RWops *mpeg_source);
-void METH(destroy) (_THIS);
+MPEGsystem * MPEGsystem_init (_THIS);
+MPEGsystem * MPEGsystem_init_mpeg_source (_THIS, SDL_RWops *mpeg_source);
+void MPEGsystem_destroy (_THIS);
 
 /* Buffered I/O functions */
-void METH(RequestBuffer) (_THIS);
-bool METH(Wait) (_THIS);
-Uint32 METH(Tell) (_THIS);
-void METH(Rewind) (_THIS);
-/*virtual*/ void METH(Start) (_THIS);
-void METH(Stop) (_THIS);
-bool METH(Eof) (_THIS); //const;
-/*virtual*/ bool METH(Seek) (_THIS, int length);
-/*virtual*/ Uint32 METH(TotalSize) (_THIS);
-/*virtual*/ double METH(TotalTime) (_THIS);
-/*virtual*/ double METH(TimeElapsedAudio) (_THIS, int atByte);
+void MPEGsystem_RequestBuffer (_THIS);
+bool MPEGsystem_Wait (_THIS);
+Uint32 MPEGsystem_Tell (_THIS);
+void MPEGsystem_Rewind (_THIS);
+/*virtual*/ void MPEGsystem_Start (_THIS);
+void MPEGsystem_Stop (_THIS);
+bool MPEGsystem_Eof (_THIS); //const;
+/*virtual*/ bool MPEGsystem_Seek (_THIS, int length);
+/*virtual*/ Uint32 MPEGsystem_TotalSize (_THIS);
+/*virtual*/ double MPEGsystem_TotalTime (_THIS);
+/*virtual*/ double MPEGsystem_TimeElapsedAudio (_THIS, int atByte);
 
 /* Skip "seconds" seconds */
-void METH(Skip) (_THIS, double seconds);
+void MPEGsystem_Skip (_THIS, double seconds);
 
 /* Create all the streams present in the MPEG */
-struct MPEGstream ** METH(GetStreamList) (_THIS);
+struct MPEGstream ** MPEGsystem_GetStreamList (_THIS);
 
 /* Insert a stream in the list */
-void METH(add_stream) (_THIS, struct MPEGstream * stream);
+void MPEGsystem_add_stream (_THIS, struct MPEGstream * stream);
 
 /* Search for a stream in the list */
-struct MPEGstream * METH(get_stream) (_THIS, Uint8 stream_id);
+struct MPEGstream * MPEGsystem_get_stream (_THIS, Uint8 stream_id);
 
 /* Test if a stream is in the list */
-Uint8 METH(exist_stream) (_THIS, Uint8 stream_id, Uint8 mask);
+Uint8 MPEGsystem_exist_stream (_THIS, Uint8 stream_id, Uint8 mask);
 
 /* Reset all the system streams */
-void METH(reset_all_streams) (_THIS);
+void MPEGsystem_reset_all_streams (_THIS);
 
 /* Set eof for all streams */
-void METH(end_all_streams) (_THIS);
+void MPEGsystem_end_all_streams (_THIS);
 
 /* Seek the first header */
-/*virtual*/ bool METH(seek_first_header) (_THIS);
+/*virtual*/ bool MPEGsystem_seek_first_header (_THIS);
 
 /* Seek the next header */
-/*virtual*/ bool METH(seek_next_header) (_THIS);
+/*virtual*/ bool MPEGsystem_seek_next_header (_THIS);
 
 
 

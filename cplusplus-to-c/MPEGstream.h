@@ -84,55 +84,53 @@ typedef struct MPEGstream MPEGstream;
 
 #undef _THIS
 #define _THIS MPEGstream *self
-#undef METH
-#define METH(m) MPEGstream_##m
 
-MPEGstream * METH(init) (_THIS, struct MPEGsystem *System, Uint8 Streamid);
-void METH(destroy) (_THIS);
+MPEGstream * MPEGstream_init (_THIS, struct MPEGsystem *System, Uint8 Streamid);
+void MPEGstream_destroy (_THIS);
 
-bool METH(next_system_buffer) (_THIS);
+bool MPEGstream_next_system_buffer (_THIS);
 
 /* Cleanup the buffers and reset the stream */
-void METH(reset_stream) (_THIS);
+void MPEGstream_reset_stream (_THIS);
 
 /* Rewind the stream */
-void METH(rewind_stream) (_THIS);
+void MPEGstream_rewind_stream (_THIS);
 
 /* Go to the next packet in the stream */
-//bool METH(next_packet) (_THIS, bool recurse = true, bool update_timestamp = true);
-bool METH(next_packet) (_THIS, bool recurse, bool update_timestamp);
+//bool MPEGstream_next_packet (_THIS, bool recurse = true, bool update_timestamp = true);
+bool MPEGstream_next_packet (_THIS, bool recurse, bool update_timestamp);
 
 /* Mark a position in the data stream */
-MPEGstream_marker *METH(new_marker) (_THIS, int offset);
+MPEGstream_marker *MPEGstream_new_marker (_THIS, int offset);
 
 /* Jump to the marked position */
-bool METH(seek_marker) (_THIS, MPEGstream_marker const * marker);
+bool MPEGstream_seek_marker (_THIS, MPEGstream_marker const * marker);
 
 /* Jump to last successfully marked position */
-void METH(delete_marker) (_THIS, MPEGstream_marker * marker);
+void MPEGstream_delete_marker (_THIS, MPEGstream_marker * marker);
 
 /* Copy data from the stream to a local buffer */
-//Uint32 METH(copy_data) (_THIS, Uint8 *area, Sint32 size, bool short_read = false);
-Uint32 METH(copy_data) (_THIS, Uint8 *area, Sint32 size, bool short_read);
+//Uint32 MPEGstream_copy_data (_THIS, Uint8 *area, Sint32 size, bool short_read = false);
+Uint32 MPEGstream_copy_data (_THIS, Uint8 *area, Sint32 size, bool short_read);
 
 /* Copy a byte from the stream */
-int METH(copy_byte) (_THIS);
+int MPEGstream_copy_byte (_THIS);
 
 /* Check for end of file or an error in the stream */
-bool METH(eof) (_THIS); // const;
+bool MPEGstream_eof (_THIS); // const;
 
 /* Insert a new packet at the end of the stream */
-//void METH(insert_packet) (_THIS, Uint8 * data, Uint32 size, double timestamp=-1);
-void METH(insert_packet) (_THIS, Uint8 * data, Uint32 size, double timestamp);
+//void MPEGstream_insert_packet (_THIS, Uint8 * data, Uint32 size, double timestamp=-1);
+void MPEGstream_insert_packet (_THIS, Uint8 * data, Uint32 size, double timestamp);
 
 /* Check for unused buffers and free them */
-void METH(garbage_collect) (_THIS);
+void MPEGstream_garbage_collect (_THIS);
 
 /* Enable or disable the stream */
-void METH(enable) (_THIS, bool toggle);
+void MPEGstream_enable (_THIS, bool toggle);
 
 /* Get stream time */
-double METH(time) (_THIS);
+double MPEGstream_time (_THIS);
 
 #endif /* _MPEGSTREAM_H_ */
 

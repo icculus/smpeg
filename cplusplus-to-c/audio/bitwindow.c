@@ -20,17 +20,15 @@
 
 #undef _THIS
 #define _THIS Mpegbitwindow *self
-#undef METH
-#define METH(m) Mpegbitwindow_##m
 
-inline int METH(getbit) (_THIS)
+inline int Mpegbitwindow_getbit (_THIS)
 {
   register int r=(self->buffer[self->bitindex>>3]>>(7-(self->bitindex&7)))&1;
   self->bitindex++;
   return r;
 }
 
-inline int METH(getbits9) (_THIS, int bits)
+inline int Mpegbitwindow_getbits9 (_THIS, int bits)
 {
   register unsigned short a;
   int offset = self->bitindex>>3;
@@ -42,7 +40,7 @@ inline int METH(getbits9) (_THIS, int bits)
   return (int)((unsigned int)(a>>(16-bits)));
 }
 
-int METH(getbits) (Mpegbitwindow *self, int bits)
+int Mpegbitwindow_getbits (Mpegbitwindow *self, int bits)
 {
   union
   {

@@ -14,8 +14,6 @@
 
 #undef _THIS
 #define _THIS MPEGaudio *self
-#undef METH
-#define METH(m) MPEGaudio_##m
 
 #define hcos_64 MPEGaudio_hcos_64
 #define hcos_32 MPEGaudio_hcos_32
@@ -25,7 +23,7 @@
 
 
 void
-METH(computebuffer) (_THIS, REAL *fraction,REAL buffer[2][CALCBUFFERSIZE])
+MPEGaudio_computebuffer (_THIS, REAL *fraction,REAL buffer[2][CALCBUFFERSIZE])
 {
   REAL p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,pa,pb,pc,pd,pe,pf;
   REAL q0,q1,q2,q3,q4,q5,q6,q7,q8,q9,qa,qb,qc,qd,qe,qf;
@@ -170,13 +168,13 @@ METH(computebuffer) (_THIS, REAL *fraction,REAL buffer[2][CALCBUFFERSIZE])
 #define SAVE \
         raw=(int)(r*self->scalefactor); \
         if(raw>MAXSCALE)raw=MAXSCALE;else if(raw<MINSCALE)raw=MINSCALE; \
-	METH(putraw)(self, raw);
+	MPEGaudio_putraw(self, raw);
 #define OS  r=*vp * *dp++
 #define XX  vp+=15;r+=*vp * *dp++
 #define OP  r+=*--vp * *dp++
 
 void
-METH(generatesingle) (_THIS)
+MPEGaudio_generatesingle (_THIS)
 {
   int i;
   register REAL r, *vp;
@@ -249,10 +247,10 @@ METH(generatesingle) (_THIS)
 #define SAVE \
         raw=(int)(r1*self->scalefactor);  \
         if(raw>MAXSCALE)raw=MAXSCALE;else if(raw<MINSCALE)raw=MINSCALE; \
-	METH(putraw)(self, raw);  \
+	MPEGaudio_putraw(self, raw);  \
         raw=(int)(r2*self->scalefactor);  \
         if(raw>MAXSCALE)raw=MAXSCALE;else if(raw<MINSCALE)raw=MINSCALE; \
-	METH(putraw)(self, raw);
+	MPEGaudio_putraw(self, raw);
 #define OS r1=*vp1 * *dp; \
            r2=*vp2 * *dp++ 
 #define XX vp1+=15;r1+=*vp1 * *dp; \
@@ -262,7 +260,7 @@ METH(generatesingle) (_THIS)
 
 
 void
-METH(generate)(_THIS)
+MPEGaudio_generate(_THIS)
 {
   int i;
   REAL r1,r2;
@@ -331,20 +329,20 @@ METH(generate)(_THIS)
 
 
 void
-METH(subbandsynthesis) (_THIS, REAL *fractionL,REAL *fractionR)
+MPEGaudio_subbandsynthesis (_THIS, REAL *fractionL,REAL *fractionR)
 {
   if(self->downfrequency)
   {
-    METH(subbandsynthesis_2)(self, fractionL,fractionR);
+    MPEGaudio_subbandsynthesis_2(self, fractionL,fractionR);
     return;
   }
 
-  METH(computebuffer)(self, fractionL,self->calcbufferL);
-  if(!self->outputstereo)METH(generatesingle)(self);
+  MPEGaudio_computebuffer(self, fractionL,self->calcbufferL);
+  if(!self->outputstereo)MPEGaudio_generatesingle(self);
   else
   {
-    METH(computebuffer)(self, fractionR,self->calcbufferR);
-    METH(generate)(self);
+    MPEGaudio_computebuffer(self, fractionR,self->calcbufferR);
+    MPEGaudio_generate(self);
   }
 
   if(self->calcbufferoffset<15)self->calcbufferoffset++;

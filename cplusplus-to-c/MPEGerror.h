@@ -92,14 +92,12 @@ typedef int bool;
 
 #undef _THIS
 #define _THIS MPEGerror *self
-#undef METH
-#define METH(method) MPEGerror_##method
 
-MPEGerror * METH(init) (_THIS);
-void METH(destroy) (_THIS);
-void METH(SetError) (_THIS, char *fmt, ...);
-bool METH(WasError) (_THIS);
-char *METH(TheError) (_THIS);
-void METH(ClearError) (_THIS);
+MPEGerror * MPEGerror_init (_THIS);
+void MPEGerror_destroy (_THIS);
+void MPEGerror_SetError (_THIS, char *fmt, ...);
+bool MPEGerror_WasError (_THIS);
+char *MPEGerror_TheError (_THIS);
+void MPEGerror_ClearError (_THIS);
 
 #endif /* _MPEGERROR_H_ */

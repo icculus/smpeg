@@ -31,11 +31,9 @@
 
 #undef _THIS
 #define _THIS MPEG_ring *self
-#undef METH
-#define METH(m) MPEG_ring_##m
 
 MPEG_ring*
-METH(init) (_THIS, Uint32 size, Uint32 count)
+MPEG_ring_init (_THIS, Uint32 size, Uint32 count)
 {
     Uint32 tSize;
 
@@ -85,7 +83,7 @@ METH(init) (_THIS, Uint32 size, Uint32 count)
    should call MPRing_sdelete() on the ring.
  */
 void
-METH(ReleaseThreads) (_THIS)
+MPEG_ring_ReleaseThreads (_THIS)
 {
     /* Let the threads know that the ring is now inactive */
     self->active = 0;
@@ -104,7 +102,7 @@ METH(ReleaseThreads) (_THIS)
 
 
 void
-METH(destroy) (_THIS)
+MPEG_ring_destroy (_THIS)
 {
     if( self )
     {
@@ -139,7 +137,7 @@ METH(destroy) (_THIS)
 */
 
 Uint8 *
-METH(NextWriteBuffer) (_THIS)
+MPEG_ring_NextWriteBuffer (_THIS)
 {
     Uint8 *buffer;
 
@@ -162,7 +160,7 @@ METH(NextWriteBuffer) (_THIS)
 */
 
 void
-METH(WriteDone) (_THIS, Uint32 len, double timestamp)
+MPEG_ring_WriteDone (_THIS, Uint32 len, double timestamp)
 {
     if ( self->active ) {
 #ifdef NO_GRIFF_MODS
@@ -193,7 +191,7 @@ METH(WriteDone) (_THIS, Uint32 len, double timestamp)
 */
 
 Uint32
-METH(NextReadBuffer) (_THIS, Uint8** buffer)
+MPEG_ring_NextReadBuffer (_THIS, Uint8** buffer)
 {
     Uint32 size;
 
@@ -218,7 +216,7 @@ METH(NextReadBuffer) (_THIS, Uint8** buffer)
 */
 
 double
-METH(ReadTimeStamp) (_THIS)
+MPEG_ring_ReadTimeStamp (_THIS)
 {
   if(self->active)
     return *self->timestamp_read;
@@ -226,7 +224,7 @@ METH(ReadTimeStamp) (_THIS)
 }
 
 void
-METH(ReadSome) (_THIS, Uint32 used)
+MPEG_ring_ReadSome (_THIS, Uint32 used)
 {
     Uint8 *data;
     Uint32 oldlen;
@@ -250,7 +248,7 @@ METH(ReadSome) (_THIS, Uint32 used)
 */
 
 void
-METH(ReadDone) (_THIS)
+MPEG_ring_ReadDone (_THIS)
 {
     if ( self->active ) {
         self->read += self->bufSize + sizeof(Uint32);
