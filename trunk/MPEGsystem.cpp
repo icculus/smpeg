@@ -39,7 +39,11 @@ Uint8 const PICTURE_MASK[]      = { 0xff, 0xff, 0xff, 0x00 };
 
 /* The size is arbitrary but should be sufficient to contain */
 /* two MPEG packets and reduce disk (or network) access.     */
+#if 0 // Hiroshi Yamashita notes that the original size was too large
 #define MPEG_BUFFER_SIZE (64 * 1024)
+#else
+#define MPEG_BUFFER_SIZE (16 * 1024)
+#endif
 
 /* The granularity (2^LG2_GRANULARITY) determine what length of read data */
 /* will be a multiple of, e.g. setting LG2_GRANULARITY to 12 will make    */
