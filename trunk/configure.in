@@ -1,0 +1,96 @@
+
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(README)
+
+dnl Set various version strings - taken gratefully from the GTk sources
+#
+# Making releases:
+#   MICRO_VERSION += 1;
+#   INTERFACE_AGE += 1;
+#   BINARY_AGE += 1;
+# if any functions have been added, set INTERFACE_AGE to 0.
+# if backwards compatibility has been broken,
+# set BINARY_AGE and INTERFACE_AGE to 0.
+#
+MAJOR_VERSION=0
+MINOR_VERSION=3
+MICRO_VERSION=0
+INTERFACE_AGE=0
+BINARY_AGE=0
+VERSION=$MAJOR_VERSION.$MINOR_VERSION.$MICRO_VERSION
+
+AC_SUBST(MAJOR_VERSION)
+AC_SUBST(MINOR_VERSION)
+AC_SUBST(MICRO_VERSION)
+AC_SUBST(INTERFACE_AGE)
+AC_SUBST(BINARY_AGE)
+AC_SUBST(VERSION)
+
+# libtool versioning
+LT_RELEASE=$MAJOR_VERSION.$MINOR_VERSION
+LT_CURRENT=`expr $MICRO_VERSION - $INTERFACE_AGE`
+LT_REVISION=$INTERFACE_AGE
+LT_AGE=`expr $BINARY_AGE - $INTERFACE_AGE`
+
+AC_SUBST(LT_RELEASE)
+AC_SUBST(LT_CURRENT)
+AC_SUBST(LT_REVISION)
+AC_SUBST(LT_AGE)
+
+dnl Setup for automake
+AM_INIT_AUTOMAKE(smpeg, 0.3)
+
+dnl Check for tools
+
+AC_PROG_MAKE_SET
+AC_PROG_CC
+AC_PROG_CXX
+AM_PROG_LIBTOOL
+AC_PROG_INSTALL
+
+dnl SMPEG uses mmap() for file loading:
+AC_FUNC_MMAP
+if test x$ac_cv_func_mmap_fixed_mapped != xyes; then
+    AC_MSG_ERROR(SMPEG requires mmap() for file loading)
+fi
+
+dnl Check for SDL 0.11.2
+AM_PATH_SDL(0.11.2)
+CFLAGS="$CFLAGS $SDL_CFLAGS"
+LIBS="$LIBS $SDL_LIBS"
+
+dnl Add the parent directory for sub-make
+CFLAGS="$CFLAGS -I.. -DNOCONTROLS"
+CXXFLAGS="$CFLAGS"
+
+dnl See if we can build the GTk player
+have_gtk=no
+AM_PATH_GTK(1.2.1, have_gtk=yes)
+if test x$have_gtk = xyes; then
+    CFLAGS="$CFLAGS $GTK_CFLAGS"
+    LIBS="$LIBS $GTK_LIBS"
+fi
+AM_CONDITIONAL(HAVE_GTK, test x$have_gtk = xyes)
+
+dnl See if we can build the Mesa player
+dnl FIXME:  Need a better test here...
+have_glx=no
+#AC_CHECK_HEADER(GL/gl.h, have_gl=yes)
+AC_CHECK_LIB(GL, glXCreateContext, have_gl=yes)
+have_glu=no
+AC_CHECK_HEADER(GL/glu.h, have_glu=yes)
+#AC_CHECK_LIB(GLU, gluOrtho2D, have_glu=yes)
+if test x$have_gl = xyes -a x$have_glu = xyes; then
+    LIBS="$LIBS -lGL -lGLU"
+fi
+AM_CONDITIONAL(HAVE_MESA, test x$have_gl = xyes -a x$have_glu = xyes)
+
+dnl C++ flags are the same as the C flags
+CXXFLAGS="$CFLAGS"
+
+# Finally create all the generated files
+AC_OUTPUT([
+Makefile
+audio/Makefile
+video/Makefile
+])

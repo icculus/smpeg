@@ -1,0 +1,62 @@
+
+## Makefile.am for the smpeg library
+
+# These are the subdirectories that are always built
+SUBDIRS = audio video
+
+# The smpeg library target
+lib_LTLIBRARIES = libsmpeg.la
+
+libsmpeg_la_SOURCES =		\
+	MPEGring.cpp		\
+	MPEGstream.cpp		\
+	smpeg.cpp
+
+libsmpegincludedir = $(includedir)/smpeg
+libsmpeginclude_HEADERS =	\
+	MPEG.h			\
+	MPEGaction.h		\
+	MPEGaudio.h		\
+	MPEGerror.h		\
+	MPEGring.h		\
+	MPEGstream.h		\
+	MPEGvideo.h		\
+	smpeg.h
+
+libsmpeg_la_LDFLAGS = 		\
+        -release $(LT_RELEASE)	\
+	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
+
+libsmpeg_la_LIBADD =		\
+	audio/libaudio.la	\
+	video/libvideo.la
+
+EXTRA_DIST =		\
+	CHANGES		\
+	COPYING		\
+	README
+
+# Sample MPEG players
+if HAVE_GTK
+GTK_PLAYER = gtv
+else
+GTK_PLAYER =
+endif
+if HAVE_MESA
+MESA_PLAYER = glmovie
+else
+MESA_PLAYER =
+endif
+bin_PROGRAMS = plaympeg $(GTK_PLAYER) $(MESA_PLAYER)
+
+# Sources for plaympeg
+plaympeg_SOURCES = plaympeg.c
+plaympeg_LDADD = libsmpeg.la
+
+# Sources for gtv
+gtv_SOURCES = gtv.c gtv.h
+gtv_LDADD = libsmpeg.la
+
+# Sources for glmovie
+glmovie_SOURCES = glmovie-tile.c glmovie.c glmovie.h
+glmovie_LDADD = -lGL -lGLU libsmpeg.la

@@ -56,7 +56,7 @@
 #include <string.h>
 #include <signal.h>
 
-#include "SDL_endian.h"
+#include <SDL/SDL_endian.h>
 #include "video.h"
 #include "proto.h"
 #include "util.h"
