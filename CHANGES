@@ -1,4 +1,6 @@
 0.4.0:
+Atsushi Yamagata - Tue Apr 11 12:50:45 PDT 2000
+ * Added locale setting for gtv.
 Hiroshi Yamashita - Tue Apr 11 09:59:11 PDT 2000
  * Fixed audio popping and floating point exceptions in layer2 audio.
 Sam Lantinga - Tue Apr 11 06:55:53 PDT 2000

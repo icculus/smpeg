@@ -722,6 +722,7 @@ int main( int argc, char* argv[] )
 
     memset( &info, 0, sizeof( info ) );
     memset( &filename_buffer, 0, sizeof( gchar ) * FILENAME_BUFFER_SIZE );
+    gtk_set_locale();
     gtk_init( &argc, &argv );
 
     window = create_gtv_window( );
