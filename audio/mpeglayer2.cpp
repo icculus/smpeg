@@ -615,6 +615,10 @@ void MPEGaudio::extractlayer2(void)
 	    int code=getbits(codelength[LS][i]);
 
 	    code+=code<<1;
+            if (code > 2184) {
+//printf("fraction LS OverFlow code %d -> 2184 (1)\n", code);
+              code=2184;
+            }
 	    s=group[LS][i]+code;
 
 	    fraction[LS][0][i]=s[0];
@@ -641,6 +645,10 @@ void MPEGaudio::extractlayer2(void)
 	    int code=getbits(codelength[RS][i]);
 
 	    code+=code<<1;
+            if (code > 2184) {
+//printf("fraction LS OverFlow code %d -> 2184 (2)\n", code);
+              code=2184;
+            }
 	    s=group[RS][i]+code;
 
 	    fraction[RS][0][i]=s[0];

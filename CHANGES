@@ -1,10 +1,12 @@
 0.4.0:
+Hiroshi Yamashita - Tue Apr 11 09:59:11 PDT 2000
+ * Fixed audio popping and floating point exceptions in layer2 audio.
 Sam Lantinga - Tue Apr 11 06:55:53 PDT 2000
- * Ported to Win32
+ * Ported to Win32.
 Sam Lantinga - Sun Apr  9 16:42:47 PDT 2000
- * Use SDL 1.1.3 for hardware accelerated YUV overlay support
+ * Use SDL 1.1.3 for hardware accelerated YUV overlay support.
 Vivien Chappelier - Thu Apr  6 12:40:36 PDT 2000
- * Added MPEG streaming support - now plays many more MPEG streams
+ * Added MPEG streaming support - now plays many more MPEG streams.
 
 0.3.5:
 Sam Lantinga - Wed Apr  5 13:50:32 PDT 2000
