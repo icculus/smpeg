@@ -186,7 +186,11 @@ protected:
     Uint32 frags_playing;
     Uint32 frag_time;
 #ifdef THREADED_AUDIO
+    bool decoding;
     SDL_Thread *decode_thread;
+
+    void StartDecoding(void);
+    void StopDecoding(void);
 #endif
 
 /* Code from splay 1.8.2 */

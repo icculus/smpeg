@@ -181,7 +181,9 @@ MPEGvideo:: ~MPEGvideo()
 void
 MPEGvideo:: Loop(bool toggle)
 {
-    _stream->loopFlag = toggle;
+    if ( _stream ) {
+        _stream->loopFlag = toggle;
+    }
 }
 
 /* Simple thread play function */
@@ -190,7 +192,7 @@ int Play_MPEGvideo( void *udata )
     MPEGvideo *mpeg = (MPEGvideo *)udata;
 
     /* Get the time the playback started */
-    mpeg->_stream->realTimeStart = ReadSysClock();
+    mpeg->_stream->realTimeStart += ReadSysClock();
 
     while( mpeg->playing )
     {
@@ -244,6 +246,9 @@ MPEGvideo:: Stop(void)
         _thread = NULL;
     }
     ResetPause();
+    if ( _stream ) {
+        _stream->realTimeStart -= ReadSysClock();
+    }
 }
 
 void
@@ -253,8 +258,6 @@ MPEGvideo:: RewindStream(void)
     ResetVidStream( _stream );
 
     mpeg->reset_stream();
-
-    play_time = 0.0;
 
 #ifdef ANALYSIS 
     init_stats();
@@ -273,13 +276,17 @@ void
 MPEGvideo:: Rewind(void)
 {
     Stop();
-    RewindStream();
+    if ( _stream ) {
+        RewindStream();
+        _stream->realTimeStart = 0.0;
+    }
+    play_time = 0.0;
 }
 
 MPEGstatus
 MPEGvideo:: Status(void)
 {
-    if( _stream ) {
+    if ( _stream ) {
         if( !_thread || (_stream->film_has_ended && !_stream->loopFlag) ) {
             return MPEG_STOPPED;
         } else {

@@ -1,8 +1,8 @@
 
                       SDL MPEG Player Library (SMPEG)
 
-                             Version 0.3.0
-                             October 9, 1999
+                             Version 0.3.4
+                             March 1, 2000
 								
 
 Written by Karl Robillard and Sam Lantinga, Loki Entertainment Software.
@@ -28,7 +28,7 @@ Currently it has only been tested on x86 Linux.
 
 Requirements:
 
-	* Simple DirectMedia Layer v0.11.2 or newer
+	* Simple DirectMedia Layer v1.0.6 or newer
 		http://www.devolution.com/~slouken/SDL/
 
 To make:
@@ -53,7 +53,7 @@ Known Issues:
 
 Reporting bugs:
 
-	Please report any bugs and/or fixes to smpeg-bugs@lokigames.com.
+	Please report any bugs and/or fixes to smpeg@lokigames.com.
 
 
 Looking at the code:
