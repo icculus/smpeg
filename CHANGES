@@ -1,4 +1,6 @@
 0.4.2:
+Joe Valenzuela - Wed Oct  4 12:07:51 PDT 2000
+ * Added a configure option --disable-thread-audio
 Sam Lantinga - Wed Oct  4 10:12:58 PDT 2000
  * Fixed various compiler warnings
 Vivien Chappelier - Mon, 25 Sep 2000 20:37:43 +0200
