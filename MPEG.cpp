@@ -98,7 +98,8 @@ void MPEG::Init(SDL_RWops *mpeg_source, bool SDLaudio)
     videoaction = NULL;
     audio = NULL;
     video = NULL;
-    audioaction_enabled = videoaction_enabled = false;
+    audioaction_enabled = SDLaudio;
+    videoaction_enabled = false;
     loop = false;
     pause = false;
 
