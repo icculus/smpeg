@@ -313,6 +313,9 @@ int Decode_MPEGaudio(void *udata)
         }
         audio->ring->WriteDone(audio->rawdatawriteoffset*2);
     }
+    while ( audio->playing && audio->ring->BuffersWritten() ) {
+	SDL_Delay(100);
+    }
     /* Release the reader thread */
     audio->ring->ReleaseThreads();
 

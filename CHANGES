@@ -1,4 +1,6 @@
 0.3.4:
+Sam Lantinga - Mon Feb 28 12:45:59 PST 2000
+ * Fixed a problem where audio stopped playing before the end of the movie
 Sam Lantinga - Thu Feb 10 13:17:29 PST 2000
  * Don't crash if a picture block comes before a sequence header block
 Sam Lantinga - Sat Feb  5 08:56:25 PST 2000
