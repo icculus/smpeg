@@ -1,5 +1,38 @@
 *************************************************************************
 *** Applied ***
+Date: Sun, 15 Apr 2001 13:30:30 -0700
+From: Mo <mo@nospam.com>
+Subject: Patch for core dump in MPEG.cpp
+
+I just did an update and noticed a silly little core dump in
+the case where a file cannot be found:
+
+% smpeg NOTTHERE
+(core)
+
+Here is the fix.
+
+Index: MPEG.cpp
+===================================================================
+RCS file: /cvs/smpeg/MPEG.cpp,v
+retrieving revision 1.25
+diff -u -r1.25 MPEG.cpp
+--- MPEG.cpp    2001/04/05 20:27:48     1.25
++++ MPEG.cpp    2001/04/15 21:26:11
+@@ -151,7 +151,7 @@
+   if(audio) delete audio;
+   if(system) delete system;
+   
+-  SDL_RWclose(source);
++  if(source) SDL_RWclose(source);
+   if ( mpeg_mem )
+     delete[] mpeg_mem;
+ }
+
+Mo DeJong
+Red Hat Inc
+*************************************************************************
+*** Applied ***
 Date: Fri, 13 Apr 2001 22:57:00 -0400
 From: Joe Drew <hoserhead@woot.net>
 Subject: Non-encrypted mail; patch for gtv
