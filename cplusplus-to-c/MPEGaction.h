@@ -113,13 +113,11 @@ typedef struct MPEGaction {
   SMPEG_Filter * (*Final)(_THIS, SMPEG_Filter *filter);
 //  struct MPEGaudio *time_source;
 } MPEGaction;
-#undef _THIS
 
-MPEGaction* MPEGaction_create();
-void MPEGaction_destroy();
-void MPEGaction_Loop(MPEGaction *, int);
-double MPEGaction_Time(MPEGaction *);
-void MPEGaction_Pause(MPEGaction *);
+
+MPEGaction *MPEGaction_init(_THIS);
+MPEGaction *MPEGaction_new();
+
 
 /*
 Pure virtuals:
@@ -134,5 +132,14 @@ Virtuals:
  Time
  Pause
 */
+
+#undef _THIS
+
+
+
+
+
+
+
 
 #endif /* _MPEGACTION_H_ */

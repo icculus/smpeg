@@ -77,6 +77,8 @@ MPEGaction_ResetPause (_THIS)
 MPEGaction *
 MPEGaction_init (_THIS)
 {
+  if (self == NULL)
+      self = calloc(sizeof(MPEGaction));
   self->playing = false;
   self->paused = false;
   self->looping = false;
@@ -90,16 +92,13 @@ MPEGaction_init (_THIS)
   self->Pause = MPEGaction_Pause;
   self->GetStatus = MPEGaction_GetStatus;
   self->ResetPause = MPEGaction_ResetPause;
+  return self;
 }
 
 MPEGaction *
 MPEGaction_new ()
 {
-  MPEGaction *self;
-
-  self = (MPEGaction*)calloc(sizeof(MPEGaction));
-  MPEGaction_init(self);
-  return self;
+  return MPEGaction_init(NULL);
 }
 
 
