@@ -1,4 +1,6 @@
 current:
+Ryan C. Gordon - Wed Dec 31 00:07:51 EST 2003
+ * Check for SDL_CreateYUVOverlay() failure (happens for OpenGL surfaces).
 Ryan C. Gordon - Tue Dec 30 23:37:07 EST 2003
  * Check that SDL_BYTEORDER is sane (it wasn't, for SDL 1.2.5 on Linux/amd64).
 Ryan C. Gordon - Fri Feb 14 21:02:00 EST 2003
