@@ -1,3 +1,7 @@
+0.4.3:
+Maxim Sobolev - Mon Dec 11 11:54:46 PST 2000
+ * Use the correct SDL configuration script on FreeBSD
+
 0.4.2:
 Sam Lantinga - Thu Dec  7 18:14:14 PST 2000
  * Check for the GLU library when seeing if we can build the OpenGL example
