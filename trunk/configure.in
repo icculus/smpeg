@@ -38,7 +38,7 @@ AC_SUBST(LT_REVISION)
 AC_SUBST(LT_AGE)
 
 dnl Setup for automake
-AM_INIT_AUTOMAKE(smpeg, 0.3)
+AM_INIT_AUTOMAKE(smpeg, $VERSION)
 
 dnl Check for tools
 
