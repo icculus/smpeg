@@ -1,4 +1,8 @@
 0.4.3:
+Vivien Chappelier - Thu Dec 14 16:21:32 PST 2000
+ * Fixed MPEGSystem::TotalTime() hanging on small files
+ * Fixed system header decoding (caused misdetection of system streams)
+ * Added bilinear filter toggling with the 'f' key in plaympeg
 Maxim Sobolev - Mon Dec 11 11:54:46 PST 2000
  * Use the correct SDL configuration script on FreeBSD
 
