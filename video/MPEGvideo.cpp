@@ -205,7 +205,8 @@ MPEGvideo::MPEGvideo(MPEGstream *stream)
 
     _image = 0;
     _filter = SMPEGfilter_null();
-    _filter_mutex = SDL_CreateMutex();
+    //_filter_mutex = SDL_CreateMutex();
+		pthread_mutex_init(&_filter_mutex, NULL);
 //	printf("[MPEGvideo::MPEGvideo]_filter_mutex[%lx] = SDL_CreateMutex()\n",_filter_mutex);
 }
 
@@ -222,7 +223,8 @@ MPEGvideo:: ~MPEGvideo()
     if(_image) SDL_FreeYUVOverlay(_image);
 
     /* Release filter */
-    SDL_DestroyMutex(_filter_mutex);
+    //SDL_DestroyMutex(_filter_mutex);
+		pthread_destroy_mutex(&_filter_mutex);
     _filter->destroy(_filter);
 }
 
@@ -428,7 +430,7 @@ MPEGvideo:: GetVideoInfo(MPEG_VideoInfo *info)
    callback - called on every frame, for display update
 */
 bool
-MPEGvideo:: SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
+MPEGvideo:: SetDisplay(SDL_Surface *dst, pthread_mutex_t *lock,
                              MPEG_DisplayCallback callback)
 {
     _mutex = lock;
@@ -474,25 +476,30 @@ MPEGvideo:: SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
 void
 MPEGvideo:: MoveDisplay( int x, int y )
 {
-    SDL_mutexP( _mutex );
+		pthread_mutex_lock(_mutex);
+    //SDL_mutexP( _mutex );
     _dstrect.x = x;
     _dstrect.y = y;
-    SDL_mutexV( _mutex );
+    //SDL_mutexV( _mutex );
+		pthread_mutex_unlock(_mutex);
 }
 
 void
 MPEGvideo:: ScaleDisplayXY( int w, int h )
 {
-    SDL_mutexP( _mutex );
+		pthread_mutex_lock(_mutex);
+    //SDL_mutexP( _mutex );
     _dstrect.w = w;
     _dstrect.h = h;
-    SDL_mutexV( _mutex );
+    //SDL_mutexV( _mutex );
+		pthread_mutex_unlock(_mutex);
 }
 
 void
 MPEGvideo:: SetDisplayRegion(int x, int y, int w, int h)
 {
-    SDL_mutexP( _mutex );
+		pthread_mutex_lock(_mutex);
+    //SDL_mutexP( _mutex );
     _srcrect.x = x;
     _srcrect.y = y;
     _srcrect.w = w;
@@ -504,7 +511,8 @@ MPEGvideo:: SetDisplayRegion(int x, int y, int w, int h)
       _image = SDL_CreateYUVOverlay(_srcrect.w, _srcrect.h, SDL_YV12_OVERLAY, _dst);
     }
 
-    SDL_mutexV( _mutex );
+    //SDL_mutexV( _mutex );
+		pthread_mutex_unlock(_mutex);
 }
 
 /* API CHANGE: This function no longer takes a destination surface and x/y
