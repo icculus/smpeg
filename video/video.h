@@ -430,4 +430,9 @@ extern unsigned int cacheMiss[8][8];
 #ifdef __alpha__
 #define SIXTYFOUR_BIT
 #endif
+
+/* Warnings that may help in debugging MPEG streams */
+//#define VERBOSE_WARNINGS
+//#define VERBOSE_DEBUG
+
 #endif /* video.h already included */
