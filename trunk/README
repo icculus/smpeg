@@ -14,10 +14,7 @@ played through a slightly modified mpegsound library, part of Splay v0.8.2.
 SMPEG supports MPEG audio (MP3), MPEG-1 video, and MPEG system streams.
 
 This library is distributed under the GNU Library Public License (LGPL)
-version 2.  In addition to the terms and conditions of the LGPL, we require
-that SMPEG be distributed with the following legend in the documentation:
-"This product includes code from the Berkeley MPEG1 Software-only Video
-Decoder."
+version 2.
 
 plaympeg, gtv, and glmovie are simple video players provided to test the
 library.  The C library interface is 'documented' in smpeg.h, and the C++
