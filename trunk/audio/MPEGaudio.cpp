@@ -138,6 +138,7 @@ MPEGaudio:: ActualSpec(const SDL_AudioSpec *actual)
         fprintf(stderr, "Warning: incorrect audio format\n");
     }
     rate_in_s=((double)((actual->format&0xFF)/8)*actual->channels*actual->freq);
+    stereo=(actual->channels-1);
 }
 
 #ifdef THREADED_AUDIO

@@ -183,6 +183,7 @@ protected:
     bool sdl_audio;
     MPEGstream *mpeg;
     int valid_stream;
+    bool stereo;
     double rate_in_s;
     Uint32 frags_playing;
     Uint32 frag_time;

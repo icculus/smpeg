@@ -184,6 +184,10 @@ bool MPEGaudio::loadheader()
     // Making information
 
     inputstereo = (mode == single) ? 0 : 1;
+
+    forcetomonoflag = (!stereo && inputstereo);
+    forcetostereoflag = (stereo && !inputstereo);
+
     if(forcetomonoflag)
         outputstereo=0;
     else
@@ -248,11 +252,7 @@ bool MPEGaudio::loadheader()
   }
 
 #ifdef DEBUG_AUDIO
-  static int printed = 0;
-  if ( ! printed ) {
-    printf("MPEG audio stream layer %d (%d kbps), at %d Hz %s\n", layer,  bitrate[version][layer-1][bitrateindex], frequencies[version][frequency], (mode == single) ? "mono" : "stereo");
-    printed = 1;
-  }
+  fprintf(stderr, "MPEG %d audio layer %d (%d kbps), at %d Hz %s [%d]\n", version+1, layer,  bitrate[version][layer-1][bitrateindex], frequencies[version][frequency], (mode == single) ? "mono" : "stereo", framesize);
 #endif
 
   /* Fill the buffer with new data */
@@ -330,7 +330,9 @@ int Decode_MPEGaudio(void *udata)
         if ( audio->rawdata ) {
             audio->rawdatawriteoffset = 0;
             audio->run(1, &timestamp);
-            audio->ring->WriteDone(audio->rawdatawriteoffset*2, timestamp);
+
+	    if(audio->rawdatawriteoffset*2 <= audio->ring->BufferSize())
+	      audio->ring->WriteDone(audio->rawdatawriteoffset*2, timestamp);
         }
     }
 

@@ -34,6 +34,7 @@
 #include "MPEGaudio.h"
 #include "MPEGvideo.h"
 #include "MPEGsystem.h"
+#include "MPEGfilter.h"
 
 #define LENGTH_TO_CHECK_FOR_SYSTEM 0x50000	// Added by HanishKVC
 
@@ -88,8 +89,10 @@ public:
 		                 MPEG_DisplayCallback callback);
     void MoveDisplay(int x, int y);
     void ScaleDisplayXY(int w, int h);
+    void SetDisplayRegion(int x, int y, int w, int h);
     void RenderFrame(int frame);
     void RenderFinal(SDL_Surface *dst, int x, int y);
+    SMPEG_Filter * Filter(SMPEG_Filter * filter);
 
 public:
     /* We need to have separate audio and video streams */

@@ -152,10 +152,11 @@ extern const int scan[][8];
 /* Structure with reconstructed pixel values. */
 
 typedef struct pict_image {
-  SDL_Overlay *image;                    /* YV12 format image  */
+  unsigned char *image;                  /* YV12 format image  */
   unsigned char *luminance;              /* Luminance plane.   */
   unsigned char *Cr;                     /* Cr plane.          */
   unsigned char *Cb;                     /* Cb plane.          */
+  unsigned short int *mb_qscale;         /* macroblock info    */
   int locked;                            /* Lock flag.         */
   TimeStamp show_time;                   /* Presentation time. */
 } PictImage;
@@ -264,6 +265,10 @@ typedef struct vid_stream {
 						  buffer.                    */
   int buf_length;                              /* Length of remaining buffer.*/
   unsigned int *buf_start;                     /* Pointer to buffer start.   */
+
+/* VC - beginning of added variables for noise computation */
+  short noise_base_matrix[8][8];               /* Square quantization error  */
+/* VC - end of added variables */
 
 /* Brown - beginning of added variables that used to be static or global */
   int max_buf_length;                          /* Max length of buffer.      */

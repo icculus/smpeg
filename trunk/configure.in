@@ -60,6 +60,11 @@ case "$target" in
             CFLAGS="$CFLAGS -mcpu=ev4 -Wa,-mall"
         fi
         ;;
+    sparc*-*-solaris*)
+	if test x$ac_cv_prog_gcc = xyes; then
+            LIBS="$LIBS -lsocket -lnsl"	
+        fi
+        ;;
     *-*-cygwin* | *-*-mingw32*)
         if test "$build" != "$target"; then # cross-compiling
             ac_default_prefix=/usr/local/cross-tools/i386-mingw32msvc

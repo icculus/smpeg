@@ -49,6 +49,7 @@
 
 /* We use FULL_COLOR_DITHER code for SMPEG */
 #define DISABLE_DITHER
+#define LOOSE_MPEG
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -711,6 +712,17 @@ VidStream* NewVidStream( unsigned int buffer_len )
             vs->non_intra_quant_matrix[i][j] = 16;
         }
     }
+    
+    /* Initialize noise base matrix */
+    for( i = 0; i < 8; i++ )
+        for( j = 0; j < 8; j++ )
+            vs->noise_base_matrix[i][j] = (short) vs->non_intra_quant_matrix[i][j];
+
+    j_rev_dct((short *) vs->noise_base_matrix);
+
+    for( i = 0; i < 8; i++ )
+        for( j = 0; j < 8; j++ )
+	  vs->noise_base_matrix[i][j] *= vs->noise_base_matrix[i][j];
 
     /* Initialize pointers to image spaces. */
 
@@ -896,18 +908,14 @@ PictImage* NewPictImage( VidStream* vid_stream, int w, int h, SDL_Surface *dst )
     pi = (PictImage *) malloc(sizeof(PictImage));
 
     /* Create a YV12 image (Y + V + U) */
-    pi->image = SDL_CreateYUVOverlay(w, h, SDL_YV12_OVERLAY, dst);
-    if ( ! pi->image || (SDL_LockYUVOverlay(pi->image) < 0) ) {
-        if ( pi->image ) {
-            SDL_FreeYUVOverlay(pi->image);
-        }
-        free(pi);
-        return(NULL);
-    }
-    pi->luminance = (unsigned char *)pi->image->pixels;
+    pi->image = (unsigned char *) malloc(w*h*12/8);
+    pi->luminance = (unsigned char *)pi->image;
     pi->Cr = pi->luminance + (w*h);
     pi->Cb = pi->luminance + (w*h) + (w*h)/4;
   
+    /* Alloc space for filter info */
+    pi->mb_qscale = (unsigned short int *) malloc(vid_stream->mb_width * vid_stream->mb_height * sizeof(unsigned int));
+
     /* Reset locked flag. */
   
     pi->locked = 0;
@@ -950,10 +958,9 @@ bool InitPictImages( VidStream* vid_stream, int w, int h, SDL_Surface* dst )
  */
 void DestroyPictImage( PictImage* apictimage )
 {
-  if (apictimage->image != NULL) {
-    SDL_UnlockYUVOverlay(apictimage->image);
-    SDL_FreeYUVOverlay(apictimage->image);
-  }
+  if (apictimage->image != NULL) free(apictimage->image);
+
+  free(apictimage->mb_qscale);
   free(apictimage);
 }
 
@@ -1037,7 +1044,7 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
 	  if( vid_stream->future != NULL )
 	  {
             vid_stream->current = vid_stream->future;
-            ExecuteDisplay( vid_stream );
+            vid_stream->_smpeg->ExecuteDisplay( vid_stream );
 	  }
 
 #ifdef ANALYSIS
@@ -1157,7 +1164,7 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
                 next_start_code( vid_stream );
             }
 
-            timeSync( vid_stream );
+            vid_stream->_smpeg->timeSync( vid_stream );
             goto done;
         }
         else if( status != PARSE_OK )
@@ -1305,7 +1312,7 @@ done:
 static int ParseSeqHead( VidStream* vid_stream )
 {
   unsigned int data;
-  int i;
+  int i, j;
 #ifndef DISABLE_DITHER
   int ditherType=vid_stream->ditherType;
 #endif
@@ -1412,6 +1419,18 @@ static int ParseSeqHead( VidStream* vid_stream )
         (unsigned char) data;
     }
   }
+
+  /* Adjust noise base matrix according to non_intra matrix */
+  for( i = 0; i < 8; i++ )
+    for( j = 0; j < 8; j++ )
+      vid_stream->noise_base_matrix[i][j] = (short) vid_stream->non_intra_quant_matrix[i][j];
+  
+  j_rev_dct((short *) vid_stream->noise_base_matrix);
+  
+  for( i = 0; i < 8; i++ )
+    for( j = 0; j < 8; j++ )
+      vid_stream->noise_base_matrix[i][j] *= vid_stream->noise_base_matrix[i][j];
+
   /* Go to next start code. */
 
   next_start_code(vid_stream);
@@ -2140,6 +2159,12 @@ static int ParseMacroBlock( VidStream* vid_stream )
     vid_stream->mblock.past_intra_addr =
       vid_stream->mblock.mb_address;
 
+  /* Store macroblock error for filter info */
+  if (vid_stream->mblock.mb_intra)
+    vid_stream->current->mb_qscale[vid_stream->mblock.mb_address] = 0;
+  else
+    vid_stream->current->mb_qscale[vid_stream->mblock.mb_address] = vid_stream->slice.quant_scale;
+
 #ifdef ANALYSIS
   *mbSizePtr += bitCountRead() - mbSizeCount;
 #endif
@@ -2371,10 +2396,10 @@ static void ReconPMBlock( VidStream* vid_stream, int bnum,
     maxx = vid_stream->mb_width*16-1;
     maxy = vid_stream->mb_height*16-1;
 
-    if (row + vid_stream->down_for + 7 > maxy) illegalBlock |= 0x4;
+    if (row + vid_stream->down_for + vid_stream->down_half_for + 7 > maxy) illegalBlock |= 0x4;
     else if (row + vid_stream->down_for < 0)  illegalBlock |= 0x1;
     
-    if (col + vid_stream->right_for + 7 > maxx) illegalBlock |= 0x2;
+    if (col + vid_stream->right_for + vid_stream->right_half_for + 7 > maxx) illegalBlock |= 0x2;
     else if (col + vid_stream->right_for < 0) illegalBlock |= 0x8;
 
 #endif
@@ -2404,13 +2429,13 @@ static void ReconPMBlock( VidStream* vid_stream, int bnum,
 #ifdef LOOSE_MPEG
     /* Check for block illegality. */
 
-    maxx = vid_stream->mb_width*16-1;
-    maxy = vid_stream->mb_height*16-1;
+    maxx = vid_stream->mb_width*8-1;
+    maxy = vid_stream->mb_height*8-1;
 
-    if (row + vid_stream->down_for  + 7 > maxy) illegalBlock |= 0x4;
+    if (row + vid_stream->down_for  + vid_stream->down_half_for  + 7 > maxy) illegalBlock |= 0x4;
     else if (row + vid_stream->down_for < 0) illegalBlock |= 0x1;
 
-    if (col + vid_stream->right_for  + 7 > maxx) illegalBlock  |= 0x2;
+    if (col + vid_stream->right_for + vid_stream->right_half_for + 7 > maxx) illegalBlock  |= 0x2;
     else if (col + vid_stream->right_for < 0) illegalBlock |= 0x8;
 
 #endif
@@ -2855,10 +2880,10 @@ static void ReconBMBlock( VidStream* vid_stream, int bnum,
     maxx = vid_stream->mb_width*16-1;
     maxy = vid_stream->mb_height*16-1;
 
-    if (row + down_back + 7 > maxy) illegalBlock |= 0x4;
+    if (row + down_back + down_half_back + 7 > maxy) illegalBlock |= 0x4;
     else if (row + down_back < 0)  illegalBlock |= 0x1;
     
-    if (col + right_back + 7 > maxx) illegalBlock |= 0x2;
+    if (col + right_back + right_half_back + 7 > maxx) illegalBlock |= 0x2;
     else if (col + right_back < 0) illegalBlock |= 0x8;
 
 #endif
@@ -2893,10 +2918,10 @@ static void ReconBMBlock( VidStream* vid_stream, int bnum,
     maxx = vid_stream->mb_width*8-1;
     maxy = vid_stream->mb_height*8-1;
 
-    if (row + down_back + 7 > maxy) illegalBlock |= 0x4;
+    if (row + down_back + down_half_back + 7 > maxy) illegalBlock |= 0x4;
     else if (row + down_back < 0) illegalBlock |= 0x1;
 
-    if (col + right_back + 7 > maxx) illegalBlock  |= 0x2;
+    if (col + right_back + right_half_back + 7 > maxx) illegalBlock  |= 0x2;
     else if (col + right_back < 0) illegalBlock |= 0x8;
 
 #endif
@@ -3342,30 +3367,91 @@ static void ReconBiMBlock( VidStream* vid_stream, int bnum,
     if (bnum & 0x01)
       col += 8;
 
-    forw_col_start = col + right_for;
-    forw_row_start = row + down_for;
-
-    back_col_start = col + right_back;
-    back_row_start = row + down_back;
-
 #ifdef LOOSE_MPEG
 
     /* Check for illegal pred. blocks. */
 
 
-    if (forw_col_start+7 > lmaxx) illegal_forw = 1;
-    else if (forw_col_start < 0) illegal_forw = 1;
+    /* Illegal forward Y block, right component */
+    if (col + right_for + right_half_for + 7 > lmaxx)
+    {
+      if(col > lmaxx)                                  // fix mb column 
+	col = lmaxx & ~15; 
+      if(col + right_for + 7 > lmaxx)                  // fix full component
+	right_for = lmaxx - col - 7;
+      if(col + right_for + right_half_for + 7 > lmaxx) // fix half component
+	right_half_for = 0;
+    }
+    else if (col + right_for < 0)
+    {
+      if(col < 0)                                      // fix mb column
+	col = 0;
+      if(col + right_for < 0)                          // fix full component
+	right_for = 0;
+    }
 
-    if (forw_row_start+7 > lmaxy) illegal_forw = 1;
-    else if (forw_row_start < 0) illegal_forw = 1;
+    /* Illegal forward Y block, down component */
+    if (row + down_for + down_half_for + 7 > lmaxy)
+    {
+      if(row > lmaxy)                                  // fix mb row
+	row = lmaxy & ~15; 
+      if(row + down_for + 7 > lmaxy)                   // fix full component
+	down_for = lmaxy - row - 7;
+      if(row + down_for + down_half_for + 7 > lmaxy)   // fix half component
+	down_half_for = 0;
+    }
+    else if (row + down_for < 0)
+    {
+      if(row < 0)                                      // fix mb row
+	row = 0;
+      if(row + down_for < 0)                           // fix full component
+	down_for = 0;
+    }
 
-    if (back_col_start+7 > lmaxx) illegal_back = 1;
-    else if (back_col_start < 0) illegal_back = 1;
 
-    if (back_row_start+7 > lmaxy) illegal_back = 1;
-    else if (back_row_start < 0) illegal_back = 1;
+    /* Illegal backward Y block, right component */
+    if (col + right_back + right_half_back + 7 > lmaxx)
+    {
+      if(col > lmaxx)                                    // fix mb column 
+	col = lmaxx & ~15; 
+      if(col + right_back + 7 > lmaxx)                   // fix full component
+	right_back = lmaxx - col - 7;
+      if(col + right_back + right_half_back + 7 > lmaxx) // fix half component
+	right_half_back = 0;
+    }
+    else if (col + right_back < 0)
+    {
+      if(col < 0)                                        // fix mb column
+	col = 0;
+      if(col + right_back < 0)                           // fix full component
+	right_back = 0;
+    }
+
+    /* Illegal backward Y block, down component */
+    if (row + down_back + down_half_back + 7 > lmaxy)
+    {
+      if(row > lmaxy)                                    // fix mb row
+	row = lmaxy & ~15; 
+      if(row + down_back + 7 > lmaxy)                    // fix full component
+	down_back = lmaxy - row - 7;
+      if(row + down_back + down_half_back + 7 > lmaxy)   // fix half component
+	down_half_back = 0;
+    }
+    else if (row + down_back < 0)
+    {
+      if(row < 0)                                        // fix mb row
+	row = 0;
+      if(row + down_back < 0)                            // fix full component
+	down_back = 0;
+    }
 
 #endif
+
+    forw_col_start = col + right_for;
+    forw_row_start = row + down_for;
+
+    back_col_start = col + right_back;
+    back_row_start = row + down_back;
 
   }
   /* Otherwise, block is NOT luminance block, ... */
@@ -3397,29 +3483,91 @@ static void ReconBiMBlock( VidStream* vid_stream, int bnum,
     row = (mb_row << 3);
     col = (mb_col << 3);
 
+#ifdef LOOSE_MPEG
+
+    /* Check for illegal pred. blocks. */
+
+
+    /* Illegal forward C block, right component */
+    if (col + right_for + right_half_for + 7 > cmaxx)
+    {
+      if(col > cmaxx)                                  // fix mb column 
+	col = cmaxx & ~15; 
+      if(col + right_for + 7 > cmaxx)                  // fix full component
+	right_for = cmaxx - col - 7;
+      if(col + right_for + right_half_for + 7 > cmaxx) // fix half component
+	right_half_for = 0;
+    }
+    else if (col + right_for < 0)
+    {
+      if(col < 0)                                      // fix mb column
+	col = 0;
+      if(col + right_for < 0)                          // fix full component
+	right_for = 0;
+    }
+
+    /* Illegal forward C block, down component */
+    if (row + down_for + down_half_for + 7 > cmaxy)
+    {
+      if(row > cmaxy)                                  // fix mb row
+	row = cmaxy & ~15; 
+      if(row + down_for + 7 > cmaxy)                   // fix full component
+	down_for = cmaxy - row - 7;
+      if(row + down_for + down_half_for + 7 > cmaxy)   // fix half component
+	down_half_for = 0;
+    }
+    else if (row + down_for < 0)
+    {
+      if(row < 0)                                      // fix mb row
+	row = 0;
+      if(row + down_for < 0)                           // fix full component
+	down_for = 0;
+    }
+
+
+    /* Illegal backward C block, right component */
+    if (col + right_back + right_half_back + 7 > cmaxx)
+    {
+      if(col > cmaxx)                                    // fix mb column 
+	col = cmaxx & ~15; 
+      if(col + right_back + 7 > cmaxx)                   // fix full component
+	right_back = cmaxx - col - 7;
+      if(col + right_back + right_half_back + 7 > cmaxx) // fix half component
+	right_half_back = 0;
+    }
+    else if (col + right_back < 0)
+    {
+      if(col < 0)                                        // fix mb column
+	col = 0;
+      if(col + right_back < 0)                           // fix full component
+	right_back = 0;
+    }
+
+    /* Illegal backward C block, down component */
+    if (row + down_back + down_half_back + 7 > cmaxy)
+    {
+      if(row > cmaxy)                                    // fix mb row
+	row = cmaxy & ~15; 
+      if(row + down_back + 7 > cmaxy)                    // fix full component
+	down_back = cmaxy - row - 7;
+      if(row + down_back + down_half_back + 7 > cmaxy)   // fix half component
+	down_half_back = 0;
+    }
+    else if (row + down_back < 0)
+    {
+      if(row < 0)                                        // fix mb row
+	row = 0;
+      if(row + down_back < 0)                            // fix full component
+	down_back = 0;
+    }
+
+#endif
+
     forw_col_start = col + right_for;
     forw_row_start = row + down_for;
 
     back_col_start = col + right_back;
     back_row_start = row + down_back;
-
-#ifdef LOOSE_MPEG
-
-    /* Check for illegal pred. blocks. */
-
-    if (forw_col_start+7 > cmaxx) illegal_forw = 1;
-    else if (forw_col_start < 0) illegal_forw = 1;
-
-    if (forw_row_start+7 > cmaxy) illegal_forw = 1;
-    else if (forw_row_start < 0) illegal_forw = 1;
-
-    if (back_col_start+7 > cmaxx) illegal_back = 1;
-    else if (back_col_start < 0) illegal_back = 1;
-    
-    if (back_row_start+7 > cmaxy) illegal_back = 1;
-    else if (back_row_start < 0) illegal_back = 1;
-
-#endif
     
     /* If block is Cr block... */
         /* Switched earlier, so we test Cr first - eyhung */
@@ -3715,6 +3863,18 @@ static void ProcessSkippedBFrameMBlocks( VidStream* vid_stream )
 #ifndef DISABLE_DITHER
   int ditherType=vid_stream->ditherType;
 #endif
+#ifdef LOOSE_MPEG
+  int lmaxx = vid_stream->mb_width*16-1;
+  int lmaxy = vid_stream->mb_height*16-1;
+  int cmaxx = vid_stream->mb_width*8-1;
+  int cmaxy = vid_stream->mb_height*8-1;
+#endif
+#ifdef LOOSE_MPEG
+  int illegal_forw = 0;
+  int illegal_back = 0;
+  int c_illegal_forw = 0;
+  int c_illegal_back = 0;
+#endif
 
   /* Calculate row sizes for luminance and Cr/Cb macroblock areas. */
 
@@ -3823,6 +3983,158 @@ static void ProcessSkippedBFrameMBlocks( VidStream* vid_stream )
     col = mb_col << 4;
     crow = row / 2;
     ccol = col / 2;
+
+#ifdef LOOSE_MPEG
+
+    /* Check for illegal blocks. */
+
+    /* Illegal forward Y block, right component */
+    if (col + right_for + right_half_for + 7 > lmaxx)
+    {
+      if(col > lmaxx)                                  // fix mb column 
+	col = lmaxx & ~15; 
+      if(col + right_for + 7 > lmaxx)                  // fix full component
+	right_for = lmaxx - col - 7;
+      if(col + right_for + right_half_for + 7 > lmaxx) // fix half component
+	right_half_for = 0;
+    }
+    else if (col + right_for < 0)
+    {
+      if(col < 0)                                      // fix mb column
+	col = 0;
+      if(col + right_for < 0)                          // fix full component
+	right_for = 0;
+    }
+
+    /* Illegal forward Y block, down component */
+    if (row + down_for + down_half_for + 7 > lmaxy)
+    {
+      if(row > lmaxy)                                  // fix mb row
+	row = lmaxy & ~15; 
+      if(row + down_for + 7 > lmaxy)                   // fix full component
+	down_for = lmaxy - row - 7;
+      if(row + down_for + down_half_for + 7 > lmaxy)   // fix half component
+	down_half_for = 0;
+    }
+    else if (row + down_for < 0)
+    {
+      if(row < 0)                                      // fix mb row
+	row = 0;
+      if(row + down_for < 0)                           // fix full component
+	down_for = 0;
+    }
+
+
+    /* Illegal backward Y block, right component */
+    if (col + right_back + right_half_back + 7 > lmaxx)
+    {
+      if(col > lmaxx)                                    // fix mb column 
+	col = lmaxx & ~15; 
+      if(col + right_back + 7 > lmaxx)                   // fix full component
+	right_back = lmaxx - col - 7;
+      if(col + right_back + right_half_back + 7 > lmaxx) // fix half component
+	right_half_back = 0;
+    }
+    else if (col + right_back < 0)
+    {
+      if(col < 0)                                        // fix mb column
+	col = 0;
+      if(col + right_back < 0)                           // fix full component
+	right_back = 0;
+    }
+
+    /* Illegal backward Y block, down component */
+    if (row + down_back + down_half_back + 7 > lmaxy)
+    {
+      if(row > lmaxy)                                    // fix mb row
+	row = lmaxy & ~15; 
+      if(row + down_back + 7 > lmaxy)                    // fix full component
+	down_back = lmaxy - row - 7;
+      if(row + down_back + down_half_back + 7 > lmaxy)   // fix half component
+	down_half_back = 0;
+    }
+    else if (row + down_back < 0)
+    {
+      if(row < 0)                                        // fix mb row
+	row = 0;
+      if(row + down_back < 0)                            // fix full component
+	down_back = 0;
+    }
+
+
+    /* Illegal forward C block, right component */
+    if (ccol + c_right_for + c_right_half_for + 7 > cmaxx)
+    {
+      if(ccol > cmaxx)                                      // fix mb column 
+	ccol = cmaxx & ~15; 
+      if(ccol + c_right_for + 7 > cmaxx)                    // fix full component
+	c_right_for = cmaxx - ccol - 7;
+      if(ccol + c_right_for + c_right_half_for + 7 > cmaxx) // fix half component
+	c_right_half_for = 0;
+    }
+    else if (ccol + c_right_for < 0)
+    {
+      if(ccol < 0)                                          // fix mb column
+	ccol = 0;
+      if(ccol + c_right_for < 0)                            // fix full component
+	c_right_for = 0;
+    }
+
+    /* Illegal forward C block, down component */
+    if (crow + c_down_for + c_down_half_for + 7 > cmaxy)
+    {
+      if(crow > cmaxy)                                      // fix mb row
+	crow = cmaxy & ~15; 
+      if(crow + c_down_for + 7 > cmaxy)                     // fix full component
+	c_down_for = cmaxy - crow - 7;
+      if(crow + c_down_for + c_down_half_for + 7 > cmaxy)   // fix half component
+	c_down_half_for = 0;
+    }
+    else if (crow + c_down_for < 0)
+    {
+      if(crow < 0)                                           // fix mb row
+	crow = 0;
+      if(crow + c_down_for < 0)                              // fix full component
+	c_down_for = 0;
+    }
+
+    /* Illegal backward C block, right component */
+    if (ccol + c_right_back + c_right_half_back + 7 > cmaxx)
+    {
+      if(ccol > cmaxx)                                        // fix mb column 
+	ccol = cmaxx & ~15; 
+      if(ccol + c_right_back + 7 > cmaxx)                     // fix full component
+	c_right_back = cmaxx - ccol - 7;
+      if(ccol + c_right_back + c_right_half_back + 7 > cmaxx) // fix half component
+	c_right_half_back = 0;
+    }
+    else if (ccol + c_right_back < 0)
+    {
+      if(ccol < 0)                                            // fix mb column
+	ccol = 0;
+      if(ccol + c_right_back < 0)                             // fix full component
+	c_right_back = 0;
+    }
+
+    /* Illegal backward C block, down component */
+    if (crow + c_down_back + c_down_half_back + 7 > cmaxy)
+    {
+      if(crow > cmaxy)                                        // fix mb row
+	crow = cmaxy & ~15; 
+      if(crow + c_down_back + 7 > cmaxy)                      // fix full component
+	c_down_back = cmaxy - crow - 7;
+      if(crow + c_down_back + c_down_half_back + 7 > cmaxy)   // fix half component
+	c_down_half_back = 0;
+    }
+    else if (crow + c_down_back < 0)
+    {
+      if(crow < 0)                                            // fix mb row
+	crow = 0;
+      if(crow + c_down_back < 0)                              // fix full component
+	c_down_back = 0;
+    }
+
+#endif
     
     /* If forward predicted, calculate prediction values. */
     
@@ -4227,12 +4539,12 @@ static void DoPictureDisplay( VidStream *vid_stream )
             vid_stream->future->locked |= FUTURE_LOCK;
             vid_stream->current = vid_stream->past;
 
-            ExecuteDisplay( vid_stream );
+            vid_stream->_smpeg->ExecuteDisplay( vid_stream );
         }
     }
     else
     {
-        ExecuteDisplay( vid_stream );
+        vid_stream->_smpeg->ExecuteDisplay( vid_stream );
     }
 }
 

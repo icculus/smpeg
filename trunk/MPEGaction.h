@@ -23,6 +23,7 @@
 #define _MPEGACTION_H_
 
 #include "SDL.h"
+#include "MPEGfilter.h"
 
 typedef enum {
     MPEG_ERROR = -1,
@@ -115,8 +116,10 @@ public:
                                 MPEG_DisplayCallback callback) = 0;
     virtual void MoveDisplay(int x, int y) = 0;
     virtual void ScaleDisplayXY(int w, int h) = 0;
+    virtual void SetDisplayRegion(int x, int y, int w, int h) = 0;
     virtual void RenderFrame(int frame) = 0;
     virtual void RenderFinal(SDL_Surface *dst, int x, int y) = 0;
+    virtual SMPEG_Filter * Filter(SMPEG_Filter * filter) = 0;
 protected:
     MPEGaudioaction *time_source;
 };

@@ -91,9 +91,6 @@ void decodeDCTCoeffNext P((unsigned int *run , int *level ));
 
 /* gdith.c */
 void InitColor P((void ));
-int timeSync P((VidStream* vid_stream ));
-void ExecuteDisplay P((VidStream *vid_stream ));
-void DisplayCurrentFrame P((VidStream *vid_stream ));
 
 /* fs2.c */
 void InitFS2Dither P((void ));

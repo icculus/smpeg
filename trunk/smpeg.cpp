@@ -20,6 +20,7 @@
 /* This is the C interface to the SMPEG library */
 
 #include "MPEG.h"
+#include "MPEGfilter.h"
 #include "smpeg.h"
 
 extern "C" {
@@ -217,6 +218,12 @@ void SMPEG_move( SMPEG* mpeg, int x, int y )
     mpeg->obj->MoveDisplay(x, y);
 }
 
+/* Set the region of the video to be shown */
+void SMPEG_setdisplayregion(SMPEG* mpeg, int x, int y, int w, int h)
+{
+    mpeg->obj->SetDisplayRegion(x, y, w, h);
+}
+
 /* Play an SMPEG object */
 void SMPEG_play( SMPEG* mpeg )
 {
@@ -265,6 +272,12 @@ void SMPEG_renderFinal( SMPEG* mpeg, SDL_Surface* dst, int x, int y )
     mpeg->obj->RenderFinal(dst, x, y);
 }
 
+/* Set video filter */
+SMPEG_Filter * SMPEG_filter( SMPEG* mpeg, SMPEG_Filter * filter )
+{
+    return((SMPEG_Filter *) mpeg->obj->Filter((SMPEG_Filter *) filter));
+}
+
 /* Exported function for SDL audio playback */
 void SMPEG_playAudio(void *udata, Uint8 *stream, int len)
 {
@@ -297,7 +310,6 @@ char *SMPEG_error( SMPEG* mpeg )
     }
     return(error);
 }
-
 
 /* Extern "C" */
 };

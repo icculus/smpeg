@@ -119,7 +119,7 @@ MPEGstream:: next_packet(bool recurse, bool update_timestamp)
   preread_size -= br->Size();
 
   /* Check for the end of stream mark */
-  if(eof())
+  while(eof())
   {
     if(looping)
     {

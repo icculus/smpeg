@@ -15,6 +15,7 @@ libsmpeg_la_SOURCES =		\
 	MPEGlist.cpp		\
 	MPEGstream.cpp		\
 	MPEGsystem.cpp		\
+	MPEGfilter.c		\
 	smpeg.cpp
 
 libsmpegincludedir = $(includedir)/smpeg

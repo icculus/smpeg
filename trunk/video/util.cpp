@@ -392,8 +392,26 @@ int next_start_code( VidStream* vid_stream )
 #endif
       }
 
+#ifdef NO_GRIFF_MODS
       /* Return success. */
       return OK;
+#else /* NO_GRIFF_MODS */
+      show_bits32(data);
+      if ( data==SEQ_START_CODE ||
+	   data==GOP_START_CODE ||
+	   data==PICTURE_START_CODE ||
+	   (data>=SLICE_MIN_START_CODE && data<=SLICE_MAX_START_CODE) ||
+	   data==EXT_START_CODE ||
+	   data==USER_START_CODE )
+      {
+        /* Return success. */
+        return OK;
+      }
+      else
+      {
+	flush_bits32;
+      }
+#endif /* NO_GRIFF_MODS */
     }
   }
 
