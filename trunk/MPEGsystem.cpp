@@ -1100,14 +1100,18 @@ double MPEGsystem::TotalTime()
 	      int size = MPEG_BUFFER_SIZE;
 
 	      if(data_reader.offset + size > data_reader.size) {
-		      size = data_reader.size - data_reader.offset;
+                  size = data_reader.size - data_reader.offset;
 	      }
 
-	      dataptr += size;
-
-	      memcpy(buffer, dataptr, size);
-
-	      data_reader.offset += size;
+              if(size >= 0) {
+                  dataptr += size;
+      
+                  memcpy(buffer, dataptr, size);
+      
+                  data_reader.offset += size;
+             } else {
+		     break;
+	     }
       } else {
         if(read(mpeg_fd, buffer, MPEG_BUFFER_SIZE) < 0) break;
       }

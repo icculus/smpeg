@@ -1,4 +1,6 @@
 0.4.2:
+Joe Valenzuela - Fri Nov 17 13:28:38 PST 2000
+ * Fixed crash in system data decoding
 Bruce Merry - Fri Nov 10 09:49:59 PST 2000
  * Removed movie size limitations from glmovie, works great!
 Sam Lantinga - Fri Oct 27 15:11:33 PDT 2000
