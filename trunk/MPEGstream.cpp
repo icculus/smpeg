@@ -19,6 +19,8 @@
 
 /* The generic MPEG stream class */
 
+#include <string.h>
+
 #include "MPEG.h"
 #include "MPEGstream.h"
 #include "video/video.h"
