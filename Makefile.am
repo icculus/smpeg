@@ -50,12 +50,13 @@ endif
 bin_PROGRAMS = plaympeg $(GTK_PLAYER) $(MESA_PLAYER)
 
 # Sources for plaympeg
+man_MANS = plaympeg.1
 plaympeg_SOURCES = plaympeg.c
 plaympeg_LDADD = libsmpeg.la
 
 # Sources for gtv
 gtv_SOURCES = gtv.c gtv.h
-gtv_LDADD = libsmpeg.la
+gtv_LDADD = @GTK_LIBS@ libsmpeg.la
 
 # Sources for glmovie
 glmovie_SOURCES = glmovie-tile.c glmovie.c glmovie.h
