@@ -68,8 +68,6 @@ void update(SDL_Surface *screen, Sint32 x, Sint32 y, Uint32 w, Uint32 h)
 {
     if ( screen->flags & SDL_DOUBLEBUF ) {
         SDL_Flip(screen);
-    } else {
-        SDL_UpdateRect(screen, x, y, w, h);
     }
 }
 
@@ -173,6 +171,7 @@ int main(int argc, char *argv[])
 
     /* Play the mpeg files! */
     for ( ; argv[i]; ++i ) {
+#if 0
 	/* Initialize SDL */
 	if ( !video_inited && use_video ) {
 	  if ( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
@@ -195,6 +194,11 @@ int main(int argc, char *argv[])
 	  else
 	    audio_inited = 1;
 	}
+#endif
+        if ( SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO) < 0 ) {
+	    fprintf(stderr, "Warning: Couldn't init SDL: %s\n", SDL_GetError());
+            exit(1);
+        }
 	
         /* Create the MPEG stream */
 #ifdef NET_SUPPORT

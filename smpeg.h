@@ -31,8 +31,8 @@ extern "C" {
 #endif
 
 #define SMPEG_MAJOR_VERSION      0
-#define SMPEG_MINOR_VERSION      3
-#define SMPEG_PATCHLEVEL         5
+#define SMPEG_MINOR_VERSION      4
+#define SMPEG_PATCHLEVEL         0
 
 typedef struct {
         Uint8 major;
@@ -144,9 +144,11 @@ extern void SMPEG_rewind( SMPEG* mpeg );
 /* Skip 'seconds' seconds of the MPEG stream */
 void SMPEG_skip( SMPEG* mpeg, float seconds );
 
-/* Render a particular frame in the MPEG video */
-extern void SMPEG_renderFrame( SMPEG* mpeg, int framenum, SDL_Surface* dst,
-                               int x, int y );
+/* Render a particular frame in the MPEG video
+   API CHANGE: This function no longer takes a target surface and position.
+               Use SMPEG_setdisplay() and SMPEG_move() to set this information.
+*/
+extern void SMPEG_renderFrame( SMPEG* mpeg, int framenum );
 
 /* Render the last frame of an MPEG video */
 extern void SMPEG_renderFinal( SMPEG* mpeg, SDL_Surface* dst, int x, int y );

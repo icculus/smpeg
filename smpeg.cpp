@@ -202,10 +202,9 @@ void SMPEG_skip( SMPEG* mpeg, float seconds )
 }
 
 /* Render a particular frame in the MPEG video */
-void SMPEG_renderFrame( SMPEG* mpeg,
-                        int framenum, SDL_Surface* dst, int x, int y )
+void SMPEG_renderFrame( SMPEG* mpeg, int framenum )
 {
-    mpeg->obj->RenderFrame(framenum, dst, x, y);
+    mpeg->obj->RenderFrame(framenum);
 }
 
 /* Render the last frame of an MPEG video */

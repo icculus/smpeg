@@ -890,21 +890,28 @@ void DestroyVidStream( VidStream* astream )
  *--------------------------------------------------------------
  */
 
-PictImage* NewPictImage( VidStream* vid_stream )
+PictImage* NewPictImage( VidStream* vid_stream, int w, int h, SDL_Surface *dst )
 {
     PictImage* pi;
     int ditherType=vid_stream->ditherType;
-    unsigned int width=vid_stream->mb_width * 16;
-    unsigned int height=vid_stream->mb_height * 16;
 
 
     /* Allocate memory space for pi structure. */
 
     pi = (PictImage *) malloc(sizeof(PictImage));
 
-    pi->luminance = (unsigned char *) malloc(width * height);
-    pi->Cr = (unsigned char *) malloc(width * height / 4);
-    pi->Cb = (unsigned char *) malloc(width * height / 4);
+    /* Create a YV12 image (Y + V + U) */
+    pi->image = SDL_CreateYUVOverlay(w, h, SDL_YV12_OVERLAY, dst);
+    if ( ! pi->image || (SDL_LockYUVOverlay(pi->image) < 0) ) {
+        if ( pi->image ) {
+            SDL_FreeYUVOverlay(pi->image);
+        }
+        free(pi);
+        return(NULL);
+    }
+    pi->luminance = (unsigned char *)pi->image->pixels;
+    pi->Cr = pi->luminance + (w*h);
+    pi->Cb = pi->luminance + (w*h) + (w*h)/4;
   
     /* Reset locked flag. */
   
@@ -915,7 +922,17 @@ PictImage* NewPictImage( VidStream* vid_stream )
     return pi;
 }
 
+bool InitPictImages( VidStream* vid_stream, int w, int h, SDL_Surface* dst )
+{
+    int i;
 
+    for (i = 0; i < RING_BUF_SIZE; i++) {
+        vid_stream->ring[i] = NewPictImage( vid_stream, w, h, dst );
+        if ( ! vid_stream->ring[i] )
+            return false;
+    }
+    return true;
+}
 
 /*
  *--------------------------------------------------------------
@@ -934,14 +951,9 @@ PictImage* NewPictImage( VidStream* vid_stream )
  */
 void DestroyPictImage( PictImage* apictimage )
 {
-  if (apictimage->luminance != NULL) {
-    free(apictimage->luminance);
-  }
-  if (apictimage->Cr != NULL) {
-    free(apictimage->Cr);
-  }
-  if (apictimage->Cb != NULL) {
-    free(apictimage->Cb);
+  if (apictimage->image != NULL) {
+    SDL_UnlockYUVOverlay(apictimage->image);
+    SDL_FreeYUVOverlay(apictimage->image);
   }
   free(apictimage);
 }
@@ -1261,18 +1273,6 @@ static int ParseSeqHead( VidStream* vid_stream )
          (char *) malloc(vid_stream->mb_width*vid_stream->mb_height);
   }
 #endif
-
-  /*
-   * Initialize ring buffer of pict images now that dimensions of image space
-   * are known.
-   */
-
-
-  if (vid_stream->ring[0] == NULL) {
-    for (i = 0; i < RING_BUF_SIZE; i++) {
-      vid_stream->ring[i] = NewPictImage( vid_stream );
-    }
-  }
 
   /* Parse of aspect ratio code. */
 
