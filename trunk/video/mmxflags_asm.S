@@ -1,4 +1,6 @@
 
+#if defined(i386) && defined(USE_MMX)
+
 .data
 	.align 16
 	.type	 flags,@object
@@ -53,3 +55,5 @@ cpu_flags.L1:
         ret
 .Lfe1:
 	.size	 cpu_flags,.Lfe1-cpu_flags
+
+#endif /* i386 && USE_MMX */
