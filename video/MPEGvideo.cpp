@@ -279,7 +279,7 @@ MPEGstatus
 MPEGvideo:: Status(void)
 {
     if( _stream ) {
-        if( !_thread || _stream->film_has_ended ) {
+        if( !_thread || (_stream->film_has_ended && !_stream->loopFlag) ) {
             return MPEG_STOPPED;
         } else {
             return MPEG_PLAYING;
