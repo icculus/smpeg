@@ -79,8 +79,10 @@ static REAL ca[8],cs[8];
 
 
 
-static REAL cos1_6=cos(PI/6.0*1.0);
-static REAL cos2_6=cos(PI/6.0*2.0);
+//static REAL cos1_6=cos(PI/6.0*1.0);
+#define cos1_6 (cos(PI/6.0*1.0))
+//static REAL cos2_6=cos(PI/6.0*2.0);
+#define cos2_6 (cos(PI/6.0*2.0))
 static REAL win[4][36];
 static REAL cos_18[9];
 static REAL hsec_36[9],hsec_12[3];
