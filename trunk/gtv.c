@@ -800,9 +800,9 @@ static void gtv_seek( GtkAdjustment* adjust, gpointer raw )
       SMPEG_getinfo( mpeg, info );
       
       SMPEG_seek(mpeg, (int)((info->total_size*adjust->value)/100));
+      SMPEG_getinfo( mpeg, info );
+      gtv_set_frame( raw, info->current_frame );
     }
-    SMPEG_getinfo( mpeg, info );
-    gtv_set_frame( raw, info->current_frame );
 }
 
 static void gtv_trackbar_drag_on(GtkWidget *widget, gpointer raw)

@@ -1,3 +1,7 @@
+0.4.4:
+Joe Drew - Mon Apr 16 12:04:36 PDT 2001
+ * Fixed crash in gtv when seeking without a file loaded
+
 0.4.3:
 Sam Lantinga - Thu Apr  5 01:09:43 PDT 2001
  * Updated for Simple DirectMedia Layer version 1.2.0
