@@ -7,6 +7,7 @@ MPEGlist::MPEGlist()
   lock = 0;
   next = 0;
   prev = 0;
+  TimeStamp = -1;
 }
 
 MPEGlist::~MPEGlist()

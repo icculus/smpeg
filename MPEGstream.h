@@ -88,6 +88,9 @@ public:
     /* Enable or disable the stream */
     void enable(bool toggle);
 
+    /* Get stream time */
+    double time();
+
     Uint32 pos;
 
     Uint8 streamid;

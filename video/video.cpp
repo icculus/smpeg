@@ -1098,6 +1098,9 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
         {
             status = SKIP_PICTURE;
         }
+	
+	if( !vid_stream->current )
+	    status = SKIP_PICTURE;
 
         if( status == SKIP_PICTURE )
         {
