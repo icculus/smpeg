@@ -22,9 +22,9 @@
 #ifndef _MPEGRING_H
 #define _MPEGRING_H
 
-#include "SDL_types.h"
-#include "SDL_thread.h"
-#include "SDL_mutex.h"
+#include <SDL/SDL_types.h>
+#include <SDL/SDL_thread.h>
+#include <SDL/SDL_mutex.h>
 
 class MPEG_ring {
 public:

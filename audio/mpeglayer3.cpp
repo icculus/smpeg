@@ -1694,6 +1694,10 @@ void MPEGaudio::extractlayer3(void)
     }
 
     main_data_end=bitwindow.gettotalbit()>>3;// of previous frame
+    if (main_data_end < 0) // Fix from Michael Vogt
+    {
+      return;
+    }
 
     if((flush_main=(bitwindow.gettotalbit() & 0x7)))
     {
@@ -1822,7 +1826,7 @@ void MPEGaudio::extractlayer3_2(void)
   
     layer3framestart+=layer3slots;
   
-    if(bytes_to_discard<0)return;
+    if(bytes_to_discard<0) return;
     bitwindow.forward(bytes_to_discard<<3);
   }
 

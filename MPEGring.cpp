@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include "SDL_timer.h"
+#include <SDL/SDL_timer.h>
 
 #include "MPEGring.h"
 

@@ -22,7 +22,7 @@
 #ifndef _MPEGACTION_H_
 #define _MPEGACTION_H_
 
-#include "SDL.h"
+#include <SDL/SDL.h>
 
 typedef enum {
     MPEG_ERROR = -1,

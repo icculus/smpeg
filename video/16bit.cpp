@@ -216,7 +216,7 @@ void InitColorDither( int bpp, Uint32 Rmask, Uint32 Gmask, Uint32 Bmask )
     Cb_b_tab = &colortab[3*256];
 
     if (rgb_2_pix==NULL)
-       rgb_2_pix = (long *)malloc(3*768*sizeof(int));
+       rgb_2_pix = (long *)malloc(3*768*sizeof(long));
     r_2_pix_alloc = &rgb_2_pix[0*768];
     g_2_pix_alloc = &rgb_2_pix[1*768];
     b_2_pix_alloc = &rgb_2_pix[2*768];

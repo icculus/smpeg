@@ -55,7 +55,7 @@
 #include "proto.h"
 #include "dither.h"
 #include <sys/time.h>
-#include "SDL_timer.h"
+#include <SDL/SDL_timer.h>
 
 #ifdef __STDC__
 #include <stdlib.h>

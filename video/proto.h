@@ -199,8 +199,8 @@ int MakeFloatClockTime P((
 #ifndef NOCONTROLS
 /* ctrlbar.c */
 double StopWatch P((int action ));
-Bool WindowMapped P((Display *dsp, XEvent *xev, char *window ));
-Bool IfEventType P((Display *dsp, XEvent *xev, char *type ));
+bool WindowMapped P((Display *dsp, XEvent *xev, char *window ));
+bool IfEventType P((Display *dsp, XEvent *xev, char *type ));
 void MakeControlBar P(( XInfo *xinfo ));
 void UpdateFrameTotal P((Display *display));
 void UpdateControlDisplay P((Display *display));
