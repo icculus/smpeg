@@ -296,23 +296,12 @@ MPEGvideo:: Rewind(void)
     }
     play_time = 0.0;
 }
-
-void
-MPEGvideo:: ResetSynchro(double time)
-{
-  _stream->_jumpFrame = -1;
-  _stream->realTimeStart = 0.0;
-  play_time = time;
-}
-
 void
 MPEGvideo::Skip(float seconds)
 {
   int frame;
 
-  /* Called only when there is no timestamp info in the MPEG */
-  /* This is quite slow however */
-  printf("Video: Skipping %f seconds...\n", seconds);  
+  printf("Video: Skipping %f seconds... please wait\n", seconds);  
   frame = (int) (_fps * seconds);
 
   if( _stream )
@@ -323,10 +312,11 @@ MPEGvideo::Skip(float seconds)
     {
       mpegVidRsrc( 0, _stream, 0 );
     }
-    ResetSynchro(0);
+    _stream->_jumpFrame = -1;
+    _stream->realTimeStart = 0.0;
+    play_time = 0.0;
   }
 }
-
 MPEGstatus
 MPEGvideo:: Status(void)
 {

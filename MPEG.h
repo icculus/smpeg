@@ -68,7 +68,6 @@ public:
     void Stop(void);
     void Rewind(void);
     void Pause(void);
-    void Seek(int bytes);
     void Skip(float seconds);
     MPEGstatus Status(void);
 
@@ -114,7 +113,6 @@ protected:
     bool pause;
 
     void parse_stream_list();
-    void seekIntoStream(int position);
 };
 
 #endif /* _MPEG_H_ */

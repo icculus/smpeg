@@ -665,9 +665,13 @@ static void gtv_seek( GtkAdjustment* adjust, gpointer raw )
 
     mpeg = (SMPEG*) gtk_object_get_data( GTK_OBJECT( raw ), "mpeg" );
 
+#if 1
+#warning Seeking is not implemented yet
+#else
     if( mpeg && mpeg_size ) {
         SMPEG_seek(mpeg, (int)((mpeg_size*adjust->value)/100));
     }
+#endif
 }
 
 static void gtv_set_frame( gpointer raw, int value )

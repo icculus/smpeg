@@ -72,7 +72,6 @@ MPEGaudio:: ~MPEGaudio()
 {
     /* Remove ourselves from the mixer hooks */
     Stop();
-
 #ifdef THREADED_AUDIO
     /* Stop the decode thread */
     StopDecoding();
@@ -149,9 +148,6 @@ void
 MPEGaudio:: StopDecoding(void)
 {
     decoding = false;
-    if ( ring ) {
-      ring->ReleaseThreads();
-    }
     if ( decode_thread ) {
         SDL_WaitThread(decode_thread, NULL);
         decode_thread = NULL;
@@ -172,7 +168,7 @@ MPEGaudio:: Time(void)
     if ( frag_time ) {
         now = (play_time + (double)(SDL_GetTicks() - frag_time)/1000.0);
     } else {
-        now = play_time;
+        now = 0.0;
     }
     return now;
 }
@@ -211,18 +207,12 @@ MPEGaudio:: Rewind(void)
     currentframe = 0;
     frags_playing = 0;
     frag_time = 0;
+    play_time = 0.0;
 }
-void
-MPEGaudio:: ResetSynchro(double time)
-{
-    play_time = time;
-}
-
 void
 MPEGaudio:: Skip(float seconds)
 {
-  /* Called only when there is no timestamp info in the MPEG */
-  printf("Audio: Skipping %f seconds...\n", seconds);
+  printf("Audio: Skipping %f seconds...\n", seconds);  
   while(seconds > 0)
   {
     seconds -= (double) samplesperframe / ((double) frequencies[version][frequency]*(1+inputstereo));
@@ -230,7 +220,6 @@ MPEGaudio:: Skip(float seconds)
     if(!loadheader()) break;
   }
 }
-
 void
 MPEGaudio:: Volume(int vol)
 {

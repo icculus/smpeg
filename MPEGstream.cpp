@@ -114,7 +114,7 @@ MPEGstream:: next_packet(bool recurse)
     system->RequestBuffer();
     while(!br->Next() && timeout--)
       SDL_Delay(1);
-    if(timeout<=0) return(false);
+    if(!timeout) return(false);
     SDL_mutexP(mutex);
   }
 
@@ -157,7 +157,6 @@ MPEGstream:: next_packet(bool recurse)
   /* Update stream datas */
   data = (Uint8 *) br->Buffer();
   stop = data + br->Size();
-  timestamp = br->TimeStamp;
 
   SDL_mutexV(mutex);
 
@@ -287,7 +286,7 @@ bool MPEGstream::eof() const
   return(!br->Size());
 }
 
-void MPEGstream::insert_packet(Uint8 * Data, Uint32 Size, double timestamp=-1)
+void MPEGstream::insert_packet(Uint8 * Data, Uint32 Size)
 {
   MPEGlist * newbr;
 
@@ -306,7 +305,6 @@ void MPEGstream::insert_packet(Uint8 * Data, Uint32 Size, double timestamp=-1)
   if ( Size ) {
     memcpy(newbr->Buffer(), Data, Size);
   }
-  newbr->TimeStamp = timestamp;
 
   SDL_mutexV(mutex);
   garbage_collect();
