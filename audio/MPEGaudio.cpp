@@ -41,7 +41,21 @@ MPEGaudio:: MPEGaudio(MPEGstream *stream, bool initSDL) : sdl_audio(initSDL)
 
         SDL_AudioSpec wanted;
         WantedSpec(&wanted);
-        if ( initSDL ) {
+
+        /* Calculate the samples per frame */
+        samplesperframe = 32*wanted.channels;
+        if( layer == 3 ) {
+            samplesperframe *= 18;
+            if ( version == 0 ) {
+                samplesperframe *= 2;
+            }
+        } else {
+            samplesperframe *= SCALEBLOCK;
+            if ( layer == 2 ) {
+                samplesperframe *= 3;
+            }
+        }
+        if ( sdl_audio ) {
             /* Open the audio, get actual audio hardware format and convert */
             bool audio_active;
             SDL_AudioSpec actual;
@@ -63,19 +77,6 @@ MPEGaudio:: MPEGaudio(MPEGstream *stream, bool initSDL) : sdl_audio(initSDL)
             }
         } else { /* The stream is always valid if we don't initiliaze SDL */
             valid_stream = true; 
-        }
-        /* Calculate the samples per frame */
-        samplesperframe = 32*wanted.channels;
-        if( layer == 3 ) {
-            samplesperframe *= 18;
-            if ( version == 0 ) {
-                samplesperframe *= 2;
-            }
-        } else {
-            samplesperframe *= SCALEBLOCK;
-            if ( layer == 2 ) {
-                samplesperframe *= 3;
-            }
         }
         Volume(100);
     }
