@@ -210,7 +210,7 @@ int main(int argc, char *argv[])
             switch (video_info->vfmt->BitsPerPixel) {
                 case 16:
                 case 32:
-                    video_bpp = video_info->vfmt->BitsPerPixel;
+                    video_bpp = 32; //video_info->vfmt->BitsPerPixel;
                     break;
                 default:
                     video_bpp = 16;

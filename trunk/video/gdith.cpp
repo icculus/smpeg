@@ -412,6 +412,9 @@ printf("A lot behind, skipping %d frames\n", vid_stream->_skipFrame);
 */
 void DisplayCurrentFrame( VidStream* vid_stream )
 {
+#ifdef USE_MMX
+    extern int mmx_available;
+#endif
     unsigned char* l = vid_stream->current->luminance;
     unsigned char* Cr = vid_stream->current->Cr;
     unsigned char* Cb = vid_stream->current->Cb;
@@ -470,11 +473,25 @@ void DisplayCurrentFrame( VidStream* vid_stream )
         start = !start;
 #else
         if ( mpeg->_surf->format->BytesPerPixel == 2 ) {
+#ifdef USE_MMX
+            if ( mmx_available ) {
+                Color16DitherImageMMX( l, Cr, Cb, disp,
+                         vid_stream->v_size, vid_stream->h_size,
+                         (mpeg->_surf->pitch / 2) - vid_stream->h_size );
+            } else
+#endif
             Color16DitherImageMod( l, Cr, Cb, disp,
                          vid_stream->v_size, vid_stream->h_size,
                          (mpeg->_surf->pitch / 2) - vid_stream->h_size );
         } else
         if ( mpeg->_surf->format->BytesPerPixel == 4 ) {
+#ifdef USE_MMX
+            if ( mmx_available ) {
+                Color32DitherImageMMX( l, Cr, Cb, disp,
+                         vid_stream->v_size, vid_stream->h_size,
+                         (mpeg->_surf->pitch / 4) - vid_stream->h_size );
+            } else
+#endif
             Color32DitherImageMod( l, Cr, Cb, disp,
                          vid_stream->v_size, vid_stream->h_size,
                          (mpeg->_surf->pitch / 4) - vid_stream->h_size );

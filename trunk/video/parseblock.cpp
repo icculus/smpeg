@@ -82,6 +82,10 @@ extern int dcprec;
 
 
 #ifdef USE_MMX
+
+/* This is global for the ditherer as well */
+int mmx_available = 0;
+
 static const int zigzag_direct_nommx[64] = {
   0, 1, 8, 16, 9, 2, 3, 10, 17, 24, 32, 25, 18, 11, 4, 5, 12,
   19, 26, 33, 40, 48, 41, 34, 27, 20, 13, 6, 7, 14, 21, 28, 35,
@@ -101,7 +105,6 @@ static const int zigzag_direct_mmx[64] = {
     7*8+6/*53*/, 4*8+7/*60*/, 5*8+7/*61*/, 6*8+6/*54*/, 7*8+5/*47*/, 7*8+6/*55*/, 6*8+7/*62*/, 7*8+7/*63*/
 };
 
-static int mmx;
 static int zigzag_direct[256];
 
 void InitIDCT(void)
@@ -111,11 +114,11 @@ void InitIDCT(void)
 
   use_mmx = getenv("SMPEG_USE_MMX");
   if ( use_mmx ) {
-    mmx = atoi(use_mmx);
+    mmx_available = atoi(use_mmx);
   } else {
-    mmx = mmx_ok();
+    mmx_available = mmx_ok();
   }
-  if (mmx) {
+  if (mmx_available) {
 printf("Using MMX IDCT algorithm!\n");
     for(i=0;i<64;i++) {
       zigzag_direct[i]=zigzag_direct_mmx[i];
@@ -333,7 +336,7 @@ void ParseReconBlock( int n, VidStream* vid_stream )
       
       *reconptr = coeff;
 #ifdef USE_MMX
-      if ( mmx ) {
+      if ( mmx_available ) {
         *reconptr <<= 4;
       }
 #endif
@@ -367,7 +370,7 @@ void ParseReconBlock( int n, VidStream* vid_stream )
             coeff -= (1 - (coeff & 1));
           }
 #ifdef USE_MMX
-          if ( mmx )
+          if ( mmx_available )
             coeff *= 16;
 #endif
 #ifdef QUANT_CHECK
@@ -414,7 +417,7 @@ void ParseReconBlock( int n, VidStream* vid_stream )
 	coeff = (coeff-1) | 1; /* equivalent to: if ((coeff&1)==0) coeff = coeff - 1; */
       }
 #ifdef USE_MMX
-      if ( mmx )
+      if ( mmx_available )
         coeff *= 16;
 #endif
 
@@ -447,7 +450,7 @@ void ParseReconBlock( int n, VidStream* vid_stream )
             coeff = (coeff-1) | 1; /* equivalent to: if ((coeff&1)==0) coeff = coeff - 1; */
           }
 #ifdef USE_MMX
-          if ( mmx )
+          if ( mmx_available )
             coeff *= 16;
 #endif
           reconptr[pos] = coeff;
@@ -474,7 +477,7 @@ void ParseReconBlock( int n, VidStream* vid_stream )
         if( coeffCount == 1 )
         {
 #ifdef USE_MMX
-          if ( mmx )
+          if ( mmx_available )
             IDCT_mmx(reconptr);
           else
             j_rev_dct_sparse (reconptr, pos);
@@ -492,7 +495,7 @@ void ParseReconBlock( int n, VidStream* vid_stream )
           else
 #endif
 #ifdef USE_MMX
-          if ( mmx )
+          if ( mmx_available )
             IDCT_mmx(reconptr);
           else
             j_rev_dct(reconptr);
@@ -502,7 +505,7 @@ void ParseReconBlock( int n, VidStream* vid_stream )
         }
     }
 #ifdef USE_MMX
-    if ( mmx ) {
+    if ( mmx_available ) {
       __asm__ ("emms");
     }
 #endif

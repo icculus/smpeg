@@ -3,6 +3,8 @@ noinst_LTLIBRARIES = libvideo.la
 
 libvideo_la_SOURCES =		\
 	16bit.cpp		\
+	16bit_mmx.cpp		\
+	32bit_mmx.cpp		\
 	MPEGvideo.cpp		\
 	decoders.cpp		\
 	decoders.h		\
@@ -23,4 +25,13 @@ libvideo_la_SOURCES =		\
 
 EXTRA_DIST =			\
 	README			\
-	COPYRIGHT		\
+	COPYRIGHT
+
+#16bit_mmx.o: 16bit_mmx.cpp
+#	$(CXX) -c -o $@ $^ $(CXXFLAGS)
+16bit_mmx.lo: 16bit_mmx.cpp
+	$(CXX) -c -o $@ $^ $(CXXFLAGS)
+#32bit_mmx.o: 32bit_mmx.cpp
+#	$(CXX) -c -o $@ $^ $(CXXFLAGS)
+32bit_mmx.lo: 32bit_mmx.cpp
+	$(CXX) -c -o $@ $^ $(CXXFLAGS)
