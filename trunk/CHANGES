@@ -1,3 +1,7 @@
+0.4.0:
+Vivien Chapplier - Thu Apr  6 12:40:36 PDT 2000
+ * Added streaming audio support
+
 0.3.5:
 Sam Lantinga - Wed Apr  5 13:50:32 PDT 2000
  * MMX code is disabled by default, as it appears to be slower than C code.
