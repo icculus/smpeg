@@ -1,4 +1,6 @@
 0.4.0:
+Sam Lantinga - Mon Apr 24 16:11:58 PDT 2000
+ * A much improved semaphore based ring buffer implementation
 Sam Lantinga, Ryan Gordon - Mon Apr 24 14:12:59 PDT 2000
  * plaympeg can now play files containing colons
 Sam Lantinga - Tue Apr 18 17:12:16 PDT 2000

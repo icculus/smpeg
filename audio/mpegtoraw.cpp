@@ -311,8 +311,6 @@ int Decode_MPEGaudio(void *udata)
             audio->rawdatawriteoffset = 0;
             audio->run(1);
             audio->ring->WriteDone(audio->rawdatawriteoffset*2);
-        } else {
-            SDL_Delay(100);  /* The write buffer is full, wait a bit */
         }
     }
     audio->decoding = false;

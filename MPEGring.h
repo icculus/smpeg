@@ -17,19 +17,20 @@
     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-/* A ring-buffer class for multi-threaded applications */
+/* A ring-buffer class for multi-threaded applications.
+   This assumes a single reader and a single writer, with blocking reads.
+ */
 
 #ifndef _MPEGRING_H
 #define _MPEGRING_H
 
 #include "SDL_types.h"
 #include "SDL_thread.h"
-#include "SDL_mutex.h"
 
 class MPEG_ring {
 public:
     /* Create a ring with 'count' buffers, each 'size' bytes long */
-    MPEG_ring(Uint32 size, int count = 16);
+    MPEG_ring(Uint32 size, Uint32 count = 16);
 
     /* Release any waiting threads on the ring so they can be cleaned up.
        The ring isn't valid after this call, so when threads are done you
@@ -46,7 +47,7 @@ public:
     }
     /* Returns how many buffers have available data */
     int BuffersWritten(void) {
-        return(usedCount);
+        return(SDL_SemValue(ring->readwait));
     }
 
     /* Reserve a buffer for writing in the ring */
@@ -71,9 +72,6 @@ protected:
     Uint32 bufSize;
     
     /* private */
-    int bufCount;
-    int usedCount;
-
     Uint8 *begin;
     Uint8 *end;
 
@@ -82,9 +80,8 @@ protected:
 
     /* For read/write synchronization */
     int active;
-    int reader_active;
-    SDL_mutex* readwait;
-    int read_waiting;
+    SDL_semaphore *readwait;
+    SDL_semaphore *writewait;
 };
 
 #endif /* _MPEGRING_H */
