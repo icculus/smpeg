@@ -547,8 +547,8 @@ void j_rev_dct( DCTBLOCK data )
 	    if (d2) {
 		if (d0) {
 		    /* d0 != 0, d2 != 0, d4 != 0, d6 == 0 */
-		    tmp2 = MULTIPLY(d2, FIX(0.541196100));
-		    tmp3 = MULTIPLY(d2, (FIX(1.306562965) + .5));
+		    tmp2 = (INT32)MULTIPLY(d2, FIX(0.541196100));
+		    tmp3 = (INT32)MULTIPLY(d2, (FIX(1.306562965) + .5));
 
 		    tmp0 = (d0 + d4) << CONST_BITS;
 		    tmp1 = (d0 - d4) << CONST_BITS;
@@ -559,8 +559,8 @@ void j_rev_dct( DCTBLOCK data )
 		    tmp12 = tmp1 - tmp2;
 		} else {
 		    /* d0 == 0, d2 != 0, d4 != 0, d6 == 0 */
-		    tmp2 = MULTIPLY(d2, FIX(0.541196100));
-		    tmp3 = MULTIPLY(d2, (FIX(1.306562965) + .5));
+		    tmp2 = (INT32)MULTIPLY(d2, FIX(0.541196100));
+		    tmp3 = (INT32)MULTIPLY(d2, (FIX(1.306562965) + .5));
 
 		    tmp0 = d4 << CONST_BITS;
 
@@ -584,8 +584,8 @@ void j_rev_dct( DCTBLOCK data )
 	    if (d2) {
 		if (d0) {
 		    /* d0 != 0, d2 != 0, d4 == 0, d6 == 0 */
-		    tmp2 = MULTIPLY(d2, FIX(0.541196100));
-		    tmp3 = MULTIPLY(d2, (FIX(1.306562965) + .5));
+		    tmp2 = (INT32)MULTIPLY(d2, FIX(0.541196100));
+		    tmp3 = (INT32)MULTIPLY(d2, (FIX(1.306562965) + .5));
 
 		    tmp0 = d0 << CONST_BITS;
 
@@ -595,8 +595,8 @@ void j_rev_dct( DCTBLOCK data )
 		    tmp12 = tmp0 - tmp2;
 		} else {
 		    /* d0 == 0, d2 != 0, d4 == 0, d6 == 0 */
-		    tmp2 = MULTIPLY(d2, FIX(0.541196100));
-		    tmp3 = MULTIPLY(d2, (FIX(1.306562965) + .5));
+		    tmp2 = (INT32)MULTIPLY(d2, FIX(0.541196100));
+		    tmp3 = (INT32)MULTIPLY(d2, (FIX(1.306562965) + .5));
 
 		    tmp10 = tmp3;
 		    tmp13 = -tmp3;
@@ -1026,8 +1026,8 @@ void j_rev_dct( DCTBLOCK data )
 	    if (d2) {
 		if (d0) {
 		    /* d0 != 0, d2 != 0, d4 != 0, d6 == 0 */
-		    tmp2 = MULTIPLY(d2, FIX(0.541196100));
-		    tmp3 = MULTIPLY(d2, (FIX(1.306562965) + .5));
+		    tmp2 = (INT32)MULTIPLY(d2, FIX(0.541196100));
+		    tmp3 = (INT32)MULTIPLY(d2, (FIX(1.306562965) + .5));
 
 		    tmp0 = (d0 + d4) << CONST_BITS;
 		    tmp1 = (d0 - d4) << CONST_BITS;
@@ -1038,8 +1038,8 @@ void j_rev_dct( DCTBLOCK data )
 		    tmp12 = tmp1 - tmp2;
 		} else {
 		    /* d0 == 0, d2 != 0, d4 != 0, d6 == 0 */
-		    tmp2 = MULTIPLY(d2, FIX(0.541196100));
-		    tmp3 = MULTIPLY(d2, (FIX(1.306562965) + .5));
+		    tmp2 = (INT32)MULTIPLY(d2, FIX(0.541196100));
+		    tmp3 = (INT32)MULTIPLY(d2, (FIX(1.306562965) + .5));
 
 		    tmp0 = d4 << CONST_BITS;
 
@@ -1063,8 +1063,8 @@ void j_rev_dct( DCTBLOCK data )
 	    if (d2) {
 		if (d0) {
 		    /* d0 != 0, d2 != 0, d4 == 0, d6 == 0 */
-		    tmp2 = MULTIPLY(d2, FIX(0.541196100));
-		    tmp3 = MULTIPLY(d2, (FIX(1.306562965) + .5));
+		    tmp2 = (INT32)MULTIPLY(d2, FIX(0.541196100));
+		    tmp3 = (INT32)MULTIPLY(d2, (FIX(1.306562965) + .5));
 
 		    tmp0 = d0 << CONST_BITS;
 
@@ -1074,8 +1074,8 @@ void j_rev_dct( DCTBLOCK data )
 		    tmp12 = tmp0 - tmp2;
 		} else {
 		    /* d0 == 0, d2 != 0, d4 == 0, d6 == 0 */
-		    tmp2 = MULTIPLY(d2, FIX(0.541196100));
-		    tmp3 = MULTIPLY(d2, (FIX(1.306562965) + .5));
+		    tmp2 = (INT32)MULTIPLY(d2, FIX(0.541196100));
+		    tmp3 = (INT32)MULTIPLY(d2, (FIX(1.306562965) + .5));
 
 		    tmp10 = tmp3;
 		    tmp13 = -tmp3;
