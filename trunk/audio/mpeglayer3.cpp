@@ -1739,7 +1739,7 @@ void MPEGaudio::extractlayer3(void)
       layer3getscalefactors (LS,gr);
       layer3huffmandecode   (LS,gr      ,b1.is);
       layer3dequantizesample(LS,gr,b1.is,b2.ro[LS]);
-    if(inputstereo)
+    if(inputstereo || outputstereo)
     {
       layer3part2start=bitwindow.gettotalbit();
       layer3getscalefactors (RS,gr);
