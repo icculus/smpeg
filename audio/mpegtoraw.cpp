@@ -428,7 +428,7 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
     len /= 2;
 
     /* Copy in any saved data */
-    if ( audio->rawdatawriteoffset > 0 ) {
+    if ( audio->rawdatawriteoffset >= audio->rawdatareadoffset) {
         copylen = (audio->rawdatawriteoffset-audio->rawdatareadoffset);
         assert(copylen >= 0);
         if ( copylen >= len ) {

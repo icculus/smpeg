@@ -456,6 +456,9 @@ MPEGsystem::MPEGsystem(void *data, int size)
   /* Create a new buffer for reading */
   read_buffer = new Uint8[MPEG_BUFFER_SIZE];
 
+  /* Create a mutex to avoid concurrent access to the stream */
+  system_mutex = SDL_CreateMutex();
+
   /* 
      Our argument list indicates that we are being passed data, 
      so we copy it and setup the data_reader data structure.
