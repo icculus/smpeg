@@ -25,10 +25,12 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-typedef struct {
+struct MPEGerror {
     char errbuf[512];
     char *error;
-} MPEGerror;
+};
+
+typedef struct MPEGerror MPEGerror;
 
 MPEGerror *MPEGerror_create();
 void MPEGerror_SetError(MPEGerror *self, char *fmt, ...);
