@@ -291,7 +291,7 @@ protected:
 };
 
 /* This class is system dependent in the way it uses memory mapping */
-#if HAVE_MMAP
+#ifdef unix
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
