@@ -77,6 +77,8 @@ public:
                     data += 3;
                 }
             }
+            EnableAudio(audioaction_enabled);
+            EnableVideo(videoaction_enabled);
             reset_stream();
         }
         /* Determine if we are reading a system layer, and get first packet */
@@ -135,6 +137,14 @@ public:
         if ( audioaction && ! audioaction_enabled ) {
             audioaction->Stop();
         } 
+        /* Set the video time source */
+        if ( videoaction ) {
+            if ( audioaction_enabled ) {
+                videostream->videoaction->SetTimeSource(audiostream->audioaction);
+            } else {
+                videostream->videoaction->SetTimeSource(NULL);
+            }
+        }
     }
     bool VideoEnabled(void) {
         return(videoaction_enabled);

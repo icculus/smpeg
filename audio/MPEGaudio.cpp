@@ -39,31 +39,31 @@ MPEGaudio:: MPEGaudio(MPEGstream *stream, bool initSDL) : sdl_audio(initSDL)
     if ( loadheader() ) {
         mpeg->reset_stream();
 
-		SDL_AudioSpec wanted;
-		WantedSpec(&wanted);
-		if(initSDL){
-			/* Open the audio, get actual audio hardware format and convert */
-			bool audio_active;
-			SDL_AudioSpec actual;
+        SDL_AudioSpec wanted;
+        WantedSpec(&wanted);
+        if(initSDL){
+            /* Open the audio, get actual audio hardware format and convert */
+            bool audio_active;
+            SDL_AudioSpec actual;
 #ifdef SDL_MIXER
-			Mix_OpenAudio(wanted.freq,wanted.format,wanted.channels,wanted.samples);
-			int actual_channels;    /* This is stupid, need to fix the API */
-			audio_active = Mix_QuerySpec(&actual.freq,
-										 &actual.format, &actual_channels);
-			actual.channels = actual_channels;
+            Mix_OpenAudio(wanted.freq,wanted.format,wanted.channels,wanted.samples);
+            int actual_channels;    /* This is stupid, need to fix the API */
+            audio_active = Mix_QuerySpec(&actual.freq,
+                                         &actual.format, &actual_channels);
+            actual.channels = actual_channels;
 #else
-			audio_active = (SDL_OpenAudio(&wanted, &actual) == 0);
-			SDL_PauseAudio(0);
+            audio_active = (SDL_OpenAudio(&wanted, &actual) == 0);
+            SDL_PauseAudio(0);
 #endif
-			if ( audio_active ) {
-				ActualSpec(&actual);
-				valid_stream = true;
-			} else {
-				SetError(SDL_GetError());
-			}
-		} else { /* The stream is always valid if we don't initiliaze SDL */
-			valid_stream = true; 
-		}
+            if ( audio_active ) {
+                ActualSpec(&actual);
+                valid_stream = true;
+            } else {
+                SetError(SDL_GetError());
+            }
+        } else { /* The stream is always valid if we don't initiliaze SDL */
+            valid_stream = true; 
+        }
         /* Calculate the samples per frame */
         samplesperframe = 32*wanted.channels;
         if( layer == 3 ) {
@@ -77,7 +77,7 @@ MPEGaudio:: MPEGaudio(MPEGstream *stream, bool initSDL) : sdl_audio(initSDL)
                 samplesperframe *= 3;
             }
         }
-	Volume(100);
+    Volume(100);
     }
 }
 
@@ -86,65 +86,81 @@ MPEGaudio:: ~MPEGaudio()
     /* Remove ourselves from the mixer hooks */
     Stop();
 
-	if(sdl_audio) {
-		/* Close up the audio so others may play */
+    if(sdl_audio) {
+        /* Close up the audio so others may play */
 #ifdef SDL_MIXER
-		//    Mix_CloseAudio();
+        //    Mix_CloseAudio();
 #else
-		SDL_CloseAudio();
+        SDL_CloseAudio();
 #endif
-	}
+    }
 }
 
 bool
 MPEGaudio:: WantedSpec(SDL_AudioSpec *wanted)
 {
-	wanted->freq = frequencies[version][frequency];
+    wanted->freq = frequencies[version][frequency];
 #if SDL_BYTEORDER == SDL_LIL_ENDIAN
-	wanted->format = AUDIO_S16LSB;
+    wanted->format = AUDIO_S16LSB;
 #else
-	wanted->format = AUDIO_S16MSB;
+    wanted->format = AUDIO_S16MSB;
 #endif
-	if ( outputstereo ) {
-		wanted->channels = 2;
-	} else {
-		wanted->channels = 1;
-	}
-	wanted->samples = 4096;
-	wanted->callback = Play_MPEGaudio;
-	wanted->userdata = this;
-	return true;
+    if ( outputstereo ) {
+        wanted->channels = 2;
+    } else {
+        wanted->channels = 1;
+    }
+    wanted->samples = 4096;
+    wanted->callback = Play_MPEGaudio;
+    wanted->userdata = this;
+    return true;
 }
 
 void
 MPEGaudio:: ActualSpec(const SDL_AudioSpec *actual)
 {
-	/* Splay can optimize some of the conversion */
-	if ( actual->channels == 1 && outputstereo) {
-		forcetomonoflag = true;
-	}
-	/* FIXME: Create an audio conversion block */
-	if ( (actual->freq/100) == ((frequencies[version][frequency]/2)/100) ) {
-		downfrequency = 1;
-	} else if ( actual->freq != frequencies[version][frequency] ) {
-		fprintf(stderr, "Warning: incorrect audio frequency\n");
-	}
+    /* Splay can optimize some of the conversion */
+    if ( actual->channels == 1 && outputstereo) {
+        forcetomonoflag = true;
+    }
+    /* FIXME: Create an audio conversion block */
+    if ( (actual->freq/100) == ((frequencies[version][frequency]/2)/100) ) {
+        downfrequency = 1;
+    } else if ( actual->freq != frequencies[version][frequency] ) {
+        fprintf(stderr, "Warning: incorrect audio frequency\n");
+    }
 #if SDL_BYTEORDER == SDL_LIL_ENDIAN
-	if ( actual->format != AUDIO_S16LSB)
+    if ( actual->format != AUDIO_S16LSB)
 #else
-	if ( actual->format != AUDIO_S16MSB)
+    if ( actual->format != AUDIO_S16MSB)
 #endif
-	{
-		fprintf(stderr, "Warning: incorrect audio format\n");
-	}
+    {
+        fprintf(stderr, "Warning: incorrect audio format\n");
+    }
+    rate_in_s = (double)(((actual->format&0xFF)/8)*actual->channels*actual->freq);
 }
 
 /* MPEG actions */
+double
+MPEGaudio:: Time(void)
+{
+    double now;
+
+    if ( frag_time ) {
+        now = (play_time + (double)(SDL_GetTicks() - frag_time)/1000.0);
+    } else {
+        now = 0.0;
+    }
+    return now;
+}
 void
 MPEGaudio:: Play(void)
 {
     ResetPause();
-    if ( valid_stream && (Status() != MPEG_PLAYING) ) {
+    if ( valid_stream ) {
+        if (Status() == MPEG_PLAYING) {
+            Stop();
+        }
 #ifdef THREADED_AUDIO
         /* Create the ring buffer to hold audio */
         ring = new MPEG_ring(samplesperframe*2);
@@ -156,10 +172,10 @@ MPEGaudio:: Play(void)
         decode_thread = SDL_CreateThread(Decode_MPEGaudio, this);
 #endif
 #ifdef SDL_MIXER
-		if(sdl_audio) {
-			/* Hook ourselves up to the mixer */
-			Mix_HookMusic(Play_MPEGaudio, this);
-		}
+        if(sdl_audio) {
+            /* Hook ourselves up to the mixer */
+            Mix_HookMusic(Play_MPEGaudio, this);
+        }
 #endif
     }
 }
@@ -203,6 +219,9 @@ MPEGaudio:: Rewind(void)
     clearrawdata();
     decodedframe = 0;
     currentframe = 0;
+    frags_playing = 0;
+    frag_time = 0;
+    play_time = 0.0;
 }
 void
 MPEGaudio:: Volume(int vol)

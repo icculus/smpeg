@@ -27,6 +27,7 @@
 #include "MPEGstream.h"
 #include "MPEGaction.h"
 
+
 /* This is the MPEG video stream structure in the mpeg_play code */
 struct vid_stream;
 typedef struct vid_stream VidStream;
@@ -39,6 +40,7 @@ class MPEGvideo : public MPEGerror, public MPEGvideoaction {
     /* Various mpeg_play functions that need our data */
     friend void DoDitherImage( VidStream* vid_stream );
     friend void DisplayCurrentFrame( VidStream* vid_stream );
+    friend int timeSync( VidStream* vid_stream );
     friend int get_more_data( VidStream* vid_stream );
 
 public:
@@ -60,6 +62,11 @@ public:
     void DoubleDisplay(bool toggle);
     void RenderFrame(int frame, SDL_Surface *dst, int x, int y);
     void RenderFinal(SDL_Surface *dst, int x, int y);
+
+    /* Yes, it's a hack.. */
+    MPEGaudioaction *TimeSource(void ) {
+        return time_source;
+    }
 
 protected:
     MPEGstream *mpeg;

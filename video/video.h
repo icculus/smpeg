@@ -60,6 +60,7 @@
  */
 
 #include "MPEGvideo.h"
+#include "MPEGaudio.h"
 
 typedef Sint32 INT32;
 typedef Sint16 INT16;
@@ -297,7 +298,6 @@ typedef struct vid_stream {
   int _skipFrame;
   double _skipCount;
   int _jumpFrame;
-  double _nowFrameTime;
   double _oneFrameTime;
   MPEGvideo* _smpeg;
 /* KR - end of added variables */
