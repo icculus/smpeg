@@ -37,6 +37,7 @@ libsmpeg_la_LIBADD =		\
 EXTRA_DIST =		\
 	CHANGES		\
 	COPYING		\
+	TODO		\
 	README		\
 	README.SDL_mixer \
 	plaympeg.1	\
