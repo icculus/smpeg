@@ -2719,8 +2719,8 @@ rm -f conftest*
 
 if test x$have_gtk = xyes; then
     CFLAGS="$CFLAGS $GTK_CFLAGS"
-    LIBS="$LIBS $GTK_LIBS"
 fi
+
 
 
 if test x$have_gtk = xyes; then
@@ -2808,9 +2808,6 @@ else
 fi
 
 #AC_CHECK_LIB(GLU, gluOrtho2D, have_glu=yes)
-if test x$have_gl = xyes -a x$have_glu = xyes; then
-    LIBS="$LIBS -lGL -lGLU"
-fi
 
 
 if test x$have_gl = xyes -a x$have_glu = xyes; then
