@@ -31,7 +31,6 @@ public:
     bool Wait();
     Uint32 Tell();
     void Rewind();
-    void Loop(bool toggle);
 		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
     virtual void Start();
     void Stop();
@@ -63,9 +62,6 @@ public:
     /* Set eof for all streams */
     void end_all_streams();
     
-    /* Set looping for all streams */
-    void loop_all_streams(bool toggle);
-
 		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  need for override in popcorn */
     /* Seek the first header */
     virtual bool seek_first_header();
@@ -106,7 +102,6 @@ protected:
 
     bool endofstream;
     bool errorstream;
-    bool looping;
 
     double frametime;
     double stream_timestamp;
