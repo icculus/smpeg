@@ -61,7 +61,6 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Couldn't init SDL: %s\n", SDL_GetError());
         exit(1);
     }
-    atexit(SDL_Quit);
 
     /* Get the command line options */
     use_audio = 1;
@@ -149,6 +148,7 @@ int main(int argc, char *argv[])
             video_flags = SDL_SWSURFACE;
             if ( fullscreen ) {
                 video_flags = SDL_FULLSCREEN|SDL_DOUBLEBUF|SDL_HWSURFACE;
+                SDL_ShowCursor(0);
             }
             screen = SDL_SetVideoMode(info.width, info.height, 0, video_flags);
             SMPEG_setdisplay(mpeg, screen, NULL, update);
@@ -183,5 +183,7 @@ int main(int argc, char *argv[])
         }
         SMPEG_delete(mpeg);
     }
+    SDL_Quit();
+
     exit(0);
 }
