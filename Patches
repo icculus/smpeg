@@ -1,5 +1,41 @@
 *************************************************************************
 *** Applied ***
+Date: Mon, 11 Dec 2000 16:33:18 +0200
+From: Maxim Sobolev <sobomax@FreeBSD.org>
+Subject: Re: Announcing SMPEG 04.2
+
+Thanks! Unlike 0.4.1 this version works on FreeBSD almost OOB, so I just
+updated its FreeBSD port. BTW, I found a minor issue with smpeg-config (it
+assumes that sdl-config is called `sdl-config', while it may not be true - on
+FreeBSD we have sdl11-config for SDL1.1.* and sdl-config for SDL1.0.*).
+Attached patch should solve this minor problem.
+
+Sincerely,
+
+Maxim
+
+--- smpeg-config.in.orig	Fri Aug  4 02:51:30 2000
++++ smpeg-config.in	Mon Dec 11 14:15:26 2000
+@@ -42,7 +42,7 @@
+       if test @includedir@ != /usr/include ; then
+         includes=-I@includedir@
+       fi
+-      echo $includes -I@includedir@/smpeg `sdl-config --cflags`
++      echo $includes -I@includedir@/smpeg `@SDL_CONFIG@ --cflags`
+       ;;
+     --libs)
+       if [ "`uname`" = "SunOS" ]; then
+@@ -50,7 +50,7 @@
+       else
+         libdirs="-L@libdir@ @SMPEG_RLD_FLAGS@"
+       fi
+-      echo $libdirs -lsmpeg `sdl-config --libs`
++      echo $libdirs -lsmpeg `@SDL_CONFIG@ --libs`
+       ;;
+     *)
+       echo "${usage}" 1>&2
+*************************************************************************
+*** Applied ***
 Date: Thu, 16 Nov 2000 01:23:51 -0800
 From: Mo <mo@nospam.com>
 Subject: Re: SMPEG loops forever on bad input.
