@@ -22,7 +22,7 @@
 #include "MPEGaudio.h"
 
 #ifdef SDL_MIXER             /* From the SDL mixer example library */
-#include "mixer.h"
+#include "SDL_mixer.h"
 #endif
 
 
