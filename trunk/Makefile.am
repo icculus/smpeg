@@ -35,7 +35,8 @@ EXTRA_DIST =		\
 	CHANGES		\
 	COPYING		\
 	README		\
-	plaympeg.1
+	plaympeg.1	\
+	gtv.1
 
 # Sample MPEG players
 if HAVE_GTK
@@ -51,7 +52,7 @@ endif
 bin_PROGRAMS = plaympeg $(GTK_PLAYER) $(MESA_PLAYER)
 
 # Sources for plaympeg
-man_MANS = plaympeg.1
+man_MANS = plaympeg.1 gtv.1
 plaympeg_SOURCES = plaympeg.c
 plaympeg_LDADD = libsmpeg.la
 

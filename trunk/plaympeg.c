@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
     int fullscreen;
     int doublesize;
     int loop_play;
-    int i;
+    int i, done;
     int volume;
     SMPEG *mpeg;
     SMPEG_Info info;
@@ -161,7 +161,24 @@ int main(int argc, char *argv[])
 
         /* Play it, and wait for playback to complete */
         SMPEG_play(mpeg);
-        while (!SDL_QuitRequested() && (SMPEG_status(mpeg) == SMPEG_PLAYING)) {
+        done = 0;
+        while ( ! done && (SMPEG_status(mpeg) == SMPEG_PLAYING) ) {
+            SDL_Event event;
+
+            while ( SDL_PollEvent(&event) ) {
+                switch (event.type) {
+                    case SDL_KEYDOWN:
+                        if ( event.key.keysym.sym == SDLK_ESCAPE ) {
+                            done = 1;
+                        }
+                        break;
+                    case SDL_QUIT:
+                        done = 1;
+                        break;
+                    default:
+                        break;
+                }
+            }
             SDL_Delay(1000/2);
         }
         SMPEG_delete(mpeg);
