@@ -386,24 +386,22 @@ MPEGvideo:: SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
     _dst = dst;
     _callback = callback;
 
-    decodeInitTables();
+    if ( !_stream ) {
+        decodeInitTables();
 
-    InitCrop();
-    InitIDCT();
+        InitCrop();
+        InitIDCT();
 
-    _stream = NewVidStream( (unsigned int) BUF_LENGTH );
-    //_stream = NewVidStream( /* 32K buffer size */ 32*1024 );
-    //_stream = NewVidStream( /* 16K buffer size */ 16*1024 );
-    if( _stream )
-    {
-        _stream->_smpeg        = this;
-        _stream->ditherType    = FULL_COLOR_DITHER;
-        _stream->matched_depth = dst->format->BitsPerPixel;
+        _stream = NewVidStream( (unsigned int) BUF_LENGTH );
+        if( _stream ) {
+            _stream->_smpeg        = this;
+            _stream->ditherType    = FULL_COLOR_DITHER;
+            _stream->matched_depth = dst->format->BitsPerPixel;
 
-        if( mpegVidRsrc( 0, _stream, 1 ) == NULL )
-        {
-            SetError("Not an MPEG video stream");
-            return false;
+            if( mpegVidRsrc( 0, _stream, 1 ) == NULL ) {
+                SetError("Not an MPEG video stream");
+                return false;
+            }
         }
     }
     if ( ! InitPictImages(_stream, _w, _h, _dst) )

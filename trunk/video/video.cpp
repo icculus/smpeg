@@ -917,7 +917,11 @@ bool InitPictImages( VidStream* vid_stream, int w, int h, SDL_Surface* dst )
 {
     int i;
 
+    vid_stream->current = vid_stream->past = vid_stream->future = NULL;
     for (i = 0; i < RING_BUF_SIZE; i++) {
+        if ( vid_stream->ring[i] ) {
+            DestroyPictImage(vid_stream->ring[i]);
+        }
         vid_stream->ring[i] = NewPictImage( vid_stream, w, h, dst );
         if ( ! vid_stream->ring[i] )
             return false;
