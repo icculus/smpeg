@@ -1945,6 +1945,8 @@ static int ParseMacroBlock( VidStream* vid_stream )
   if( vid_stream->mblock.mb_address > (int) (vid_stream->mb_height *
                                        vid_stream->mb_width - 1) )
     return SKIP_TO_START_CODE;
+  if( vid_stream->mblock.mb_address < 0 )
+    return SKIP_TO_START_CODE;
 
   /*
    * If macroblocks have been skipped, process skipped macroblocks.
