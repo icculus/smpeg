@@ -18,7 +18,11 @@
 MPEG::MPEG(const char * name, bool Sdlaudio) :
   MPEGerror()
 {
-  SDL_RWops *source = SDL_RWFromFile(name,"r");
+  SDL_RWops *source;
+
+  mpeg_mem = 0;
+
+  source = SDL_RWFromFile(name,"r");
   if (!source) {
     InitErrorState();
     SetError(SDL_GetError());
@@ -30,6 +34,10 @@ MPEG::MPEG(const char * name, bool Sdlaudio) :
 MPEG::MPEG(int Mpeg_FD, bool Sdlaudio) :
   MPEGerror()
 {
+  SDL_RWops *source;
+
+  mpeg_mem = 0;
+
   // *** FIXME we're leaking a bit of memory for the FILE *
   // best solution would be to have SDL_RWFromFD
   FILE *file = fdopen(Mpeg_FD,"r");
@@ -39,7 +47,7 @@ MPEG::MPEG(int Mpeg_FD, bool Sdlaudio) :
     return;
   }
 
-  SDL_RWops *source = SDL_RWFromFP(file,false);
+  source = SDL_RWFromFP(file,false);
   if (!source) {
     InitErrorState();
     SetError(SDL_GetError());
@@ -51,13 +59,26 @@ MPEG::MPEG(int Mpeg_FD, bool Sdlaudio) :
 MPEG::MPEG(void *data, int size, bool Sdlaudio) :
   MPEGerror()
 {
-  SDL_RWops *temp_source = SDL_RWFromMem(data,size);
-  Init(temp_source, Sdlaudio);
+  SDL_RWops *source;
+
+  // The semantics are that the data passed in should be copied
+  // (?)
+  mpeg_mem = new char[size];
+  memcpy(mpeg_mem, data, size);
+
+  source = SDL_RWFromMem(mpeg_mem, size);
+  if (!source) {
+    InitErrorState();
+    SetError(SDL_GetError());
+    return;
+  }
+  Init(source, Sdlaudio);
 }
 
 MPEG::MPEG(SDL_RWops *mpeg_source,bool sdlaudio = true) :
   MPEGerror()
 {
+  mpeg_mem = 0;
   Init(mpeg_source, sdlaudio);
 }
 
@@ -131,6 +152,8 @@ MPEG::~MPEG()
   if(system) delete system;
   
   SDL_RWclose(source);
+  if ( mpeg_mem )
+    delete[] mpeg_mem;
 }
 
 bool MPEG::AudioEnabled(void) {
