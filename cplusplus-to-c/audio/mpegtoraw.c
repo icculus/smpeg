@@ -361,7 +361,7 @@ int Decode_MPEGaudio(void *udata)
                 /* Keep looping */ ;
             }
             if((Uint32)audio->rawdatawriteoffset*2 <= MPEG_ring_BufferSize(audio->ring))
-              MPEG_ring_WriteDone(audio->ring, rawdatawriteoffset*2, timestamp);
+              MPEG_ring_WriteDone(audio->ring, audio->rawdatawriteoffset*2, timestamp);
         }
     }
 
