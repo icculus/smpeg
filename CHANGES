@@ -1,4 +1,6 @@
 0.4.2:
+Mo DeJong - Mon Dec  4 12:26:18 PST 2000
+ * Fixed crash when loading files of zero bytes
 Sam Lantinga - Sat Dec  2 13:51:21 PST 2000
  * Added --enable-threaded-system configure option (defaults off)
 Sam Lantinga - Sat Dec  2 13:40:33 PST 2000
