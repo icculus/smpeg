@@ -716,14 +716,16 @@ void MPEGaudio_extractlayer2 (MPEGaudio *self)
 	{
 	  if(bitalloc[LS][i])
 	  {
-	    if(!group[LS][i])
+        register REAL t;
+
+	    if (!group[LS][i])
 	    {
 	      fraction[LS][0][i]=(fraction[LS][0][i]+d[LS][i])*c[LS][i];
 	      fraction[LS][1][i]=(fraction[LS][1][i]+d[LS][i])*c[LS][i];
 	      fraction[LS][2][i]=(fraction[LS][2][i]+d[LS][i])*c[LS][i];
 	    }
 
-	    register REAL t=scalefactor[LS][l>>2][i];
+	    t=scalefactor[LS][l>>2][i];
 	    fraction[LS][0][i]*=t;
 	    fraction[LS][1][i]*=t;
 	    fraction[LS][2][i]*=t;
@@ -731,6 +733,8 @@ void MPEGaudio_extractlayer2 (MPEGaudio *self)
 
 	  if(bitalloc[RS][i])
 	  {
+        register REAL t;
+
 	    if(!group[RS][i])
 	    {
 	      fraction[RS][0][i]=(fraction[RS][0][i]+d[RS][i])*c[RS][i];
@@ -738,7 +742,7 @@ void MPEGaudio_extractlayer2 (MPEGaudio *self)
 	      fraction[RS][2][i]=(fraction[RS][2][i]+d[RS][i])*c[RS][i];
 	    }
 
-	    register REAL t=scalefactor[RS][l>>2][i];
+	    t=scalefactor[RS][l>>2][i];
 	    fraction[RS][0][i]*=t;
 	    fraction[RS][1][i]*=t;
 	    fraction[RS][2][i]*=t;
@@ -748,6 +752,8 @@ void MPEGaudio_extractlayer2 (MPEGaudio *self)
 	for(i=0;i<n;i++)
 	  if(bitalloc[LS][i])
 	  {
+        register REAL t;
+
 	    if(!group[LS][i])
 	    {
 	      fraction[LS][0][i]=(fraction[LS][0][i]+d[LS][i])*c[LS][i];
@@ -755,7 +761,7 @@ void MPEGaudio_extractlayer2 (MPEGaudio *self)
 	      fraction[LS][2][i]=(fraction[LS][2][i]+d[LS][i])*c[LS][i];
 	    }
 
-	    register REAL t=scalefactor[LS][l>>2][i];
+	    t=scalefactor[LS][l>>2][i];
 	    fraction[LS][0][i]*=t;
 	    fraction[LS][1][i]*=t;
 	    fraction[LS][2][i]*=t;

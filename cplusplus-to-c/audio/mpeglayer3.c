@@ -770,6 +770,7 @@ MPEGaudio_layer3huffmandecode (_THIS, int ch,int gr,int out[SBLIMIT][SSLIMIT])
   int part2_3_end=self->layer3part2start+(gi->part2_3_length);
   int region1Start,region2Start;
   int i,e=gi->big_values<<1;
+  const HUFFMANCODETABLE *h;
 
   /* Find region boundary for short block case. */
   if(gi->generalflag)
@@ -819,7 +820,7 @@ MPEGaudio_layer3huffmandecode (_THIS, int ch,int gr,int out[SBLIMIT][SSLIMIT])
   }
 
   /* Read count1 area. */
-  const HUFFMANCODETABLE *h=&MPEGaudio_ht[gi->count1table_select+32];
+  h=&MPEGaudio_ht[gi->count1table_select+32];
   while(Mpegbitwindow_gettotalbit(&(self->bitwindow))<part2_3_end)
   {
     MPEGaudio_huffmandecoder_2(self, h,&out[0][i+2],&out[0][i+3],
@@ -1820,10 +1821,11 @@ MPEGaudio_extractlayer3 (_THIS)
       MPEGaudio_layer3hybrid (self, LS,gr,b1.hin[LS],b2.hout[LS]);
     if(self->outputstereo)
     {
+      register int i;
       MPEGaudio_layer3reorderandantialias(self, RS,gr,b2.lr[RS],b1.hin[RS]);
       MPEGaudio_layer3hybrid (self, RS,gr,b1.hin[RS],b2.hout[RS]);
 
-      register int i=2*SSLIMIT*SBLIMIT-1;
+      i=2*SSLIMIT*SBLIMIT-1;
       do{
 	NEG(b2.hout[0][0][i   ]);NEG(b2.hout[0][0][i- 2]);
 	NEG(b2.hout[0][0][i- 4]);NEG(b2.hout[0][0][i- 6]);
@@ -1933,10 +1935,11 @@ MPEGaudio_extractlayer3_2 (_THIS)
       MPEGaudio_layer3hybrid (self, LS,0,b1.hin[LS],b2.hout[LS]);
     if(self->outputstereo)
     {
+      register int i;
       MPEGaudio_layer3reorderandantialias(self, RS,0,b2.lr[RS],b1.hin[RS]);
       MPEGaudio_layer3hybrid (self, RS,0,b1.hin[RS],b2.hout[RS]);
 
-      register int i=2*SSLIMIT*SBLIMIT-1;
+      i=2*SSLIMIT*SBLIMIT-1;
       do{
 	NEG(b2.hout[0][0][i-16]);NEG(b2.hout[0][0][i-18]);
 	NEG(b2.hout[0][0][i-20]);NEG(b2.hout[0][0][i-22]);

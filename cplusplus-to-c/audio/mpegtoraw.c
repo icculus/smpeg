@@ -147,6 +147,7 @@ MPEGaudio_loadheader (_THIS)
 {
     register int c;
     bool flag;
+    int speed;
 
     flag = false;
     do
@@ -288,7 +289,7 @@ MPEGaudio_loadheader (_THIS)
   }
 
   // Sam 7/17 - skip sequences of quickly varying frequencies
-  int speed = MPEGaudio_frequencies[self->version][self->frequency];
+  speed = MPEGaudio_frequencies[self->version][self->frequency];
   if ( speed != self->last_speed ) {
     self->last_speed = speed;
     if ( self->rawdatawriteoffset ) {
@@ -416,6 +417,7 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
 
     /* Copy the audio data to output */
 #ifdef THREADED_AUDIO
+{
     Uint8 *rbuf;
     int i;
     assert(audio);
@@ -465,6 +467,7 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
 	    audio->timestamp[0] = -1;
 	}
     } while ( copylen && (len > 0) && ((audio->currentframe < audio->decodedframe) || audio->decoding));
+}
 #else
     /* The length is interpreted as being in samples */
     len /= 2;

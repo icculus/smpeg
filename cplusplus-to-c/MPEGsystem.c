@@ -576,6 +576,7 @@ MPEGsystem_Read (_THIS)
 	    return;
 	}
 #else
+{
 	/* Read new data */
 	int bytes_read    = 0;
 	int buffer_offset = remaining;
@@ -604,6 +605,7 @@ MPEGsystem_Read (_THIS)
 	    }
 	}
 	while( read_at_once>0 && bytes_to_read>0 );
+}
 #endif
 
 	self->read_total += self->read_size;
@@ -1029,6 +1031,9 @@ MPEGsystem_TotalTime (_THIS)
     off_t file_ptr;
     Uint8 * buffer, * p = 0;
     double time;
+	Uint32 framesize;
+	double frametime;
+	Uint32 totalsize;
 
     /* Lock to avoid concurrent access to the stream */
     SDL_mutexP(self->system_mutex);
@@ -1078,10 +1083,6 @@ MPEGsystem_TotalTime (_THIS)
 	while(p >= MPEG_BUFFER_SIZE + buffer);
 
 	/* Extract time info from the first header */
-	Uint32 framesize;
-	double frametime;
-	Uint32 totalsize;
-
 	audio_header(p, &framesize, &frametime);
 	totalsize = MPEGsystem_TotalSize(self);
 	if(framesize)
@@ -1171,6 +1172,9 @@ MPEGsystem_TimeElapsedAudio (_THIS, int atByte)
     off_t file_ptr;
     Uint8 * buffer, * p = 0;
     double time;
+	Uint32 framesize;
+	double frametime;
+	Uint32 totalsize;
 
     if (atByte < 0)
     {
@@ -1224,10 +1228,6 @@ MPEGsystem_TimeElapsedAudio (_THIS, int atByte)
 	while(p >= MPEG_BUFFER_SIZE + buffer);
 
 	/* Extract time info from the first header */
-	Uint32 framesize;
-	double frametime;
-	Uint32 totalsize;
-
 	audio_header(p, &framesize, &frametime);
 	totalsize = MPEGsystem_TotalSize(self);
 	if(framesize)
