@@ -91,7 +91,12 @@ int main( int argc, char* argv[] )
                 break;
             }
         }
+#ifndef THREADED_VIDEO
+SMPEG_run(mpeg);
+SDL_Delay(10);
+#else /* THREADED_VIDEO */
         SDL_Delay(100);
+#endif /* THREADED_VIDEO */
     }
 
     glmovie_quit( );

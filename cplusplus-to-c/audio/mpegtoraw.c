@@ -493,7 +493,7 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
     /* Copy in any new data */
     audio->rawdata = (Sint16 *)stream;
     audio->rawdatawriteoffset = 0;
-    audio->run(len/audio->samplesperframe);
+    MPEGaudio_run(audio, len/audio->samplesperframe, NULL);
     mixed += audio->rawdatawriteoffset*2;
     len -= audio->rawdatawriteoffset;
     stream += audio->rawdatawriteoffset*2;
@@ -501,7 +501,7 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
     /* Write a save buffer for remainder */
     audio->rawdata = audio->spillover;
     audio->rawdatawriteoffset = 0;
-    if ( audio->run(1) ) {
+    if ( MPEGaudio_run(audio, 1, NULL) ) {
         assert(audio->rawdatawriteoffset > len);
         SDL_MixAudio(stream, (Uint8 *) audio->spillover, len*2, volume);
         mixed += len*2;

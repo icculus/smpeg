@@ -91,7 +91,9 @@ protected:
     VidStream* _stream;
     SDL_Surface* _dst;
     SDL_mutex* _mutex;
+#ifdef THREADED_VIDEO
     SDL_Thread* _thread;
+#endif /* THREADED_VIDEO */
 
     MPEG_DisplayCallback _callback;
 
@@ -138,6 +140,11 @@ struct MPEGvideo {
   MPEGerror *error;
   MPEGaction *action;
 
+/* Timing info. */
+  int start_time;
+  int stop_time;
+  int start_frames;
+  int stop_frames;
 
 //protected:
     struct MPEGstream *mpeg;
@@ -176,6 +183,9 @@ void METH(RewindStream) (_THIS);
 
 MPEGvideo * METH(init) (_THIS, struct MPEGstream *stream);
 void METH(destroy) (_THIS);
+
+/* dethreading. */
+int METH(run) (_THIS);
 
     /* MPEG actions */
 void METH(Play) (_THIS);

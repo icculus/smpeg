@@ -275,6 +275,15 @@ METH(EnableVideo) (_THIS, bool enabled)
     MPEGstream_enable(self->videostream, enabled);
 }
 
+/* dethreaded video. */
+void
+METH(run) (_THIS)
+{
+#ifndef THREADED_VIDEO
+  MPEGvideo_run(self->video);
+#endif /* THREADED_VIDEO */
+}
+
 /* MPEG actions */
 void
 METH(Loop) (_THIS, bool toggle)

@@ -15,6 +15,10 @@
 
 #define TIMER_TIMEOUT 100
 
+#ifndef THREADED_VIDEO
+#define TIMER_FRAMETIME 10
+#endif /* THREADED_VIDEO */
+
 static GtkWidget* create_gtv_window( void );
 static void gtv_connect( gpointer, gchar*, gchar*, GtkSignalFunc );
 static void gtv_set_frame( gpointer, int );
@@ -917,6 +921,18 @@ static gint gtv_timer( gpointer raw )
     return 1;
 }
 
+#ifndef THREADED_VIDEO
+static gint gtv_run (gpointer raw)
+{
+  SMPEG *mpeg = NULL;
+
+  mpeg = (SMPEG*) gtk_object_get_data( GTK_OBJECT( raw ), "mpeg" );
+
+  SMPEG_run(mpeg);
+  return 1;
+}
+
+#endif /* THREADED_VIDEO */
 static void gtv_clear_screen( gpointer raw )
 {
     SDL_Surface* sdl_screen = NULL;
@@ -1000,6 +1016,9 @@ int main( int argc, char* argv[] )
 
     /*    gtk_idle_add_priority( G_PRIORITY_LOW, gtv_timer, window );*/
     gtk_timeout_add( TIMER_TIMEOUT, gtv_timer, window );
+#ifndef THREADED_VIDEO
+    gtk_timeout_add(TIMER_FRAMETIME, gtv_run, window);
+#endif /* THREADED_VIDEO */
 
     gtv_set_frame( window, 0 );
     gtv_set_fps( window, 0.0 );

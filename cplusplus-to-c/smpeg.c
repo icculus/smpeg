@@ -293,6 +293,12 @@ void SMPEG_setdisplayregion(SMPEG* mpeg, int x, int y, int w, int h)
     MPEG_SetDisplayRegion(mpeg->obj, x, y, w, h);
 }
 
+/* dethreaded video. */
+void SMPEG_run (SMPEG* mpeg)
+{
+  MPEG_run(mpeg->obj);
+}
+
 /* Play an SMPEG object */
 void SMPEG_play( SMPEG* mpeg )
 {

@@ -142,7 +142,9 @@ METH(init) (_THIS, struct MPEGstream *stream)
     self->action->time_source = NULL;
 
     /* Set default playback variables */
+#ifdef THREADED_VIDEO
     self->_thread = NULL;
+#endif /* THREADED_VIDEO */
     self->_dst = NULL;
     self->_mutex = NULL;
     self->_stream = NULL;
@@ -294,9 +296,38 @@ int Play_MPEGvideo( void *udata )
     return(0);
 }
 
+
+/* dethreaded. */
+int
+METH(run) (_THIS)
+{
+#ifndef THREADED_VIDEO
+  int mark = self->_stream->totNumFrames;
+
+  if (!self->action->playing)
+      return 0;
+
+  while (mark == self->_stream->totNumFrames) /* Get whole frame. */
+    {
+      mpegVidRsrc(0, self->_stream, 0);
+    }
+
+  if (self->_stream->film_has_ended)
+    {
+      self->action->playing = false;
+    }
+
+#endif /* THREADED_VIDEO */
+  return(0);
+}
+
 void
 METH(Play) (_THIS)
 {
+  self->_stream->realTimeStart += ReadSysClock(); /* dethreaded. */
+  self->start_frames = self->_stream->totNumFrames;
+  self->start_time = SDL_GetTicks();
+
     METH(ResetPause) (self);
     if ( self->_stream ) {
 		if ( self->action->playing ) {
@@ -306,10 +337,14 @@ METH(Play) (_THIS)
 #ifdef PROFILE_VIDEO	/* Profiling doesn't work well with threads */
 		Play_MPEGvideo(self);
 #else
+# ifndef THREADED_VIDEO
+        self->action->playing = true;
+# else /* THREADED_VIDEO */
         self->_thread = SDL_CreateThread( Play_MPEGvideo, self );
         if ( !self->_thread ) {
             self->action->playing = false;
         }
+# endif /* THREADED_VIDEO */
 #endif
     }
 }
@@ -317,11 +352,29 @@ METH(Play) (_THIS)
 void
 METH(Stop) (_THIS)
 {
+#ifndef THREADED_VIDEO
+/* Dethreaded. */
+# ifdef TIME_MPEG
+  int total_frames;
+  double total_time;
+
+  self->stop_time = SDL_GetTicks();
+  self->stop_frames = self->_stream->totNumFrames;
+  total_frames = (self->stop_frames - self->start_frames);
+  total_time = (float)(self->stop_time - self->start_time)/1000.0;
+  if ( total_time > 0 ) {
+      printf("%d frames in %2.2f seconds (%2.2f FPS)\n",
+             total_frames, total_time, (float)total_frames/total_time);
+  }
+# endif /* TIME_MPEG */
+  self->action->playing = false;
+#else /* THREADED_VIDEO */
     if ( self->_thread ) {
         self->action->playing = false;
         SDL_WaitThread(self->_thread, NULL);
         self->_thread = NULL;
     }
+#endif /* THREADED_VIDEO */
     METH(ResetPause) (self);
 }
 
@@ -390,11 +443,15 @@ MPEGstatus
 METH(GetStatus) (_THIS)
 {
     if ( self->_stream ) {
+#ifndef THREADED_VIDEO
+        return (self->action->playing ? MPEG_PLAYING : MPEG_STOPPED);
+#else /* THREADED_VIDEO */
         if( !self->_thread || (self->_stream->film_has_ended ) ) {
             return MPEG_STOPPED;
         } else {
             return MPEG_PLAYING;
         }
+#endif /* THREADED_VIDEO */
     }
     return MPEG_ERROR;
 }
