@@ -56,6 +56,20 @@ case "$target" in
         ;;
 esac
 
+dnl Figure out which math library to use
+case "$target" in
+    *-*-mingw32*)
+        MATHLIB=""
+        ;;
+    *-*-beos*)
+        MATHLIB=""
+        ;;
+    *)
+        MATHLIB="-lm"
+        ;;
+esac
+LIBS="$LIBS $MATHLIB"
+
 dnl SMPEG uses mmap() for file loading:
 AC_FUNC_MMAP
 if test x$ac_cv_func_mmap_fixed_mapped != xyes; then
