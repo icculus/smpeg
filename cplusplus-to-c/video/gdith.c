@@ -95,7 +95,6 @@ static inline void TimestampFPS( VidStream* vid_stream )
 {
     MPEGvideo* mpeg = (MPEGvideo*) vid_stream->_smpeg;
 
-//    vid_stream->frame_time[vid_stream->timestamp_index] = mpeg->Time();
     vid_stream->frame_time[vid_stream->timestamp_index] = MPEGvideo_Time(mpeg);
     ++vid_stream->timestamp_index;
     if ( vid_stream->timestamp_index == FPS_WINDOW ) {
@@ -135,12 +134,13 @@ static inline void TimestampFPS( VidStream* vid_stream )
 inline double CurrentTime( VidStream* vid_stream )
 {
     MPEGvideo* mpeg = (MPEGvideo*) vid_stream->_smpeg;
+    MPEGaudio* audio;
     double now;
 
 //    if ( mpeg->TimeSource() ) {
-    if (MPEGvideo_TimeSource(mpeg)) {
+    if ((audio = MPEGvideo_TimeSource(mpeg))) {
 //        now = mpeg->TimeSource()->Time();
-      now = MPEGvideo_Time(MPEGvideo_TimeSource(mpeg));
+      now = MPEGaudio_Time(audio);
     } else {
         now = ReadSysClock() - vid_stream->realTimeStart;
     }
@@ -183,7 +183,7 @@ METH(timeSync) ( _THIS, VidStream* vid_stream )
     }
 
     /* Update the current play time */
-    self->action->play_time += vid_stream->_oneFrameTime;
+    self->play_time += vid_stream->_oneFrameTime;
 
     /* Synchronize using system timestamps */
     if(vid_stream->current && vid_stream->current->show_time > 0){
@@ -404,7 +404,6 @@ METH(ExecuteDisplay) (_THIS, VidStream* vid_stream )
 {
     if( ! vid_stream->_skipFrame )
     {
-//      DisplayFrame(vid_stream);
       METH(DisplayFrame) (self, vid_stream);
 
 #ifdef CALCULATE_FPS

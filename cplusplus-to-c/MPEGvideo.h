@@ -138,7 +138,13 @@ struct vid_stream;
 
 struct MPEGvideo {
   MPEGerror *error;
-  MPEGaction *action;
+
+/*  MPEGaction *action; */
+  bool playing;
+  bool paused;
+  bool looping;
+  double play_time;
+  struct MPEGaudio *time_source;
 
 /* Timing info. */
   int start_time;

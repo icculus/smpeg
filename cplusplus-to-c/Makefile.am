@@ -13,7 +13,6 @@ lib_LTLIBRARIES = libsmpeg.la
 
 libsmpeg_la_SOURCES =		\
 	MPEGerror.c		\
-	MPEGaction.c		\
 	MPEG.c			\
 	MPEGring.c		\
 	MPEGlist.c		\

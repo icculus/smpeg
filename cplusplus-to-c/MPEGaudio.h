@@ -475,7 +475,12 @@ typedef enum MPEGaudio_frequency MPEGaudio_frequency;
 
 struct MPEGaudio {
   MPEGerror *error;
-  MPEGaction *action;
+
+/*  MPEGaction *action; */
+  bool playing;
+  bool paused;
+  bool looping;
+  double play_time;
 
     bool sdl_audio;
     struct MPEGstream *mpeg;

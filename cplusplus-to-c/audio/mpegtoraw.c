@@ -413,7 +413,7 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
             break;
         default:    /* A buffer has completed, filling a new one */
             audio->frag_time = SDL_GetTicks();
-            audio->action->play_time += ((double)len)/audio->rate_in_s;
+            audio->play_time += ((double)len)/audio->rate_in_s;
             break;
     }
 

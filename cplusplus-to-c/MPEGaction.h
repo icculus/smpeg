@@ -200,6 +200,7 @@ typedef struct MPEG_VideoInfo MPEG_VideoInfo;
 
 
 
+#if 0
 struct MPEGaction {
     /* base */
     bool playing;
@@ -238,6 +239,7 @@ void METH(ResetPause) (_THIS);
 /*virtual*/ void METH(Pause) (_THIS); /* A toggle action */
 /*virtual*/ MPEGstatus METH(GetStatus) (_THIS);
 
+#endif /* 0 */
 
 
 

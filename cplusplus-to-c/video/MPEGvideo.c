@@ -135,11 +135,16 @@ METH(init) (_THIS, struct MPEGstream *stream)
 
     MAKE_OBJECT(MPEGvideo);
     self->error = MPEGerror_init(NULL);
-    self->action = MPEGaction_init(NULL);
+//    self->action = MPEGaction_init(NULL);
+    self->playing = false;
+    self->paused = false;
+    self->looping = false;
+    self->play_time = 0.0;
+    self->time_source = NULL;
 
     /* Set the MPEG data stream */
     self->mpeg = stream;
-    self->action->time_source = NULL;
+    self->time_source = NULL;
 
     /* Set default playback variables */
 #ifdef THREADED_VIDEO
@@ -240,9 +245,14 @@ METH(destroy) (_THIS)
     SDL_DestroyMutex(self->_filter_mutex);
     self->_filter->destroy(self->_filter);
 
-  MPEGaction_destroy(self->action);
-  free(self->action);
-  self->action = NULL;
+//  MPEGaction_destroy(self->action);
+//  free(self->action);
+//  self->action = NULL;
+  self->playing = false;
+  self->paused = false;
+  self->looping = false;
+  self->play_time = 0.0;
+  self->time_source = NULL;
 
   MPEGerror_destroy(self->error);
   free(self->error);
@@ -266,19 +276,19 @@ int Play_MPEGvideo( void *udata )
     start_frames = mpeg->_stream->totNumFrames;
     start_time = SDL_GetTicks();
 #endif
-    while( mpeg->action->playing )
+    while( mpeg->playing )
     {
         int mark = mpeg->_stream->totNumFrames;
 
         /* make sure we do a whole frame */
-        while( (mark == mpeg->_stream->totNumFrames) && mpeg->action->playing )
+        while( (mark == mpeg->_stream->totNumFrames) && mpeg->playing )
         {
             mpegVidRsrc( 0, mpeg->_stream, 0 );
         }
 
         if( mpeg->_stream->film_has_ended )
         {
-            mpeg->action->playing = false;
+            mpeg->playing = false;
         }
     }
     /* Get the time the playback stopped */
@@ -304,7 +314,7 @@ METH(run) (_THIS)
 #ifndef THREADED_VIDEO
   int mark = self->_stream->totNumFrames;
 
-  if (!self->action->playing)
+  if (!self->playing)
       return 0;
 
   while (mark == self->_stream->totNumFrames) /* Get whole frame. */
@@ -315,7 +325,7 @@ METH(run) (_THIS)
 
   if (self->_stream->film_has_ended)
     {
-      self->action->playing = false;
+      self->playing = false;
     }
 
 #endif /* THREADED_VIDEO */
@@ -331,19 +341,19 @@ METH(Play) (_THIS)
 
     METH(ResetPause) (self);
     if ( self->_stream ) {
-		if ( self->action->playing ) {
+		if ( self->playing ) {
 			METH(Stop) (self);
 		}
-        self->action->playing = true;
+        self->playing = true;
 #ifdef PROFILE_VIDEO	/* Profiling doesn't work well with threads */
 		Play_MPEGvideo(self);
 #else
 # ifndef THREADED_VIDEO
-        self->action->playing = true;
+        self->playing = true;
 # else /* THREADED_VIDEO */
         self->_thread = SDL_CreateThread( Play_MPEGvideo, self );
         if ( !self->_thread ) {
-            self->action->playing = false;
+            self->playing = false;
         }
 # endif /* THREADED_VIDEO */
 #endif
@@ -368,10 +378,10 @@ METH(Stop) (_THIS)
              total_frames, total_time, (float)total_frames/total_time);
   }
 # endif /* TIME_MPEG */
-  self->action->playing = false;
+  self->playing = false;
 #else /* THREADED_VIDEO */
     if ( self->_thread ) {
-        self->action->playing = false;
+        self->playing = false;
         SDL_WaitThread(self->_thread, NULL);
         self->_thread = NULL;
     }
@@ -399,7 +409,7 @@ METH(ResetSynchro) (_THIS, double time)
   {
     self->_stream->_jumpFrame = -1;
     self->_stream->realTimeStart = -time;
-    self->action->play_time = time;
+    self->play_time = time;
     if (time > 0) {
 	double oneframetime;
 	if (self->_stream->_oneFrameTime == 0)
@@ -445,7 +455,7 @@ METH(GetStatus) (_THIS)
 {
     if ( self->_stream ) {
 #ifndef THREADED_VIDEO
-        return (self->action->playing ? MPEG_PLAYING : MPEG_STOPPED);
+        return (self->playing ? MPEG_PLAYING : MPEG_STOPPED);
 #else /* THREADED_VIDEO */
         if( !self->_thread || (self->_stream->film_has_ended ) ) {
             return MPEG_STOPPED;
@@ -680,32 +690,32 @@ METH(RenderFinal) (_THIS, SDL_Surface *dst, int x, int y)
 
 void METH(SetTimeSource) (_THIS, struct MPEGaudio *source)
 {
-  self->action->time_source = source;
+  self->time_source = source;
 }
 
 void METH(Loop) (_THIS, bool toggle)
 {
-  self->action->looping = toggle;
+  self->looping = toggle;
 }
 
 double METH(Time) (_THIS)
 {
-  return self->action->play_time;
+  return self->play_time;
 }
 
 void METH(ResetPause) (_THIS)
 {
-  self->action->paused = false;
+  self->paused = false;
 }
 
 /*virtual*/ void METH(Pause) (_THIS) /* A toggle action */
 {
-    if ( self->action->paused ) {
-        self->action->paused = false;
+    if ( self->paused ) {
+        self->paused = false;
         METH(Play) (self);
     } else {
         METH(Stop) (self);
-        self->action->paused = true;
+        self->paused = true;
     }
 }
 
@@ -716,7 +726,7 @@ void METH(ResetPause) (_THIS)
 struct MPEGaudio *
 METH(TimeSource) (_THIS)
 {
-  return self->action->time_source;
+  return self->time_source;
 }
 
 

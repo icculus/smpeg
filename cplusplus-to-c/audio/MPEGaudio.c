@@ -40,7 +40,11 @@ METH(init) (_THIS, MPEGstream *stream, bool initSDL)
     MAKE_OBJECT(MPEGaudio);
     self->sdl_audio = initSDL;
     self->error = MPEGerror_init(self->error);
-    self->action = MPEGaction_init(self->action);
+//    self->action = MPEGaction_init(self->action);
+    PROP(playing) = false;
+    PROP(paused) = false;
+    PROP(looping) = false;
+    PROP(play_time) = 0.0;
 
     /* Initialize MPEG audio */
     PROP(mpeg) = stream;
@@ -107,9 +111,13 @@ METH(destroy) (_THIS)
         SDL_CloseAudio();
     }
 
-  MPEGaction_destroy(PROP(action));
-  free(PROP(action));
-  PROP(action) = NULL;
+//  MPEGaction_destroy(PROP(action));
+//  free(PROP(action));
+//  PROP(action) = NULL;
+  PROP(playing) = false;
+  PROP(paused) = false;
+  PROP(looping) = false;
+  PROP(play_time) = 0.0;
 
   MPEGerror_destroy(PROP(error));
   free(PROP(error));
@@ -209,9 +217,9 @@ METH(Time) (_THIS)
     double now;
 
     if ( PROP(frag_time) ) {
-        now = (PROP(action->play_time) + (double)(SDL_GetTicks() - PROP(frag_time))/1000.0);
+        now = (PROP(play_time) + (double)(SDL_GetTicks() - PROP(frag_time))/1000.0);
     } else {
-        now = PROP(action->play_time);
+        now = PROP(play_time);
     }
     return now;
 }
@@ -223,7 +231,7 @@ METH(Play) (_THIS)
 #ifdef THREADED_AUDIO
         METH(StartDecoding)(self);
 #endif
-        PROP(action->playing) = true;
+        PROP(playing) = true;
     }
 }
 void
@@ -233,7 +241,7 @@ METH(Stop) (_THIS)
         if ( PROP(sdl_audio) )
             SDL_LockAudio();
 
-        PROP(action->playing) = false;
+        PROP(playing) = false;
 
         if ( PROP(sdl_audio) )
             SDL_UnlockAudio();
@@ -260,7 +268,7 @@ METH(ResetSynchro) (_THIS, double time)
 {
     int i;
 
-    PROP(action->play_time) = time;
+    PROP(play_time) = time;
     PROP(frag_time) = 0;
 
     /* Reinit the timestamp FIFO */
@@ -294,7 +302,7 @@ METH(GetStatus) (_THIS)
             return(MPEG_STOPPED);
         }
         /* Have we been told to play? */
-        if ( PROP(action->playing) ) {
+        if ( PROP(playing) ) {
             return(MPEG_PLAYING);
         } else {
             return(MPEG_STOPPED);
@@ -393,21 +401,21 @@ METH(getbits9) (_THIS, int bits)
 void
 METH(ResetPause) (_THIS)
 {
-  PROP(action->paused) = false;
+  PROP(paused) = false;
 }
 
 void
 METH(Pause) (_THIS)
 {
-  if (PROP(action->paused))
+  if (PROP(paused))
     {
-      PROP(action->paused) = false;
+      PROP(paused) = false;
       METH(Play)(self);
     }
   else
     {
       METH(Stop)(self);
-      PROP(action->paused) = true;
+      PROP(paused) = true;
     }
 } 
 
