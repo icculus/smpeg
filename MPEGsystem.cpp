@@ -670,7 +670,7 @@ header_size, packet_size, stream_id, stream_timestamp);
 	goto state0;
       end:
 
-	if(p >= read_buffer + read_size) packet_size = read_size;
+	if(p >= read_buffer + read_size) packet_size = (read_buffer + read_size) - pointer;
 	else packet_size = p - pointer - 4;
       }
 
@@ -786,7 +786,7 @@ header_size, packet_size, stream_id, stream_timestamp);
       }
 
       /* Insert the new data at the end of the stream */
-      if(pointer + packet_size < read_buffer + read_size)
+      if(pointer + packet_size <= read_buffer + read_size)
       {
 	stream->insert_packet(pointer, packet_size, stream_timestamp);
 	pointer += packet_size;
