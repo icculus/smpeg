@@ -70,7 +70,7 @@ static void gtv_fix_toggle_state( gpointer raw )
 	audio = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "audio" ) );
 
 #if 1 /* Sam 5/31/2000 - Default to doubled video and audio on */
-	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( twotimes ), TRUE );
+	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( twotimes ), FALSE );
 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( loop ), FALSE );
 	gtk_toggle_button_set_active( GTK_TOGGLE_BUTTON( audio ), TRUE );
 #else
@@ -255,7 +255,7 @@ static void gtv_open_file( gchar* name, gpointer raw )
 #ifdef linux
 	putenv("SDL_VIDEO_CENTERED=1");
 #endif
-	sdl_screen = SDL_SetVideoMode( info->width * 2, info->height * 2, video_bpp, SDL_ASYNCBLIT );
+	sdl_screen = SDL_SetVideoMode( info->width , info->height , video_bpp, SDL_ASYNCBLIT);
         SDL_WM_SetCaption(name, "gtv movie");
         gtv_center_window(sdl_screen);
 	SMPEG_setdisplay( mpeg, sdl_screen, NULL, NULL );
@@ -520,7 +520,9 @@ static void gtv_double( GtkWidget* item, gpointer raw )
 {
     SMPEG* mpeg = NULL;
     SDL_Surface* sdl_screen = NULL;
-    int scale = 1;
+    SMPEG_Info* info = NULL;
+    int stopped=0;
+    int width,height;
 
     assert( raw );
 
@@ -534,22 +536,26 @@ static void gtv_double( GtkWidget* item, gpointer raw )
 	twotimes = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "twotimes" ) );
 	active = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( twotimes ) );
 
-	if( active ) {
-	    SMPEG_move( mpeg, 0, 0 );
-	    scale = 2;
-	} else {
-	    SMPEG_Info* info = NULL;
-
-	    info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
-	    assert( info );
-	    SMPEG_move( mpeg,
-			( sdl_screen->w - info->width ) / 2,
-			( sdl_screen->h - info->height ) / 2 );
-	    scale = 1;
+	info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
+	assert( info );
+        if (SMPEG_status(mpeg)==SMPEG_PLAYING) {
+		SMPEG_pause(mpeg);
+		stopped=1;
 	}
-
-	SMPEG_scale( mpeg, scale );
-	gtv_clear_screen( raw );
+	if( active ) {
+	    width = info->width * 2;
+	    height = info->height * 2;
+	} else {
+	    width = info->width;
+	    height = info->height;
+	}
+	sdl_screen = SDL_SetVideoMode(width, height,
+		sdl_screen->format->BitsPerPixel,sdl_screen->flags);
+	
+	gtk_object_set_data( GTK_OBJECT( raw ), "sdl_screen", sdl_screen );
+	SMPEG_scaleXY( mpeg, sdl_screen->w, sdl_screen->h );
+        gtv_center_window(sdl_screen);
+        if (stopped) SMPEG_pause(mpeg);
     }
 
 }

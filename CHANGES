@@ -1,4 +1,7 @@
 0.4.0:
+Hiroshi Yamashita - Thu Jun  8 12:03:42 PDT 2000
+ * Fixed frame counter and FPS calculation after seek
+ * Changed gtv so it actually changes the window size on doubling
 Vivien Chappelier - Mon Jun  5 18:47:47 PDT 2000
  * Fixed audio synchronization when seeking in an MPEG stream
 Sam Lantinga - Sat Jun  3 20:13:42 PDT 2000
