@@ -379,7 +379,6 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
     int mixed = 0;
     int i;
 
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  conflict name in popcorn */
     /* Bail if audio isn't playing */
     if ( MPEGaudio_GetStatus(audio) != MPEG_PLAYING ) {
         return(0);
@@ -483,7 +482,7 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
     /* Write a save buffer for remainder */
     audio->rawdata = audio->spillover;
     audio->rawdatawriteoffset = 0;
-//    if ( audio->run(1) ) {
+//    if ( audio->run(1) ) { // }
     if ( MPEGaudio_run(audio, 1, NULL) ) { /* XXX: numargs?? */
         assert(audio->rawdatawriteoffset > len);
         SDL_MixAudio(stream, (Uint8 *) audio->spillover, len*2, volume);

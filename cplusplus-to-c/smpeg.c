@@ -202,8 +202,8 @@ void SMPEG_delete( SMPEG* mpeg )
 //    delete mpeg->obj;
 //    delete mpeg;
     MPEG_destroy(mpeg->obj);
-    mpeg->obj = NULL;
     free(mpeg->obj);
+    mpeg->obj = NULL;
     free(mpeg);
 }
 

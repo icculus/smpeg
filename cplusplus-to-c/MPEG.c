@@ -93,7 +93,7 @@ METH(init_data) (_THIS, void *data, int size, bool SDLaudio) //: MPEGerror()
     MPEGerror_SetError(self->error, SDL_GetError());
     return;
   }
-  MPEG_Init(self, source, SDLaudio);
+  METH(Init) (self, source, SDLaudio);
 }
 
 MPEG*
@@ -101,7 +101,7 @@ METH(init_rwops) (_THIS, SDL_RWops *mpeg_source, bool SDLaudio) //: MPEGerror()
 {
   self = METH(init)(self);
   self->mpeg_mem = 0;
-  MPEG_Init(self, mpeg_source, SDLaudio);
+  METH(Init) (self, mpeg_source, SDLaudio);
   return self;
 }
 
@@ -128,12 +128,12 @@ METH(Init) (_THIS, SDL_RWops *mpeg_source, bool SDLaudio)
     self->loop = false;
     self->pause = false;
 
-    MPEG_parse_stream_list(self);
+    METH(parse_stream_list) (self);
 
 //    MPEG_EnableAudio(self, self->audioaction_enabled);
 //    MPEG_EnableVideo(self, self->videoaction_enabled);
-    MPEG_EnableAudio(self, self->audio_enabled);
-    MPEG_EnableVideo(self, self->video_enabled);
+    METH(EnableAudio) (self, self->audio_enabled);
+    METH(EnableVideo) (self, self->video_enabled);
 
     if ( ! self->audiostream && ! self->videostream ) {
 //      SetError("No audio/video stream found in MPEG");
@@ -188,11 +188,30 @@ METH(destroy) (_THIS)
 {
 //  Stop(); /* XXX */
   METH(Stop) (self);
-  if (self->video) free(self->video);
-  if (self->audio) free(self->audio);
-  if (self->system) free(self->system);
+  if (self->video)
+    {
+      MPEGvideo_destroy(self->video);
+      free(self->video);
+      self->video = NULL;
+    }
+  if (self->audio)
+    {
+      MPEGaudio_destroy(self->audio);
+      free(self->audio);
+      self->audio = NULL;
+    }
+  if (self->system)
+    {
+      MPEGsystem_destroy(self->system);
+      free(self->system);
+      self->system = NULL;
+    }
   
-  if (self->source) SDL_RWclose(self->source);
+  if (self->source)
+    {
+      SDL_RWclose(self->source);
+      self->source = NULL;
+    }
   if ( self->mpeg_mem )
     {
       free(self->mpeg_mem);
@@ -256,21 +275,21 @@ METH(EnableVideo) (_THIS, bool enabled)
 
 /* MPEG actions */
 void
-MPEG_Loop (MPEG *self, bool toggle)
+METH(Loop) (_THIS, bool toggle)
 {
   self->loop = toggle;
 }
 
 void
-MPEG_Play (MPEG *self)
+METH(Play) (_THIS)
 {
-  if ( MPEG_AudioEnabled(self) ) {
+  if ( METH(AudioEnabled) (self) ) {
 //    audioaction->Play(); /* XXX */
 //    MPEGaudio_Play(self->audioaction);
 //    self->audioaction->Play(self->audioaction);
     MPEGaudio_Play(self->audio);
   }
-  if ( MPEG_VideoEnabled(self) ) {
+  if ( METH(VideoEnabled) (self) ) {
 //    videoaction->Play(); /* XXX */
 //    MPEGvideo_Play(self->videoaction);
 //    self->videoaction->Play(self->videoaction);
@@ -279,15 +298,15 @@ MPEG_Play (MPEG *self)
 }
 
 void
-MPEG_Stop (MPEG *self)
+METH(Stop) (_THIS)
 {
-  if ( MPEG_VideoEnabled(self) ) {
+  if ( METH(VideoEnabled)(self) ) {
 //    videoaction->Stop(); /* XXX */
 //    MPEGvideo_Stop(self->videoaction);
 //    self->videoaction->Stop(self->videoaction);
     MPEGvideo_Stop(self->video);
   }
-  if ( MPEG_AudioEnabled(self) ) {
+  if ( METH(AudioEnabled) (self) ) {
 //    audioaction->Stop(); /* XXX */
 //    MPEGaudio_Stop(self->audioaction);
 //    self->audioaction->Stop(self->audioaction);
@@ -296,22 +315,22 @@ MPEG_Stop (MPEG *self)
 }
 
 void
-MPEG_Rewind (MPEG *self)
+METH(Rewind) (_THIS)
 {
-  MPEG_seekIntoStream(self, 0);
+  METH(seekIntoStream) (self, 0);
 }
 
 void
-MPEG_Pause (MPEG *self)
+METH(Pause) (_THIS)
 {
   self->pause = !self->pause;
 
-  if ( MPEG_VideoEnabled(self) ) {
+  if ( METH(VideoEnabled) (self) ) {
 //    videoaction->Pause(); /* XXX */
 //    MPEGvideo_Pause(self->videoaction);
     MPEGvideo_Pause(self->video);
   }
-  if ( MPEG_AudioEnabled(self) ) {
+  if ( METH(AudioEnabled) (self) ) {
 //    audioaction->Pause(); /* XXX */
 //    MPEGaudio_Pause(self->audioaction);
     MPEGaudio_Pause(self->audio);
@@ -320,12 +339,12 @@ MPEG_Pause (MPEG *self)
 
 /* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
 MPEGstatus
-MPEG_GetStatus (MPEG *self)
+METH(GetStatus) (_THIS)
 {
   MPEGstatus status;
 
   status = MPEG_STOPPED;
-  if ( MPEG_VideoEnabled(self) ) {
+  if ( METH(VideoEnabled)(self) ) {
 		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
 //    switch (videoaction->GetStatus()) { /* XXX */
 //    switch (MPEGvideo_GetStatus(self->videoaction)) {
@@ -339,7 +358,7 @@ MPEG_GetStatus (MPEG *self)
       break;
     }
   }
-  if ( MPEG_AudioEnabled(self) ) {
+  if ( METH(AudioEnabled) (self) ) {
 		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
 //    switch (audioaction->GetStatus()) { /* XXX */
 //    switch (MPEGaudio_GetStatus(self->audioaction)) {
@@ -358,11 +377,11 @@ MPEG_GetStatus (MPEG *self)
   {
     /* Here we go again */
 //    Rewind(); /* XXX */
-    MPEG_Rewind(self);
+    METH(Rewind) (self);
 //    Play(); /* XXX */
-    MPEG_Play(self);
+    METH(Play) (self);
 
-    if ( MPEG_VideoEnabled(self) ) {
+    if ( METH(VideoEnabled) (self) ) {
 		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
 //      switch (videoaction->GetStatus()) { /* XXX */
 //      switch (MPEGvideo_GetStatus(self->videoaction)) {
@@ -376,7 +395,7 @@ MPEG_GetStatus (MPEG *self)
         break;
       }
     }
-    if ( MPEG_AudioEnabled(self) ) {
+    if ( METH(AudioEnabled) (self) ) {
 		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
 //      switch (audioaction->GetStatus()) { /* XXX */
 //      switch (MPEGaudio_GetStatus(self->audioaction)) {
@@ -398,9 +417,9 @@ MPEG_GetStatus (MPEG *self)
 
 /* MPEG audio actions */
 bool
-MPEG_GetAudioInfo (MPEG *self, MPEG_AudioInfo *info)
+METH(GetAudioInfo) (_THIS, MPEG_AudioInfo *info)
 {
-  if ( MPEG_AudioEnabled(self) ) {
+  if ( METH(AudioEnabled) (self) ) {
 //    return(audioaction->GetAudioInfo(info)); /* XXX */
 //    return(MPEGaudio_GetAudioInfo(self->audioaction, info));
 //    return(self->audioaction->GetAudioInfo(self->audioaction, info));
@@ -410,9 +429,9 @@ MPEG_GetAudioInfo (MPEG *self, MPEG_AudioInfo *info)
 }
 
 void
-MPEG_Volume (MPEG *self, int vol)
+METH(Volume) (_THIS, int vol)
 {
-  if ( MPEG_AudioEnabled(self) ) {
+  if ( METH(AudioEnabled) (self) ) {
 //    audioaction->Volume(vol); /* XXX */
 //    MPEGaudio_Volume(self->audioaction, vol);
 //    self->audioaction->Volume(self->audioaction, vol);
@@ -421,36 +440,36 @@ MPEG_Volume (MPEG *self, int vol)
 }
 
 bool
-MPEG_WantedSpec (MPEG *self, SDL_AudioSpec *wanted)
+METH(WantedSpec) (_THIS, SDL_AudioSpec *wanted)
 {
   if( self->audiostream ) {
 //    return(GetAudio()->WantedSpec(wanted)); /* XXX */
-    return (MPEGaudio_WantedSpec(MPEG_GetAudio(self), wanted));
+    return (MPEGaudio_WantedSpec(METH(GetAudio) (self), wanted));
   }
   return(false);
 }
 
 void
-MPEG_ActualSpec (MPEG *self, const SDL_AudioSpec *actual)
+METH(ActualSpec) (_THIS, const SDL_AudioSpec *actual)
 {
   if( self->audiostream ) {
 //    GetAudio()->ActualSpec(actual); /* XXX */
-    return (MPEGaudio_ActualSpec(MPEG_GetAudio(self), actual));
+    return (MPEGaudio_ActualSpec(METH(GetAudio) (self), actual));
   }
 }
 
 /* Simple accessor used in the C interface */
 MPEGaudio *
-MPEG_GetAudio (MPEG *self)
+METH(GetAudio) (_THIS)
 {
   return self->audio;
 }
 
 /* MPEG video actions */
 bool
-MPEG_GetVideoInfo (MPEG *self, MPEG_VideoInfo *info)
+METH(GetVideoInfo) (_THIS, MPEG_VideoInfo *info)
 {
-  if ( MPEG_VideoEnabled(self) ) {
+  if ( METH(VideoEnabled) (self) ) {
 //    return(videoaction->GetVideoInfo(info)); /* XXX */
 //    return (MPEGvideo_GetVideoInfo(self->videoaction, info));
 //    return (self->videoaction->GetVideoInfo(self->videoaction, info));
@@ -460,9 +479,9 @@ MPEG_GetVideoInfo (MPEG *self, MPEG_VideoInfo *info)
 }
 
 bool
-MPEG_SetDisplay (MPEG *self, SDL_Surface *dst, SDL_mutex *lock, MPEG_DisplayCallback callback)
+METH(SetDisplay) (_THIS, SDL_Surface *dst, SDL_mutex *lock, MPEG_DisplayCallback callback)
 {
-  if ( MPEG_VideoEnabled(self) ) {
+  if ( METH(VideoEnabled) (self) ) {
 //    return(videoaction->SetDisplay(dst, lock, callback)); /* XXX */
 //    return (MPEGvideo_SetDisplay(self->videoaction, dst, lock, callback));
 //    return (self->videoaction->SetDisplay(self->videoaction, dst, lock, callback));
@@ -472,9 +491,9 @@ MPEG_SetDisplay (MPEG *self, SDL_Surface *dst, SDL_mutex *lock, MPEG_DisplayCall
 }
 
 void
-MPEG_MoveDisplay (MPEG *self, int x, int y)
+METH(MoveDisplay) (_THIS, int x, int y)
 {
-  if ( MPEG_VideoEnabled(self) ) {
+  if ( METH(VideoEnabled) (self) ) {
 //    videoaction->MoveDisplay(x, y); /* XXX */
 //    return (MPEGvideo_MoveDisplay(self->videoaction, x, y));
 //    return (self->videoaction->MoveDisplay(self->videoaction, x, y));
@@ -484,9 +503,9 @@ MPEG_MoveDisplay (MPEG *self, int x, int y)
 }
 
 void
-MPEG_ScaleDisplayXY (MPEG *self, int w, int h)
+METH(ScaleDisplayXY) (_THIS, int w, int h)
 {
-  if ( MPEG_VideoEnabled(self) ) {
+  if ( METH(VideoEnabled) (self) ) {
 //    videoaction->ScaleDisplayXY(w, h); /* XXX */
 //    return (MPEGvideo_ScaleDisplayXY(self->videoaction, w, h));
 //    return (self->videoaction->ScaleDisplayXY(self->videoaction, w, h));
@@ -495,9 +514,9 @@ MPEG_ScaleDisplayXY (MPEG *self, int w, int h)
 }
 
 void
-MPEG_SetDisplayRegion (MPEG *self, int x, int y, int w, int h)
+METH(SetDisplayRegion) (_THIS, int x, int y, int w, int h)
 {
-  if ( MPEG_VideoEnabled(self) ) {
+  if ( METH(VideoEnabled) (self) ) {
 //    videoaction->SetDisplayRegion(x, y, w, h); /* XXX */
 //    return (MPEGvideo_SetDisplayRegion(self->videoaction, x, y, w, h));
 //    return (self->videoaction->SetDisplayRegion(self->videoaction, x, y, w, h));
@@ -506,9 +525,9 @@ MPEG_SetDisplayRegion (MPEG *self, int x, int y, int w, int h)
 }
 
 void
-MPEG_RenderFrame (MPEG *self, int frame)
+METH(RenderFrame) (_THIS, int frame)
 {
-    if ( MPEG_VideoEnabled(self) ) {
+    if ( METH(VideoEnabled) (self) ) {
 //        videoaction->RenderFrame(frame); /* XXX */
 //        MPEGvideo_RenderFrame(self->videoaction, frame);
 //        self->videoaction->RenderFrame(self->videoaction, frame);
@@ -517,26 +536,26 @@ MPEG_RenderFrame (MPEG *self, int frame)
 }
 
 void
-MPEG_RenderFinal (MPEG *self, SDL_Surface *dst, int x, int y)
+METH(RenderFinal) (_THIS, SDL_Surface *dst, int x, int y)
 {
 //    Stop(); /* XXX */
-    MPEG_Stop(self);
-    if ( MPEG_VideoEnabled(self) ) {
+    METH(Stop) (self);
+    if ( METH(VideoEnabled) (self) ) {
 //        videoaction->RenderFinal(dst, x, y); /* XXX */
 //        MPEGvideo_RenderFinal(self->videoaction, dst, x, y);
 //        self->videoaction->RenderFinal(self->videoaction, dst, x, y);
         MPEGvideo_RenderFinal(self->video, dst, x, y);
     }
 //    Rewind(); /* XXX */
-    MPEG_Rewind(self);
+    METH(Rewind) (self);
 //    self->Rewind(self);
 }
 
 
 SMPEG_Filter *
-MPEG_Filter (MPEG *self, SMPEG_Filter *filter)
+METH(Filter) (_THIS, SMPEG_Filter *filter)
 {
-  if ( MPEG_VideoEnabled(self) ) {
+  if ( METH(VideoEnabled) (self) ) {
 //    return(videoaction->Filter(filter)); /* XXX */
     return (MPEGvideo_Filter(self->video, filter));
 //    return (self->videoaction->Filter(self->videoaction, filter));
@@ -545,7 +564,7 @@ MPEG_Filter (MPEG *self, SMPEG_Filter *filter)
 }
 
 void
-MPEG_Seek (MPEG *self, int position)
+METH(Seek) (_THIS, int position)
 {
   int was_playing = 0;
 
@@ -556,36 +575,36 @@ MPEG_Seek (MPEG *self, int position)
 	/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
   /* get info whrether we need to restart playing at the end */
 //  if( GetStatus() == MPEG_PLAYING ) /* XXX */
-  if (MPEG_GetStatus(self) == MPEG_PLAYING)
+  if (METH(GetStatus) (self) == MPEG_PLAYING)
     was_playing = 1;
 
-  if(!MPEG_seekIntoStream(self, position)) return;
+  if(!METH(seekIntoStream) (self, position)) return;
 
   /* If we were playing and not rewind then play again */
   if (was_playing)
 //    Play(); /* XXX */
-    MPEG_Play(self);
+    METH(Play) (self);
 
-  if (MPEG_VideoEnabled(self) && !was_playing) 
+  if (METH(VideoEnabled) (self) && !was_playing) 
 //    videoaction->RenderFrame(0); /* XXX */
     MPEGvideo_RenderFrame(self->video, 0);
 
-  if ( self->pause && MPEG_VideoEnabled(self) ) {
+  if ( self->pause && METH(VideoEnabled) (self) ) {
 //    videoaction->Pause(); /* XXX */
     MPEGvideo_Pause(self->video);
   }
-  if ( self->pause && MPEG_AudioEnabled(self) ) {
+  if ( self->pause && METH(AudioEnabled) (self) ) {
 //    audioaction->Pause(); /* XXX */
     MPEGaudio_Pause(self->audio);
   }
 }
 
 bool
-MPEG_seekIntoStream (MPEG *self, int position)
+METH(seekIntoStream) (_THIS, int position)
 {
   /* First we stop everything */
 //  Stop(); /* XXX */
-  MPEG_Stop(self);
+  METH(Stop) (self);
 
   /* Go to the desired position into file */
 //  if(!system->Seek(position)) return(false); /* XXX */
@@ -634,7 +653,7 @@ MPEG_seekIntoStream (MPEG *self, int position)
 }
 
 void
-MPEG_Skip (MPEG *self, float seconds)
+METH(Skip) (_THIS, float seconds)
 {
 //  if(system->get_stream(SYSTEM_STREAMID)) /* XXX */
   if (MPEGsystem_get_stream(self->system, SYSTEM_STREAMID))
@@ -646,16 +665,16 @@ MPEG_Skip (MPEG *self, float seconds)
   {
     /* No system information in MPEG */
 //    if( MPEG_VideoEnabled(self) ) videoaction->Skip(seconds); /* XXX */
-    if ( MPEG_VideoEnabled(self) )
+    if ( METH(VideoEnabled)(self) )
         MPEGvideo_Skip(self->video, seconds);
 //    if( MPEG_AudioEnabled(self) ) audioaction->Skip(seconds); /* XXX */
-    if (MPEG_AudioEnabled(self))
+    if (METH(AudioEnabled)(self))
         MPEGaudio_Skip(self->audio, seconds);
   }
 }
 
 void
-MPEG_GetSystemInfo (MPEG *self, MPEG_SystemInfo *sinfo)
+METH(GetSystemInfo) (_THIS, MPEG_SystemInfo *sinfo)
 {
 //  sinfo->total_size = system->TotalSize(); /* XXX */
   sinfo->total_size = MPEGsystem_TotalSize(self->system);

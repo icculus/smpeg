@@ -40,6 +40,9 @@ void METH(ResetPause) (_THIS)
 MPEGaudio *
 METH(init) (_THIS, MPEGstream *stream, bool initSDL)
 {
+    SDL_AudioSpec wanted;
+    bool audio_active;
+    SDL_AudioSpec actual;
     int i;
 
     MAKE_OBJECT(MPEGaudio);
@@ -56,7 +59,6 @@ METH(init) (_THIS, MPEGstream *stream, bool initSDL)
 
     /* Analyze the MPEG audio stream */
     if ( METH(loadheader)(self) ) {
-        SDL_AudioSpec wanted;
         METH(WantedSpec)(self, &wanted);
 
         /* Calculate the samples per frame */
@@ -74,14 +76,13 @@ METH(init) (_THIS, MPEGstream *stream, bool initSDL)
         }
         if ( PROP(sdl_audio) ) {
             /* Open the audio, get actual audio hardware format and convert */
-            bool audio_active;
-            SDL_AudioSpec actual;
-            audio_active = (SDL_OpenAudio(&wanted, &actual) == 0);
+//            audio_active = (SDL_OpenAudio(&wanted, &actual) == 0);
+            audio_active = SDL_OpenAudio(&wanted, &actual);
+            audio_active = (audio_active == 0);
             if ( audio_active ) {
                 METH(ActualSpec)(self, &actual);
                 PROP(valid_stream) = true;
             } else {
-//                METH(SetError)(self->error, SDL_GetError());
                 MPEGerror_SetError(self->error, SDL_GetError());
             }
             SDL_PauseAudio(0);
@@ -89,8 +90,6 @@ METH(init) (_THIS, MPEGstream *stream, bool initSDL)
             PROP(valid_stream) = true; 
         }
         METH(Volume)(self, 100);
-//        MPEGaudioaction_Volume(self->audioaction, 100);
-        
     }
 
     /* For using system timestamp */
@@ -289,7 +288,6 @@ METH(Volume) (_THIS, int vol)
         PROP(volume) = (vol*SDL_MIX_MAXVOLUME)/100;
     }
 }
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  conflict name in popcorn */
 MPEGstatus
 METH(GetStatus) (_THIS)
 {
