@@ -41,7 +41,7 @@ MPEG_ring:: MPEG_ring( Uint32 size, Uint32 count )
     else
         ring->begin = 0;
 
-    if( ring->begin )
+    if( ring->begin && count )
     {
         ring->end   = ring->begin + tSize;
         ring->read  = ring->begin;
