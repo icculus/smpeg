@@ -1,4 +1,8 @@
 0.4.2:
+Sam Lantinga - Fri Oct 27 15:11:33 PDT 2000
+ * Fixed hang when audio data was partially corrupt in the first block
+Hiroshi Yamashita - Sat, 14 Oct 2000 23:43:33 +0900
+ * Fixed bug where audio was always mono
 SiKang - Fri, 6 Oct 2000 15:23:13 +0900
  * Fixed UDP port binding for raw:// MPEG support
 Sam Lantinga - Thu Oct  5 14:07:35 PDT 2000
