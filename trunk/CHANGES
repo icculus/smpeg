@@ -1,4 +1,6 @@
 0.4.1:
+Sam Lantinga - Thu Aug  3 17:51:35 PDT 2000
+ * Modified plaympeg to play videos even if audio device isn't available
 Jens Vaasjo, Sam Lantinga, Nicholas Vining - Thu Aug  3 16:49:40 PDT 2000
  * Modified glmovie to do fullscreen hardware accelerated display
 David Hedbor - Wed Aug  2 14:08:20 PDT 2000
