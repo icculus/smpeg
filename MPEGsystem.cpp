@@ -41,11 +41,8 @@ Uint8 const PICTURE_MASK[]      = { 0xff, 0xff, 0xff, 0x00 };
 
 /* The size is arbitrary but should be sufficient to contain */
 /* two MPEG packets and reduce disk (or network) access.     */
-#if 0 // Hiroshi Yamashita notes that the original size was too large
-#define MPEG_BUFFER_SIZE (64 * 1024)
-#else
+// Hiroshi Yamashita notes that the original size was too large
 #define MPEG_BUFFER_SIZE (16 * 1024)
-#endif
 
 /* The granularity (2^LG2_GRANULARITY) determine what length of read data */
 /* will be a multiple of, e.g. setting LG2_GRANULARITY to 12 will make    */
@@ -61,6 +58,10 @@ Uint8 const PICTURE_MASK[]      = { 0xff, 0xff, 0xff, 0x00 };
 
 /* Timeout before read fails */
 #define READ_TIME_OUT 1000000
+
+/* timestamping */
+#define FLOAT_0x10000 (double)((Uint32)1 << 16)
+#define STD_SYSTEM_CLOCK_FREQ 90000L
 
 /* This work only on little endian systems */
 /*
@@ -78,6 +79,22 @@ static inline bool Match4(Uint8 const code1[4], Uint8 const code2[4], Uint8 cons
 	  ((code1[1] & mask[1]) == (code2[1] & mask[1])) &&
 	  ((code1[2] & mask[2]) == (code2[2] & mask[2])) &&
 	  ((code1[3] & mask[3]) == (code2[3] & mask[3])) );
+}
+static inline double read_time_code(Uint8 *pointer)
+{ 
+  double timestamp;
+  Uint8 hibit; Uint32 lowbytes;
+
+  hibit = (pointer[0]>>3)&0x01;
+  lowbytes = (((Uint32)pointer[0] >> 1) & 0x03) << 30;
+  lowbytes |= (Uint32)pointer[1] << 22;
+  lowbytes |= ((Uint32)pointer[2] >> 1) << 15;
+  lowbytes |= (Uint32)pointer[3] << 7;
+  lowbytes |= ((Uint32)pointer[4]) >> 1;
+  timestamp = (double)hibit*FLOAT_0x10000*FLOAT_0x10000+(double)lowbytes;
+  timestamp /= STD_SYSTEM_CLOCK_FREQ;
+
+  return timestamp;
 }
 
 MPEGsystem::MPEGsystem(int Mpeg_FD)
@@ -107,6 +124,7 @@ MPEGsystem::MPEGsystem(int Mpeg_FD)
 #ifdef USE_SYSTEM_TIMESTAMP
   timestamp = 0.0;
   timedrift = 0.0;
+  skip_timestamp = -1;
 #endif
 
   /* Search the MPEG for the first header */
@@ -243,6 +261,7 @@ Uint8 MPEGsystem::FillBuffer()
   Uint8 const zero[4] = {0x00,0x00,0x00,0x00};
   Uint8 const one[4]  = {0x00,0x00,0x00,0x01};
   Uint8 const mask[4] = {0xff,0xff,0xff,0xff};
+  double stream_timestamp;
 
   /* - Read a new packet - */
   Read();
@@ -280,29 +299,7 @@ Uint8 MPEGsystem::FillBuffer()
   {
     /* Parse the packet information */
     pointer += 4;
-
-    /* The system stream timestamp is not very useful to us since we
-       don't coordinate the audio and video threads very tightly, and
-       we read in large amounts of data at once in the video stream.
-       BUT... if you need it, here it is.
-    */
-
-#ifdef USE_SYSTEM_TIMESTAMP
-#define FLOAT_0x10000 (double)((Uint32)1 << 16)
-#define STD_SYSTEM_CLOCK_FREQ 90000L
-    { 
-      Uint8 hibit; Uint32 lowbytes;
-
-      hibit = (pointer[0]>>3)&0x01;
-      lowbytes = (((Uint32)pointer[0] >> 1) & 0x03) << 30;
-      lowbytes |= (Uint32)pointer[1] << 22;
-      lowbytes |= ((Uint32)pointer[2] >> 1) << 15;
-      lowbytes |= (Uint32)pointer[3] << 7;
-      lowbytes |= ((Uint32)pointer[4]) >> 1;
-      timestamp = (double)hibit*FLOAT_0x10000*FLOAT_0x10000+(double)lowbytes;
-      timestamp /= STD_SYSTEM_CLOCK_FREQ;
-    }
-#endif
+    timestamp = read_time_code(pointer);
     pointer += 8;
   }
 
@@ -327,10 +324,14 @@ Uint8 MPEGsystem::FillBuffer()
       pointer += 2;
       packet_size -= 2;
     }
-    if ( (pointer[0] & 0x30) == 0x30 ) {
-      pointer += 9;
-      packet_size -= 9;
-    } else if ( (pointer[0] & 0x20) == 0x20 ) {
+    if ( (pointer[0] & 0x20) == 0x20 ) {
+      /* get the PTS */
+      stream_timestamp = read_time_code(pointer);
+      /* we don't care about DTS */
+      if ( (pointer[0] & 0x30) == 0x30 ){
+	pointer += 5;
+	packet_size -= 5;
+      }
       pointer += 4;
       packet_size -= 4;
     } else if ( pointer[0] != 0x0f && pointer[0] != 0x80) {
@@ -339,7 +340,9 @@ Uint8 MPEGsystem::FillBuffer()
       if(!seek_next_header())
       	errorstream = true;
       return(0);
-    }
+    } else
+      stream_timestamp = -1;
+    
     ++pointer;
     --packet_size;
 
@@ -408,6 +411,20 @@ Uint8 MPEGsystem::FillBuffer()
 
   assert(packet_size <= MPEG_BUFFER_SIZE);
 
+  if(skip_timestamp > timestamp){
+    int cur_seconds=int(timestamp)%60;
+
+    if (cur_seconds%5==0){
+      fprintf(stderr, "Skiping to %02d:%02d (%02d:%02d)\r",
+              int(skip_timestamp)/60, int(skip_timestamp)%60,
+              int(timestamp)/60, cur_seconds);
+    }
+    pointer += packet_size;
+    /* since we skip data, request more */
+    RequestBuffer();
+    return (1);
+  }
+
   switch(stream_id)
   {
     case 0:
@@ -475,12 +492,19 @@ Uint8 MPEGsystem::FillBuffer()
       }
 
       /* Insert the new data at the end of the stream */
-      stream->insert_packet(pointer, packet_size);
+      stream->insert_packet(pointer, packet_size, stream_timestamp);
       pointer += packet_size;
     return(stream_id);
   }
 }
 
+void MPEGsystem::Skip(double time)
+{
+  if (skip_timestamp < timestamp)
+    skip_timestamp = timestamp;
+  skip_timestamp += time;
+}
+ 
 Uint32 MPEGsystem::Tell()
 {
   /* Warning: 32 bits means that files > 4Go might return bad values */
@@ -507,7 +531,7 @@ void MPEGsystem::Rewind()
   Seek(0);
 }
 
-void MPEGsystem::Seek(int length)
+double MPEGsystem::Seek(int length)
 {
   request = 0;
 
@@ -526,7 +550,7 @@ void MPEGsystem::Seek(int length)
       errorstream = true;
       SetError(strerror(errno));
     }
-    return;
+    return(-1);
   }
 
   /* Reinitialize the read buffer */
@@ -542,7 +566,7 @@ void MPEGsystem::Seek(int length)
   {
     errorstream = true;
     SetError("Could not find the beginning of MPEG data\n");
-    return;
+    return (-1);
   }
 
   request = PRE_BUFFERED_MAX;
@@ -558,6 +582,10 @@ void MPEGsystem::Seek(int length)
   while(request > 0 && !Eof())
     SDL_Delay(1);
 
+  /* Get current play time */
+  FillBuffer();
+
+  return(timestamp);
 }
 
 void MPEGsystem::Loop(bool toggle)
@@ -630,7 +658,7 @@ int MPEGsystem::SystemThread(void * udata)
     if(system->request > 0)
     {
       /* Read the buffer */
-      system->FillBuffer();
+      while (system->FillBuffer()==1);
       delay >>= 1;
     }
     else

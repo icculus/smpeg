@@ -100,7 +100,9 @@ get_more_data( VidStream* vid_stream )
   unsigned int request;
   unsigned char *buffer, *mark;
   unsigned int *lmark;
-  
+  Sint32 timestamp_offset;
+  Uint32 data_pos;
+     
   if (vid_stream->EOF_flag) return 0;
   
   buf_start = vid_stream->buf_start;
@@ -118,8 +120,13 @@ get_more_data( VidStream* vid_stream )
   
   request = (vid_stream->max_buf_length-length)*4;
   
-  
+  data_pos = vid_stream->_smpeg->mpeg->pos;  
   num_read = vid_stream->_smpeg->mpeg->copy_data(mark, request);
+
+  vid_stream->timestamp = vid_stream->_smpeg->mpeg->timestamp;
+  timestamp_offset = vid_stream->_smpeg->mpeg->timestamp_pos - data_pos;
+  vid_stream->timestamp_mark = (unsigned int *)(mark+timestamp_offset);
+  vid_stream->timestamp_used = false;
 
   /* Paulo Villegas - 26/1/1993: Correction for 4-byte alignment */
   {

@@ -35,7 +35,7 @@ typedef struct vid_stream VidStream;
 
 /* Temporary definition of time stamp structure. */
 
-typedef int TimeStamp;
+typedef double TimeStamp;
 
 class MPEGvideo : public MPEGerror, public MPEGvideoaction {
 
@@ -57,7 +57,8 @@ public:
     void Play(void);
     void Stop(void);
     void Rewind(void);
-    void ResetSynchro(void);
+    void ResetSynchro(double time);
+     void Skip(float seconds);
     MPEGstatus Status(void);
 
     /* MPEG video actions */

@@ -227,6 +227,12 @@ Uint32 SMPEG_total_size( SMPEG* mpeg )
   return(mpeg->obj->TotalSize());
 }
 
+/* Skip 'seconds' seconds of the MPEG */
+void SMPEG_skip( SMPEG* mpeg, float seconds )
+{
+  return(mpeg->obj->Skip(seconds));
+}
+
 /* Render a particular frame in the MPEG video */
 void SMPEG_renderFrame( SMPEG* mpeg, int framenum )
 {

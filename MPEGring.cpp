@@ -37,7 +37,10 @@ MPEG_ring:: MPEG_ring( Uint32 size, Uint32 count )
 
     tSize = (size + sizeof(Uint32)) * count;
     if( tSize )
+    {
         ring->begin = (Uint8 *) malloc( tSize );
+        ring->timestamps = (double *) malloc( sizeof(double)*count );
+    }
     else
         ring->begin = 0;
 
@@ -46,6 +49,8 @@ MPEG_ring:: MPEG_ring( Uint32 size, Uint32 count )
         ring->end   = ring->begin + tSize;
         ring->read  = ring->begin;
         ring->write = ring->begin;
+        ring->timestamp_read  = timestamps;
+        ring->timestamp_write = timestamps;
         ring->bufSize  = size;
         
         ring->readwait = SDL_CreateSemaphore(0);
@@ -103,7 +108,9 @@ MPEG_ring:: ~MPEG_ring( void )
         /* Free data buffer */
         if ( ring->begin ) {
             free( ring->begin );
+            free( ring->timestamps );
             ring->begin = 0;
+            ring->timestamps = 0;
         }
     }
 }
@@ -137,16 +144,18 @@ MPEG_ring:: NextWriteBuffer( void )
 */
 
 void
-MPEG_ring:: WriteDone( Uint32 len )
+MPEG_ring:: WriteDone( Uint32 len, double timestamp=-1 )
 {
     if ( ring->active ) {
         assert(len <= ring->bufSize);
         *((Uint32*) ring->write) = len;
 
         ring->write += ring->bufSize + sizeof(Uint32);
+        *(ring->timestamp_write++) = timestamp;
         if( ring->write >= ring->end )
         {
             ring->write = ring->begin;
+            ring->timestamp_write = ring->timestamps;
         }
 //printf("Finished write buffer, making available for reads (%d+1 available for reads)\n", SDL_SemValue(ring->readwait));
         SDL_SemPost(ring->readwait);
@@ -185,6 +194,12 @@ MPEG_ring:: NextReadBuffer( Uint8** buffer )
   is returned with the next call to MPRing_nextReadBuffer().
 */
 
+double
+MPEG_ring:: ReadTimeStamp(void)
+{
+    return *ring->timestamp_read;
+}
+
 void
 MPEG_ring:: ReadSome( Uint32 used )
 {
@@ -214,9 +229,11 @@ MPEG_ring:: ReadDone( void )
 {
     if ( ring->active ) {
         ring->read += ring->bufSize + sizeof(Uint32);
+        ring->timestamp_read++;
         if( ring->read >= ring->end )
         {
             ring->read = ring->begin;
+            ring->timestamp_read = ring->timestamps;
         }
 //printf("Finished read buffer, making available for writes (%d+1 available for writes)\n", SDL_SemValue(ring->writewait));
         SDL_SemPost(ring->writewait);
