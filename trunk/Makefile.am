@@ -34,7 +34,8 @@ libsmpeg_la_LIBADD =		\
 EXTRA_DIST =		\
 	CHANGES		\
 	COPYING		\
-	README
+	README		\
+	plaympeg.1
 
 # Sample MPEG players
 if HAVE_GTK
@@ -61,3 +62,13 @@ gtv_LDADD = @GTK_LIBS@ libsmpeg.la
 # Sources for glmovie
 glmovie_SOURCES = glmovie-tile.c glmovie.c glmovie.h
 glmovie_LDADD = -lGL -lGLU libsmpeg.la
+
+
+# Rule to build tar-gzipped distribution package
+$(PACKAGE)-$(VERSION).tar.gz: dist
+
+# Rule to build RPM distribution package
+rpm: $(PACKAGE)-$(VERSION).tar.gz
+	cp $(PACKAGE)-$(VERSION).tar.gz /usr/src/redhat/SOURCES
+	rpm -ba smpeg.spec
+
