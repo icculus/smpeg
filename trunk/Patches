@@ -1,5 +1,42 @@
 *************************************************************************
 *** Applied ***
+Date: Tue, 04 Jan 2000 00:48:34 +0100
+From: Stefan Gybas <stefan@gybas.com>
+Subject: Byte order detection patch for ARM architecture
+
+Hi!
+
+Jim Studt <jim@federated.com> submitted this patch for the SMPEG Debian
+package so that the byte order on the ARM architecture will be properly
+detected. This is also a fallback for other architectures in case the
+other "#if defined ..." cases did not work.
+
+-- 
+Stefan Gybas
+
+--- smpeg-0.3.2.orig/video/video.h
++++ smpeg-0.3.2/video/video.h
+@@ -407,6 +407,18 @@
+ #endif
+ 
+ #if !defined(LITTLE_ENDIAN_ARCHITECTURE) && !defined(BIG_ENDIAN_ARCHITECTURE)
++#include </usr/include/endian.h>
++#if __BYTE_ORDER == __LITTLE_ENDIAN
++#undef  BIG_ENDIAN_ARCHITECTURE
++#define LITTLE_ENDIAN_ARCHITECTURE 1
++#endif
++#if __BYTE_ORDER == __BIG_ENDIAN
++#undef  LITTLE_ENDIAN_ARCHITECTURE
++#define BIG_ENDIAN_ARCHITECTURE 1
++#endif
++#endif
++
++#if !defined(LITTLE_ENDIAN_ARCHITECTURE) && !defined(BIG_ENDIAN_ARCHITECTURE)
+ #error Unknown endianism of architecture
+ #endif
+ 
+*************************************************************************
+*** Applied ***
 From: C Hanish Menon <hanish@innomedia.soft.net>
 Date: Fri, 10 Dec 1999 17:04:47 +0530
 Subject: A patch to allow playing of mpeg files _having headers wrapped around them_
