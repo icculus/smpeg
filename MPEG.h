@@ -422,6 +422,12 @@ public:
 			mpeg->ActualSpec(actual);
 		}
 	}
+	MPEGaudio *GetAudio(void) {
+		if( mpeg ) {
+			return mpeg->GetAudio();
+		}
+	}
+
     /* MPEG video actions */
     bool GetVideoInfo(MPEG_VideoInfo *info) {
         if ( mpeg ) {
