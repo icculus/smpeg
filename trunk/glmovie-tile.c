@@ -1,18 +1,18 @@
 /*
- * TODO:
- * None of the really hard stuff has been tackled, which is
- * setting up the objects so that they move across rows and
- * columns properly. Only the trivial 1x2 case has been
- * covered.
- *
- * The best way to do this will probably be to alter the
- * texture object so that it stores the proper x, y, skip_row
- * and skip_pixels values. Since you'll have to calculate most
- * of this during the initial structure creation anyway, you
- * might as well record it and just iterate linearly, rather
- * than nested i/j, inside the draw function.
- *
- * -michael
+ * MODIFIED by Bruce Merry (bmerry@iafrica.com) on 10/11/2000
+ * - fixed to handle arbitrary tile dimensions, not just 1x2
+ * - max_texture_size renamed to texture_size and used as a variable
+ *   (to change the max texture size, edit the assigned value in the decl)
+ * - hardcoded 256's changed to texture_size to allow small texture sizes
+ *   (e.g. for very low-res movies)
+ * - all pieces of movie copied into the top left corner of texture tiles,
+ *   instead of being offset
+ * - mechanism for keeping tiles aligned changed: a one texel border is
+ *   included in the tiles, which I think is used by the filtering even though
+ *   it is not explicitly selected for rendering (I think - I don't know much
+ *   about OpenGL, I've just fiddled until it looked right)
+ * - removed glmovie_is_power_of_2: it was not needed and
+ *   it only went up to 2048 anyway.
  */
 
 #include "glmovie.h"
@@ -24,10 +24,10 @@ typedef struct glmovie_texture_t {
     GLuint id;           /* OpenGL texture id. */
     GLuint poly_width;   /* Quad width for tile. */
     GLuint poly_height;  /* Quad height for tile. */
-    GLuint offset_x;     /* X offset into tile for movie. */
-    GLuint offset_y;     /* Y offset into tile for movie. */
     GLuint movie_width;  /* Width of movie inside tile. */
     GLuint movie_height; /* Height of movie inside tile. */
+    GLuint skip_rows;    /* Number of rows of movie to skip */
+    GLuint skip_pixels;  /* Number of columns of movie to skip */
     GLuint row;          /* Row number of tile in scheme. */
     GLuint col;          /* Column number of tile in scheme. */
 } glmovie_texture;
@@ -35,7 +35,7 @@ typedef struct glmovie_texture_t {
 /* Boy, is this not thread safe. */
 
 /* Our evil maximum texture size. Boo 3Dfx! */
-static GLuint max_texture_size = 256;
+static GLuint texture_size = 256;
 
 /* Keep this around for easy freeing later. */
 static GLuint* texture_ids = NULL;
@@ -58,66 +58,47 @@ static GLuint movie_height = 0;
  */
 void glmovie_draw( GLubyte* frame )
 {
+    GLuint i;
+    GLdouble shift;
+
     glClear( GL_COLOR_BUFFER_BIT );
 
     glMatrixMode( GL_MODELVIEW );
     glLoadIdentity( );
 
-    if( num_texture_rows == 1 && num_texture_cols == 2 ) {
-	glBindTexture( GL_TEXTURE_2D, textures[0].id );
-	glPixelStorei( GL_UNPACK_SKIP_PIXELS, 0 );
-	glPixelStorei( GL_UNPACK_ROW_LENGTH, movie_width );
+    shift = 1 / ((double) texture_size);
+    for (i = 0; i < num_texture_rows * num_texture_cols; i++) {
+        glBindTexture( GL_TEXTURE_2D, textures[i].id );
+        glPixelStorei( GL_UNPACK_ROW_LENGTH, movie_width );
+        glPixelStorei( GL_UNPACK_SKIP_ROWS, textures[i].skip_rows );
+        glPixelStorei( GL_UNPACK_SKIP_PIXELS, textures[i].skip_pixels );
 
-	glTexSubImage2D( GL_TEXTURE_2D,
-			 0,
-			 textures[0].offset_x,
-			 textures[0].offset_y,
-			 textures[0].movie_width,
-			 textures[0].movie_height,
-			 GL_RGBA,
-			 GL_UNSIGNED_BYTE,
-			 frame );
+        glTexSubImage2D( GL_TEXTURE_2D,
+                         0,
+                         0,                       /* offset_x */
+                         0,                       /* offset_y */
+                         textures[i].movie_width + 2,
+                         textures[i].movie_height + 2,
+                         GL_RGBA,
+                         GL_UNSIGNED_BYTE,
+                         frame );
 
-	glBegin( GL_QUADS );
-	glTexCoord2f( textures[0].offset_x/256.0, textures[0].offset_y/256.0 );
-	glVertex2i( 0.0f, 0.0f );
-	glTexCoord2f( textures[0].offset_x/256.0, 1.0-(textures[0].offset_y/256.0));
-	glVertex2i( 0, 255 );
-	glTexCoord2f( 1.0, 1.0f-(textures[0].offset_y/256.0f));
-	glVertex2i( 256, 255 );
-	glTexCoord2f( 1.0, textures[0].offset_y/256.0f );
-	glVertex2i( 256, 0 );
-	glEnd( );
-
-	glBindTexture( GL_TEXTURE_2D, textures[1].id );
-	glPixelStorei( GL_UNPACK_SKIP_PIXELS, textures[1].movie_width );
-
-	glTexSubImage2D( GL_TEXTURE_2D,
-			 0,
-			 textures[1].offset_x,
-			 textures[1].offset_y,
-			 textures[1].movie_width,
-			 textures[1].movie_height,
-			 GL_RGBA,
-			 GL_UNSIGNED_BYTE,
-			 frame );
-
-	glBegin( GL_QUADS );
-	glTexCoord2f( 0.001f, textures[1].offset_y/256.0 );
-	glVertex2i( 255, 0.0f );
-	glTexCoord2f( 0.001f, 1.0-(textures[1].offset_y/256.0));
-	glVertex2i( 255, 255 );
-	glTexCoord2f( 1.0-(textures[0].offset_x/256.0), 1.0f-(textures[1].offset_y/256.0f));
-	glVertex2i( 511, 255 );
-	glTexCoord2f( 1.0-(textures[0].offset_x/256.0), textures[1].offset_y/256.0f );
-	glVertex2i( 511, 0 );
-	glEnd( );
-
-    } else {
-	/* PENDING - implement me. */
-	return;
+        glBegin( GL_QUADS );
+        glTexCoord2f( shift, shift );
+        glVertex2i( textures[i].col * texture_size,
+                    textures[i].row * texture_size );
+        glTexCoord2f( shift, shift + (textures[i].movie_height)/((double) texture_size) );
+        glVertex2i( textures[i].col * texture_size,
+                    (textures[i].row + 1) * texture_size);
+        glTexCoord2f( shift + (textures[i].movie_width)/((double) texture_size),
+                      shift + (textures[i].movie_height)/((double) texture_size) );
+        glVertex2i( (textures[i].col + 1) * texture_size,
+                    (textures[i].row + 1) * texture_size);
+        glTexCoord2f( shift + (textures[i].movie_width)/((double) texture_size), shift );
+        glVertex2i( (textures[i].col + 1) * texture_size,
+                    textures[i].row * texture_size );
+        glEnd( );
     }
-
 }
 
 /*
@@ -134,38 +115,6 @@ void glmovie_resize( GLuint width, GLuint height )
     glMatrixMode( GL_PROJECTION );
     glLoadIdentity( );
     gluOrtho2D( 0, tiled_width, tiled_height, 0 );
-}
-
-/*
- * Determines if a given value is a power of 2.
- *
- * Parameters:
- *     value: Value to query against
- * Retruns:
- *     GL_TRUE on success
- *     GL_FALSE on failure
- */
-GLboolean glmovie_is_power_of_2( GLuint value )
-{
-
-    switch( value ) {
-    case 1:
-    case 2:
-    case 4:
-    case 8:
-    case 16:
-    case 32:
-    case 64:
-    case 128:
-    case 256:
-    case 512:
-    case 1024:
-    case 2048:
-	return GL_TRUE;
-    default:
-	return GL_FALSE;
-    }
-
 }
 
 /*
@@ -205,30 +154,23 @@ GLenum glmovie_init( GLuint width, GLuint height )
     /* Absolute offsets from within tiled frame. */
     GLuint offset_x = 0;
     GLuint offset_y = 0;
-    GLuint i;
+    GLuint skip_rows = 0;
+    GLuint skip_pixels = 0;
+    GLuint i, j, current;
 
     /* Save original movie dimensions. */
     movie_width = width;
     movie_height = height;
 
     /* Get the power of 2 dimensions. */
-    if( !glmovie_is_power_of_2( width ) ) {
-	tiled_width = glmovie_next_power_of_2( width );
-	offset_x = ( tiled_width - width ) / 2;
-    } else {
-	tiled_width = width;
-    }
-
-    if( !glmovie_is_power_of_2( height ) ) {
-	tiled_height = glmovie_next_power_of_2( height );
-	offset_y = ( tiled_height - height ) / 2;
-    } else {
-	tiled_height = height;
-    }
+    tiled_width = glmovie_next_power_of_2( width );
+    tiled_height = glmovie_next_power_of_2( height );
+    while ( texture_size > tiled_width || texture_size > tiled_height )
+        texture_size /= 2;
 
     /* Now break it up into quads. */
-    num_texture_rows = tiled_height / max_texture_size;
-    num_texture_cols = tiled_width / max_texture_size;
+    num_texture_rows = tiled_height / texture_size;
+    num_texture_cols = tiled_width / texture_size;
 
     /* Time for fun with data structures. */
     glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
@@ -237,79 +179,71 @@ GLenum glmovie_init( GLuint width, GLuint height )
     texture_ids = (GLuint*) malloc( sizeof( GLuint ) * num_texture_rows * num_texture_cols );
 
     if( !texture_ids ) {
-	return GL_OUT_OF_MEMORY;
+        return GL_OUT_OF_MEMORY;
     }
 
     glGenTextures( num_texture_rows * num_texture_cols, texture_ids );
 
-    /* Special case optimization for clarity, etc. */
-    if( num_texture_rows == 1 && num_texture_cols == 2 ) {
-	textures = (glmovie_texture*) malloc( sizeof( glmovie_texture ) * 2 );
+    textures = (glmovie_texture*) malloc( sizeof( glmovie_texture ) *
+                                          num_texture_rows * num_texture_cols );
 
-	if( !textures ) {
-	    glDeleteTextures( num_texture_rows * num_texture_cols, texture_ids );
-	    free( texture_ids );
-	    return GL_OUT_OF_MEMORY;
-	}
+    if( !textures ) {
+        glDeleteTextures( num_texture_rows * num_texture_cols, texture_ids );
+        free( texture_ids );
+        return GL_OUT_OF_MEMORY;
+    }
 
-	/* Setup first texture. */
-	textures[0].id = texture_ids[0];
-	textures[0].poly_width = max_texture_size;
-	textures[0].poly_height = max_texture_size;
-	textures[0].offset_x = offset_x;
-	textures[0].offset_y = offset_y;
-	textures[0].movie_width = width / 2;
-	textures[0].movie_height = height;
-	textures[0].row = 0;
-	textures[0].col = 0;
-	/* Second. */
-	textures[1].id = texture_ids[1];
-	textures[1].poly_width = max_texture_size;
-	textures[1].poly_height = max_texture_size;
-	textures[1].offset_x = 0;
-	textures[1].offset_y = offset_y;
-	textures[1].movie_width = width / 2;
-	textures[1].movie_height = height;
-	textures[1].row = 0;
-	textures[1].col = 1;
+    for ( i = 0; i < num_texture_rows; i++ ) {
+        skip_pixels = 0;
+        for ( j = 0; j < num_texture_cols; j++ ) {
+            current = i * num_texture_cols + j;
+            /* Setup texture. */
+            textures[current].id = texture_ids[current];
+            textures[current].poly_width = texture_size;
+            textures[current].poly_height = texture_size;
+            textures[current].movie_width =
+                (movie_width - 2) * (j + 1) / num_texture_cols - skip_pixels;
+            textures[current].movie_height =
+                (movie_height - 2) * (i + 1) / num_texture_rows - skip_rows;
+            textures[current].row = i;
+            textures[current].col = j;
+            textures[current].skip_pixels = skip_pixels;
+            textures[current].skip_rows = skip_rows;
+            skip_pixels += textures[current].movie_width;
 
-	for( i = 0; i < 2; ++i ) {
-	    pixels = (GLubyte*) malloc( textures[i].poly_width * textures[i].poly_height * 4 );
-	    memset( pixels, 0, textures[i].poly_width * textures[i].poly_height * 4 );
+            pixels = (GLubyte*) malloc( textures[current].poly_width * textures[current].poly_height * 4 );
+            memset( pixels, 0, textures[current].poly_width * textures[current].poly_height * 4 );
 
-	    if( !pixels ) {
-		glDeleteTextures( num_texture_rows * num_texture_cols, texture_ids );
-		free( texture_ids );
-		free( textures );
-		return GL_OUT_OF_MEMORY;
-	    }
+            if( !pixels ) {
+                glDeleteTextures( num_texture_rows * num_texture_cols, texture_ids );
+                free( texture_ids );
+                free( textures );
+                return GL_OUT_OF_MEMORY;
+            }
 
 
-	    /* Do all of our useful binding. */
-	    glBindTexture( GL_TEXTURE_2D, textures[i].id );
-	    glTexEnvf( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL );
-	    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP );
-	    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );
-	    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-	    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+            /* Do all of our useful binding. */
+            glBindTexture( GL_TEXTURE_2D, textures[current].id );
+            glTexEnvf( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL );
+            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP );
+            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP );
+            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
 
-	    /* Specify our 256x256 black texture. */
-	    glTexImage2D( GL_TEXTURE_2D,
-			  0,
-			  GL_RGB,
-			  textures[i].poly_width,
-			  textures[i].poly_height,
-			  0,
-			  GL_RGBA,
-			  GL_UNSIGNED_BYTE,
-			  pixels );
+            /* Specify our 256x256 black texture. */
+            glTexImage2D( GL_TEXTURE_2D,
+                          0,
+                          GL_RGB,
+                          textures[current].poly_width,
+                          textures[current].poly_height,
+                          0,
+                          GL_RGBA,
+                          GL_UNSIGNED_BYTE,
+                          pixels );
 
-	    free( pixels );
-	}
-
-    } else {
-	/* PENDING - implement me. */
-	return GL_INVALID_OPERATION;
+            free( pixels );
+        }
+        skip_rows += textures[current].movie_height;
     }
 
     /* Simple state setup at the end. */
