@@ -1,4 +1,6 @@
 0.4.1:
+Sam Lantinga - Tue Sep  5 18:53:34 PDT 2000
+ * Added the --bilinear command line option to plaympeg for filtering
 Tim Janson - Tue Sep  5 18:05:18 PDT 2000
  * Fixed potential divide-by-zero with some illegal audio streams
 Sam Lantinga - Tue Sep  5 14:09:14 PDT 2000
