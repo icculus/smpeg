@@ -1,4 +1,6 @@
 0.4.3:
+Sam Lantinga - Wed Feb 21 16:24:46 PST 2001
+ * SDL 1.2.0 supports 24 bpp displays, allow that in plaympeg
 Sam Lantinga - Fri Feb  9 23:37:31 PST 2001
  * Ported to MacOS X - one line fix.  I love portable code! :)
    It's still unusably slow, but it works! :)
