@@ -1,4 +1,9 @@
 
+0.3.3:
+Sam Lantinga - Mon Jan  3 20:54:32 PST 2000
+ * Changelog entries are now Y2K safe. ;-)
+ * SMPEG now handles pad packets in the initial system stream
+
 0.3.2:
 SOL -   Updated autoconf for SDL 1.0
 SOL -   Fixed audio decoding thread - releases waiting audio threads

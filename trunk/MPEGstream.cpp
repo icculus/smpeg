@@ -167,8 +167,8 @@ MPEGstream:: next_packet(bool recurse)
     }
 
     /* Look for another packet of ours? */
-    if ( recurse || !packetlen ) {
-        return(next_packet());
+    if ( recurse || !packetlen || (stream_id == PAD_STREAMID) ) {
+        return(next_packet(recurse));
     }
     return(false);
 }
