@@ -1192,7 +1192,7 @@ void MPEGaudio::layer3fixtostereo(int gr,REAL in[2][SBLIMIT][SSLIMIT])
 	}
       }
 
-      {
+      if (i <= sfBandIndex->l[21]) {
 	int k,t,tt;
 
 	tt=sfBandIndex->l[20];

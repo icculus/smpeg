@@ -1,5 +1,37 @@
 *************************************************************************
 *** Applied ***
+Date: Tue, 19 Sep 2000 17:30:33 +0200
+From: Tim Jansen <tim@tjansen.de>
+Subject: SMPEG/splay bugfix
+
+Hi...
+
+The following bugfix should prevent buffer overflows in audio/mpeglayer3.cpp 
+in some rare cases (I dont have a file that produces the bug directly, but 
+I run into it in my libmedia splay plugin when I accidentally skipped some 
+frames).
+
+Basically, if i is set to sfBandIndex->l[22] in the block before, i is 576,
+k is somewhere around 56 (or something similar, depends on the frequency) and 
+the array dimension is 576, too. This results in 56 REAL values written
+after the end of the array, corrupting the stack.
+
+bye...
+
+
+--- mpeglayer3.cpp.orig	Tue Sep 19 17:19:21 2000
++++ mpeglayer3.cpp	Tue Sep 19 17:19:04 2000
+@@ -1192,7 +1192,7 @@
+ 	}
+       }
+ 
+-      {
++      if (i <= sfBandIndex->l[21]) {
+ 	int k,t,tt;
+ 
+ 	tt=sfBandIndex->l[20];
+*************************************************************************
+*** Applied ***
 Date: Sat, 02 Sep 2000 17:21:49 +0200
 From: Tim Jansen <ml@tjansen.de>
 Subject: SMPEG/Splay bugfix
