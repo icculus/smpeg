@@ -66,6 +66,9 @@ case "$target" in
     *-*-qnx*)
         LIBS="$LIBS -lsocket"
         ;;
+    *-*-beos*)
+        ac_default_prefix=/boot/develop/tools/gnupro
+        ;;
     *-*-cygwin* | *-*-mingw32*)
         if test "$build" != "$target"; then # cross-compiling
             ac_default_prefix=/usr/local/cross-tools/i386-mingw32msvc
