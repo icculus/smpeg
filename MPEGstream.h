@@ -88,6 +88,8 @@ public:
     /* Enable or disable the stream */
     void enable(bool toggle);
 
+    Uint32 pos;
+
     Uint8 streamid;
 
 protected:
@@ -103,9 +105,6 @@ protected:
 
     SDL_mutex * mutex;
 public:
-    /* total of bytes read by our client, it doesn't realy have to be
-       too meaningful, it only serves as a reference for timestamp_pos */
-    Uint32 pos;
     /* "pos" where "timestamp" belongs */
     Uint32 timestamp_pos;
     double timestamp;

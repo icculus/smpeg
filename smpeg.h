@@ -63,6 +63,8 @@ typedef struct _SMPEG_Info {
     double current_fps;
     char audio_string[80];
     int  audio_current_frame;
+    Uint32 current_offset;
+    Uint32 total_size;
 } SMPEG_Info;
 
 /* Possible MPEG status codes */
@@ -144,14 +146,6 @@ extern DECLSPEC void SMPEG_rewind( SMPEG* mpeg );
 
 /* Seek 'bytes' bytes in the MPEG stream */
 void SMPEG_seek( SMPEG* mpeg, int bytes);
-
-/* Tell the current position in the stream in bytes */
-/* Warning: this is 32 bit values so streams > 4Go will return bad values */
-Uint32 SMPEG_tell( SMPEG* mpeg );
-
-/* Return the total size of the stream in bytes (O if unapplicable) */
-/* Warning: this is 32 bit values so streams > 4Go will return bad values */
-Uint32 SMPEG_total_size( SMPEG* mpeg );
 
 /* Skip 'seconds' seconds in the MPEG stream */
 void SMPEG_skip( SMPEG* mpeg, float seconds );

@@ -48,8 +48,6 @@
  * SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  */
 
-
-
 #include <math.h>
 #include "video.h"
 #include "proto.h"
@@ -181,7 +179,13 @@ int timeSync( VidStream* vid_stream )
 	      mpeg->play_time - vid_stream->current->show_time);
 #endif
       if(correction == -1)
-	correction = mpeg->play_time - vid_stream->current->show_time;
+#ifdef STRANGE_SYNC_TEST
+       /* this forces us to maintain the offset we have at the begining
+          all the time, and is only usefull for testing */
+        correction = mpeg->play_time - vid_stream->current->show_time;
+#else
+       correction = 0;
+#endif
 #ifdef USE_TIMESTAMP_SYNC
       mpeg->play_time = vid_stream->current->show_time + correction ;
 #endif

@@ -66,6 +66,10 @@ MPEGaudio:: MPEGaudio(MPEGstream *stream, bool initSDL) : sdl_audio(initSDL)
         }
         Volume(100);
     }
+
+    /* For using system timestamp */
+    for (int i=0; i<N_TIMESTAMPS; i++)
+      timestamp[i] = -1;
 }
 
 MPEGaudio:: ~MPEGaudio()
@@ -198,6 +202,7 @@ void
 MPEGaudio:: Rewind(void)
 {
     Stop();
+
 #ifdef THREADED_AUDIO
     /* Stop the decode thread */
     StopDecoding();
@@ -207,12 +212,16 @@ MPEGaudio:: Rewind(void)
     decodedframe = 0;
     currentframe = 0;
     frags_playing = 0;
-    frag_time = 0;
 }
 void
 MPEGaudio:: ResetSynchro(double time)
 {
     play_time = time;
+    frag_time = 0;
+
+    /* Reinit the timestamp FIFO */
+    for (int i=0; i<N_TIMESTAMPS; i++)
+      timestamp[i] = -1;
 }
 void
 MPEGaudio:: Skip(float seconds)

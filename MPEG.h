@@ -116,7 +116,7 @@ protected:
     bool pause;
 
     void parse_stream_list();
-    void seekIntoStream(int position);
+    bool seekIntoStream(int position);
 };
 
 #endif /* _MPEG_H_ */

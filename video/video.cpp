@@ -1141,12 +1141,19 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
 
 
     default:
+	/* No base picture for decoding */
+	if( !vid_stream->current )
+	{
+	    flush_bits32;
+	    next_start_code(vid_stream);
+	    goto done;
+	}
+
         /* Check for slice start code. */
 
         if( (data >= SLICE_MIN_START_CODE) && (data <= SLICE_MAX_START_CODE) )
         {
             /* Slice start code. Parse slice header. */
-
             if( ParseSlice(vid_stream) != PARSE_OK )
             {
                 fprintf( stderr, "mpegVidRsrc ParseSlice\n" );

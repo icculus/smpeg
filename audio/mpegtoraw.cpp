@@ -19,7 +19,6 @@
 
 #define MY_PI 3.14159265358979323846
 
-
 #if SDL_BYTEORDER == SDL_LIL_ENDIAN
 #define _KEY 0
 #else
@@ -319,12 +318,14 @@ int Decode_MPEGaudio(void *udata)
 
     while ( audio->decoding && ! audio->mpeg->eof() ) {
         audio->rawdata = (Sint16 *)audio->ring->NextWriteBuffer();
+
         if ( audio->rawdata ) {
             audio->rawdatawriteoffset = 0;
             audio->run(1, &timestamp);
             audio->ring->WriteDone(audio->rawdatawriteoffset*2, timestamp);
         }
     }
+
     audio->decoding = false;
     audio->decode_thread = NULL;
     return(0);
@@ -378,19 +379,14 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
 	   the timestamps refer to the time when the frame starts
 	   playing or then the frame ends playing, but as is works
 	   quite right */
-#define N_TIMESTAMPS 5
-	static double timestamp[N_TIMESTAMPS] = {0};
-	if(timestamp[0] == 0)
-	    for (int i=0; i<N_TIMESTAMPS; i++)
-		timestamp[i] = -1;
         copylen = audio->ring->NextReadBuffer(&rbuf);
         if ( copylen > len ) {
             SDL_MixAudio(stream, rbuf, len, volume);
             audio->ring->ReadSome(len);
             len = 0;
 	    for (int i=0; i < N_TIMESTAMPS -1; i++)
-		timestamp[i] = timestamp[i+1];
-	    timestamp[N_TIMESTAMPS-1] = audio->ring->ReadTimeStamp();
+		audio->timestamp[i] = audio->timestamp[i+1];
+	    audio->timestamp[N_TIMESTAMPS-1] = audio->ring->ReadTimeStamp();
         } else {
             SDL_MixAudio(stream, rbuf, copylen, volume);
             ++audio->currentframe;
@@ -399,10 +395,10 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
             len -= copylen;
             stream += copylen;
         }
-	if (timestamp[0] != -1){
-	    double timeshift = audio->Time() - timestamp[0];
+	if (audio->timestamp[0] != -1){
+	    double timeshift = audio->Time() - audio->timestamp[0];
 	    double correction = 0;
-	    assert(timestamp >= 0);
+	    assert(audio->timestamp >= 0);
 	    if (fabs(timeshift) > 1.0){
 	        correction = -timeshift;
 #ifdef DEBUG_TIMESTAMP_SYNC
@@ -417,7 +413,7 @@ void Play_MPEGaudio(void *udata, Uint8 *stream, int len)
 	    fprintf(stderr, "\raudio: time:%8.3f shift:%8.4f",
                     audio->Time(), timeshift);
 #endif
-	    timestamp[0] = -1;
+	    audio->timestamp[0] = -1;
 	}
     } while ( copylen && (len > 0) && ((audio->currentframe < audio->decodedframe) || audio->decoding));
 #else

@@ -85,7 +85,6 @@ protected:
 
     MPEG_DisplayCallback _callback;
 
-    int _scale;         // play back at '_scale' size
     int _w;             // width of movie
     int _h;             // height of movie
     SDL_Rect _rect;	// display area

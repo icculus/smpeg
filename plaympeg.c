@@ -309,9 +309,9 @@ int main(int argc, char *argv[])
         if ( info.has_audio ) {
 	    printf("\tAudio %s\n", info.audio_string);
         }
-
-	/* Print info on the stream */
-	printf("\t Total size: %d\n", SMPEG_total_size(mpeg));
+        if ( info.total_size ) {
+	    printf("\tSize: %d\n", info.total_size);
+        }
 
         /* Set up video display if needed */
         if ( info.has_video && use_video ) {

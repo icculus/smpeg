@@ -55,6 +55,9 @@ public:
     /* Set looping for all streams */
     void loop_all_streams(bool toggle);
 
+    /* Seek the first header */
+    bool seek_first_header();
+
     /* Seek the next header */
     bool seek_next_header();
 
@@ -86,8 +89,12 @@ protected:
     bool errorstream;
     bool looping;
 
+    double frametime;
+    double stream_timestamp;
+
 #ifdef USE_SYSTEM_TIMESTAMP
     /* Current timestamp for this stream */
+    double start_timestamp;
     double timestamp;
     double timedrift;
     double skip_timestamp;

@@ -28,8 +28,8 @@ Uint8 const VIDEOSTREAM_CODE[]  = { 0x00, 0x00, 0x01, 0xe0 };
 Uint8 const VIDEOSTREAM_MASK[]  = { 0xff, 0xff, 0xff, 0xe0 };
 Uint8 const AUDIOSTREAM_CODE[]  = { 0x00, 0x00, 0x01, 0xc0 };
 Uint8 const AUDIOSTREAM_MASK[]  = { 0xff, 0xff, 0xff, 0xc0 };
-Uint8 const PADSTREAM_CODE[]    = { 0x00, 0x00, 0x01, 0xbe };
-Uint8 const PADSTREAM_MASK[]    = { 0xff, 0xff, 0xff, 0xff };
+Uint8 const PAD_CODE[]          = { 0x00, 0x00, 0x01, 0xbe };
+Uint8 const PAD_MASK[]          = { 0xff, 0xff, 0xff, 0xff };
 Uint8 const SYSTEMSTREAM_CODE[] = { 0x00, 0x00, 0x01, 0xbb };
 Uint8 const SYSTEMSTREAM_MASK[] = { 0xff, 0xff, 0xff, 0xff };
 Uint8 const GOP_CODE[]          = { 0x00, 0x00, 0x01, 0xb8 };
@@ -37,7 +37,11 @@ Uint8 const GOP_MASK[]          = { 0xff, 0xff, 0xff, 0xff };
 Uint8 const USER_CODE[]         = { 0x00, 0x00, 0x01, 0xb2 };
 Uint8 const USER_MASK[]         = { 0xff, 0xff, 0xff, 0xff };
 Uint8 const PICTURE_CODE[]      = { 0x00, 0x00, 0x01, 0x00 };
-Uint8 const PICTURE_MASK[]      = { 0xff, 0xff, 0xff, 0x00 };
+Uint8 const PICTURE_MASK[]      = { 0xff, 0xff, 0xff, 0xff };
+Uint8 const SLICE_CODE[]        = { 0x00, 0x00, 0x01, 0x01 };
+Uint8 const SLICE_MASK[]        = { 0xff, 0xff, 0xff, 0x00 };
+Uint8 const ZERO_CODE[]         = { 0x00, 0x00, 0x00, 0x00 };
+Uint8 const FULL_MASK[]         = { 0xff, 0xff, 0xff, 0xff };
 
 /* The size is arbitrary but should be sufficient to contain */
 /* two MPEG packets and reduce disk (or network) access.     */
@@ -71,6 +75,24 @@ Uint8 const PICTURE_MASK[]      = { 0xff, 0xff, 0xff, 0x00 };
                 (((x)&0xFF000000)>>24))
 #define MATCH4(x, y, m) (((x) & REV(m)) == REV(y))
 */
+const int audio_frequencies[2][3]=
+{
+  {44100,48000,32000}, // MPEG 1
+  {22050,24000,16000}  // MPEG 2
+};
+
+const int audio_bitrate[2][3][15]=
+{
+  // MPEG 1
+  {{0,32,64,96,128,160,192,224,256,288,320,352,384,416,448},
+   {0,32,48,56,64,80,96,112,128,160,192,224,256,320,384},
+   {0,32,40,48,56,64,80,96,112,128,160,192,224,256,320}},
+
+  // MPEG 2
+  {{0,32,48,56,64,80,96,112,128,144,160,176,192,224,256},
+   {0,8,16,24,32,40,48,56,64,80,96,112,128,144,160},
+   {0,8,16,24,32,40,48,56,64,80,96,112,128,144,160}}
+};
 
 /* Match two 4-byte codes */
 static inline bool Match4(Uint8 const code1[4], Uint8 const code2[4], Uint8 const mask[4])
@@ -80,6 +102,137 @@ static inline bool Match4(Uint8 const code1[4], Uint8 const code2[4], Uint8 cons
 	  ((code1[2] & mask[2]) == (code2[2] & mask[2])) &&
 	  ((code1[3] & mask[3]) == (code2[3] & mask[3])) );
 }
+
+/* Return true if there is a valid audio header at the beginning of pointer */
+static inline Uint32 audio_header(Uint8 * pointer, Uint32 * framesize, double * frametime)
+{
+  Uint32 layer, version, frequency, bitrate, mode, padding, size;
+
+  if(((pointer[0] & 0xff) != 0xff) || // No sync bits
+     ((pointer[1] & 0xf0) != 0xf0) || //
+     ((pointer[2] & 0xf0) == 0x00) || // Bitrate is 0
+     ((pointer[2] & 0xf0) == 0xf0) || // Bitrate is 15
+     ((pointer[2] & 0x0c) == 0x0c) || // Frequency is 3
+     ((pointer[1] & 0x06) == 0x00))   // Layer is 4
+     return(0);
+
+  layer = 4 - (((pointer)[1] >> 1) & 3);
+  version = (((pointer)[1] >> 3) & 1) ^ 1;
+  padding = ((pointer)[2] >> 1) & 1;
+  frequency = audio_frequencies[version][(((pointer)[2] >> 2) & 3)];
+  bitrate = audio_bitrate[version][layer-1][(((pointer)[2] >> 4) & 15)];
+  mode = ((pointer)[3] >> 6) & 3;
+
+  if(layer==1)
+  {
+      size = 12000 * bitrate / frequency;
+      if(frequency==0 && padding) size++;
+      size <<= 2;
+  }
+  else
+  {
+      size = 144000 * bitrate / (frequency<<version);
+      if(padding) size++;
+  }
+  if(framesize) *framesize = size;
+  if(frametime) *frametime = 8.0 * size / (1000. * bitrate);
+  
+  return(4); /* Audio header size */
+}
+
+/* Search the next valid audio header */
+static inline bool audio_aligned(Uint8 *pointer, Uint32 size)
+{
+    Uint32 i, s;
+
+    /* Check on all data available that next headers are aligned too */
+    for(i = 0; i + 3 < size && audio_header(pointer+i, &s, 0); i+=s);
+
+    if(i + 3 < size)
+	return(false);
+    else
+	return(true);
+}
+
+/* Return true if there is a valid sequence header at the beginning of pointer */
+static inline Uint32 sequence_header(Uint8 * pointer, Uint32 size, double * _frametime)
+{
+  double frametime;
+  Uint32 header_size;
+
+  header_size = 0;
+  if((header_size+=4) >= size) return(header_size);
+  if(!Match4(pointer, VIDEO_CODE, VIDEO_MASK)) 
+    return(0); /* Not a sequence start code */
+  
+  /* Parse the sequence header information */
+  if((header_size+=8) >= size) return(header_size);
+  switch(pointer[7]&0xF)                /*  4 bits of fps */
+  {
+    case 1: frametime = 1/23.97; break;
+    case 2: frametime = 1/24.00; break;
+    case 3: frametime = 1/25.00; break;
+    case 4: frametime = 1/29.97; break;
+    case 5: frametime = 1/30.00; break;
+    case 6: frametime = 1/50.00; break;
+    case 7: frametime = 1/59.94; break;
+    case 8: frametime = 1/60.00; break;
+    case 9: frametime = 1/15.00; break;
+    default: frametime = 1/30.00; break;
+  }
+
+  if(_frametime) *_frametime = frametime;
+  
+  return(header_size); /* sequence header size */
+}
+
+/* Return true if there is a valid gop header at the beginning of pointer */
+static inline Uint32 gop_header(Uint8 * pointer, Uint32 size)
+{
+  Uint32 header_size;
+
+  header_size = 0;
+  if((header_size+=4) >= size) return(header_size);
+  if(!Match4(pointer, GOP_CODE, GOP_MASK)) 
+    return(0); /* Not a gop start code */
+  
+  /* Parse the gop header information */
+  if((header_size+=4) >= size) return(header_size);
+  
+  return(header_size); /* gop header size */
+}
+
+/* Return true if there is a valid picture header at the beginning of pointer */
+static inline Uint32 picture_header(Uint8 * pointer, Uint32 size)
+{
+  Uint32 header_size;
+
+  header_size = 0;
+  if((header_size+=4) >= size) return(header_size);
+
+  if(!Match4(pointer, PICTURE_CODE, PICTURE_MASK)) 
+    return(0); /* Not a picture start code */
+  
+  /* Parse the picture header information */
+  if((header_size+=4) >= size) return(header_size);
+  
+  return(header_size); /* picture header size */
+}
+
+/* Return true if there is a valid slice header at the beginning of pointer */
+static inline Uint32 slice_header(Uint8 * pointer, Uint32 size)
+{
+  Uint32 header_size;
+
+  header_size = 0;
+  if((header_size+=4) >= size) return(header_size);
+  if(!(Match4(pointer, SLICE_CODE, SLICE_MASK) && 
+       pointer[3] >= 0x01 && pointer[3] <= 0xaf)) 
+    return(0); /* Not a slice start code */
+  
+  return(header_size); /* slice header size */
+}
+
 static inline double read_time_code(Uint8 *pointer)
 { 
   double timestamp;
@@ -97,6 +250,126 @@ static inline double read_time_code(Uint8 *pointer)
   return timestamp;
 }
 
+/* Return true if there is a valid packet header at the beginning of pointer */
+static inline Uint32 packet_header(Uint8 * pointer, Uint32 size, double * _timestamp)
+{
+  double timestamp;
+  Uint32 header_size;
+
+  header_size = 0;
+  if((header_size+=4) >= size) return(header_size);
+  if(!Match4(pointer, PACKET_CODE, PACKET_MASK)) 
+    return(0); /* Not a packet start code */
+
+  /* Parse the packet information */
+  if((header_size+=8) >= size) return(header_size);
+  timestamp = read_time_code(pointer+4);
+
+  if(_timestamp) *_timestamp = timestamp;
+  
+  return(header_size); /* packet header size */
+}
+
+/* Return true if there is a valid stream header at the beginning of pointer */
+static inline Uint32 stream_header(Uint8 * pointer, Uint32 size, Uint32 * _packet_size, Uint8 * _stream_id, double * _stream_timestamp)
+{
+  Uint32 header_size, packet_size;
+  Uint8 stream_id;
+  double stream_timestamp;
+
+  header_size = 0;
+  if((header_size += 4) >= size) return(header_size); 
+
+  if(!Match4(pointer, SYSTEMSTREAM_CODE, SYSTEMSTREAM_MASK) &&
+     !Match4(pointer, AUDIOSTREAM_CODE, AUDIOSTREAM_MASK) &&
+     !Match4(pointer, VIDEOSTREAM_CODE, VIDEOSTREAM_MASK))
+    return(0); /* Unknown encapsulated stream */
+
+  /* Parse the stream packet */
+  /* Get the stream id, and packet length */
+  stream_id = pointer[3];
+
+  pointer += 4;
+  if((header_size += 2) >= size) return(header_size); 
+  packet_size = (((unsigned short) pointer[0] << 8) | pointer[1]);
+  pointer += 2;
+
+  /* Skip stuffing bytes */
+  while ( pointer[0] == 0xff ) {
+      ++pointer;
+      if((++header_size) >= size) return(header_size); 
+      --packet_size;
+  }
+  if ( (pointer[0] & 0x40) == 0x40 ) {
+      pointer += 2;
+      if((header_size += 2) >= size) return(header_size); 
+      packet_size -= 2;
+  }
+  if ( (pointer[0] & 0x20) == 0x20 ) {
+      /* get the PTS */
+      stream_timestamp = read_time_code(pointer);
+      /* we don't care about DTS */
+      if ( (pointer[0] & 0x30) == 0x30 ){
+	pointer += 5;
+	if((header_size += 5) >= size) return(header_size); 
+	packet_size -= 5;
+      }
+      pointer += 4;
+      if((header_size += 4) >= size) return(header_size); 
+      packet_size -= 4;
+  }
+  else if ( pointer[0] != 0x0f && pointer[0] != 0x80)
+      return(0);      /* not a valid header */
+  else
+      stream_timestamp = -1;
+    
+  if((++header_size) >= size) return(header_size); 
+  --packet_size;
+
+  if(_packet_size) *_packet_size = packet_size;
+  if(_stream_id) *_stream_id = stream_id;
+  if(_stream_timestamp) *_stream_timestamp = stream_timestamp;
+  
+  return(header_size);
+}
+
+/* Search the next valid audio header */
+static inline bool system_aligned(Uint8 *pointer, Uint32 size)
+{
+    Uint32 i, s;
+
+    /* Check that packet contains at least one stream */
+    i = 0;
+    while((s = packet_header(pointer+i, size-i, 0)) != 0)
+      if((i+=s) >= size) return(true);
+
+    if((s = stream_header(pointer+i, size-i, 0, 0, 0)) != 0)
+      return(true);
+    else
+      return(false);
+}
+
+/* Skip possible zeros at the beggining of the packet */
+Uint32 skip_zeros(Uint8 * pointer, Uint32 size)
+{
+  Uint32 header_size;
+  Uint8 const one[4]  = {0x00,0x00,0x00,0x01};
+
+  header_size = 0;
+  while(Match4(pointer, ZERO_CODE, FULL_MASK))
+  {
+    pointer++;
+    if((++header_size) >= size - 4) return(header_size); 
+
+    if(Match4(pointer, one, FULL_MASK))
+    {
+      pointer++;
+      if((++header_size) >= size - 4) return(header_size); 
+    }
+  }
+  return(header_size);
+}
+
 MPEGsystem::MPEGsystem(int Mpeg_FD)
 {
   mpeg_fd = Mpeg_FD;
@@ -111,6 +384,8 @@ MPEGsystem::MPEGsystem(int Mpeg_FD)
   packet_total = 0;
   endofstream = errorstream = false;
   looping = false;
+  frametime = 0.0;
+  stream_timestamp = 0.0;
 
   /* Create an empty stream list */
   stream_list = 
@@ -121,14 +396,13 @@ MPEGsystem::MPEGsystem(int Mpeg_FD)
   if(!get_stream(SYSTEM_STREAMID))
     add_stream(new MPEGstream(this, SYSTEM_STREAMID));
 
-#ifdef USE_SYSTEM_TIMESTAMP
   timestamp = 0.0;
   timedrift = 0.0;
   skip_timestamp = -1;
-#endif
+  start_timestamp = -1;
 
-  /* Search the MPEG for the first header */
-  if(!seek_next_header())
+  /* Search the MPEG for the next header */
+  if(!seek_first_header())
   {
     errorstream = true;
     SetError("Could not find the beginning of MPEG data\n");
@@ -258,10 +532,7 @@ Uint8 MPEGsystem::FillBuffer()
 {
   Uint8 stream_id;
   Uint32 packet_size;
-  Uint8 const zero[4] = {0x00,0x00,0x00,0x00};
-  Uint8 const one[4]  = {0x00,0x00,0x00,0x01};
-  Uint8 const mask[4] = {0xff,0xff,0xff,0xff};
-  double stream_timestamp;
+  Uint32 header_size;
 
   /* - Read a new packet - */
   Read();
@@ -269,88 +540,26 @@ Uint8 MPEGsystem::FillBuffer()
   if(Eof()) 
     return(0);
 
-  /* If there is only audio or video information give the packet */
-  /* without parsing it */
-  if(((stream_list[0]->streamid & 0xc0) == 0xc0) || /* audio only stream */
-     ((stream_list[0]->streamid & 0xe0) == 0xe0))   /* video only stream */
-  {
-    packet_size = read_buffer + read_size - pointer;
+  pointer += skip_zeros(pointer, read_buffer + read_size - pointer); 
 
-    /* Insert the new data at the end of the stream */
-    stream_list[0]->insert_packet(pointer, packet_size);
-    pointer += packet_size;
-    return(stream_list[0]->streamid);
+  if((header_size = packet_header(pointer, read_buffer + read_size - pointer, &timestamp)) != 0)
+  {
+      pointer += header_size;
+      stream_list[0]->pos += header_size;
+      if(start_timestamp == -1) start_timestamp = timestamp;
+#ifdef DEBUG_SYSTEM
+      fprintf(stderr, "MPEG packet header time: %lf\n", timestamp);
+#endif
   }
 
-  /* Skip possible zeros at the beggining of the packet */
-  while(Match4(pointer, zero, mask))
+  if((header_size = stream_header(pointer, read_buffer + read_size - pointer, &packet_size, &stream_id, &stream_timestamp)) != 0)
   {
-    pointer++;
-    Read();
-    if(Eof())
-      return(0);
-
-    if(Match4(pointer, one, mask))
-      pointer++;
-  }
-
-  /* Parse the packet header */
-  if(Match4(pointer, PACKET_CODE, PACKET_MASK))
-  {
-    /* Parse the packet information */
-    pointer += 4;
-    timestamp = read_time_code(pointer);
-    pointer += 8;
-  }
-
-  /* Parse the stream packet */
-  if(Match4(pointer, SYSTEMSTREAM_CODE, SYSTEMSTREAM_MASK) ||
-     Match4(pointer, PADSTREAM_CODE, PADSTREAM_MASK) ||
-     Match4(pointer, AUDIOSTREAM_CODE, AUDIOSTREAM_MASK) ||
-     Match4(pointer, VIDEOSTREAM_CODE, VIDEOSTREAM_MASK))
-  {
-    /* Get the stream id, and packet length */
-    stream_id = pointer[3];
-    pointer += 4;
-    packet_size = (((unsigned short) pointer[0] << 8) | pointer[1]);
-    pointer += 2;
-
-    /* Skip stuffing bytes */
-    while ( pointer[0] == 0xff ) {
-      ++pointer;
-      --packet_size;
-    }
-    if ( (pointer[0] & 0x40) == 0x40 ) {
-      pointer += 2;
-      packet_size -= 2;
-    }
-    if ( (pointer[0] & 0x20) == 0x20 ) {
-      /* get the PTS */
-      stream_timestamp = read_time_code(pointer);
-      /* we don't care about DTS */
-      if ( (pointer[0] & 0x30) == 0x30 ){
-	pointer += 5;
-	packet_size -= 5;
-      }
-      pointer += 4;
-      packet_size -= 4;
-    } else if ( pointer[0] != 0x0f && pointer[0] != 0x80) {
-      /* Huh? there is something wrong, try to catch next header */
-      pointer++;
-      if(!seek_next_header())
-      	errorstream = true;
-      return(0);
-    } else
-      stream_timestamp = -1;
-    
-    ++pointer;
-    --packet_size;
-
-    if(read_buffer + read_size - pointer < 0)
-    {
-      errorstream = true;
-      return(0);
-    }
+      pointer += header_size;
+      stream_list[0]->pos += header_size;
+#ifdef DEBUG_SYSTEM
+      fprintf(stderr, "[%d] MPEG stream header [%d|%d] id: %d streamtime: %lf\n", read_total - read_size + (pointer - read_buffer),
+header_size, packet_size, stream_id, stream_timestamp);
+#endif
   }
   else
   if(Match4(pointer, END_CODE, END_MASK) ||
@@ -365,29 +574,85 @@ Uint8 MPEGsystem::FillBuffer()
     stream_id = stream_list[0]->streamid;
 
     if(!stream_list[1])
-    {
+    { 
+      Uint8 * packet_end;
+
+      packet_size = 0;
+
       /* There is no system info in the stream */
 
       /* If we're still a system stream, morph to an audio */
       /* or video stream */
 
-      if(Match4(pointer, AUDIO_CODE, AUDIO_MASK) &&
-	 (pointer[2] & 0xf0) != 0xf0 &&
-	 (pointer[2] & 0xf0) != 0x00) /* Check for a valid mpeg audio header : bitrate != 0 */
-      {
-	stream_id = AUDIO_STREAMID;
-	stream_list[0]->streamid = stream_id;
-      }
-      if(Match4(pointer, VIDEO_CODE, VIDEO_MASK))
+      /* Sequence header -> gives framerate */
+      while((header_size = sequence_header(pointer+packet_size, read_buffer + read_size - pointer - packet_size, &frametime)) != 0)
       {
 	stream_id = VIDEO_STREAMID;
 	stream_list[0]->streamid = stream_id;
+	packet_size += header_size;
+#ifdef DEBUG_SYSTEM
+	fprintf(stderr, "MPEG sequence header  frametime: %lf\n", frametime);
+#endif
+      }
+
+      /* GOP header */
+      while((header_size = gop_header(pointer+packet_size, read_buffer + read_size - pointer - packet_size)) != 0)
+      {
+	packet_size += header_size; 
+#ifdef DEBUG_SYSTEM
+	fprintf(stderr, "MPEG gop header\n");
+#endif
+      }
+
+      /* Picture header */
+      while((header_size = picture_header(pointer+packet_size, read_buffer + read_size - pointer - packet_size)) != 0)
+      {
+	packet_size += header_size;    // Warning: header size not quite correct (can be not byte aligned)
+	stream_timestamp += frametime; // but this is compensated by skipping a little more, as we don't need to be header aligned	
+	packet_size += 4;              // after this, since we then check for the next header to know the slice size.
+#ifdef DEBUG_SYSTEM
+	fprintf(stderr, "MPEG picture header\n");
+#endif
+      }
+
+      /* Slice header */
+      while((header_size = slice_header(pointer+packet_size, read_buffer + read_size - pointer - packet_size)) != 0)
+      {
+	packet_size += header_size;    
+#ifdef DEBUG_SYSTEM
+	fprintf(stderr, "MPEG slice header\n");
+#endif
+      }
+
+      /* Audio frame */
+      if(audio_header(pointer+packet_size, &packet_size, &frametime))
+      {
+	  stream_id = AUDIO_STREAMID;
+	  stream_list[0]->streamid = stream_id;
+	  stream_timestamp += frametime;
+#ifdef DEBUG_SYSTEM
+	  fprintf(stderr, "MPEG audio header [%d] time: %lf @ %lf\n", packet_size, frametime, stream_timestamp);
+#endif
+      }
+      else
+      {
+	/* Check for next slice, picture, gop or sequence header */
+	for(; (packet_size <= read_buffer + read_size - pointer - 4) && 
+	      !(sequence_header(pointer+packet_size, read_buffer - pointer + read_size - packet_size, &frametime) ||
+		gop_header(pointer+packet_size, read_buffer - pointer + read_size - packet_size) ||
+		picture_header(pointer+packet_size, read_buffer - pointer + read_size - packet_size) ||
+		slice_header(pointer+packet_size, read_buffer - pointer + read_size - packet_size))
+	      ; packet_size++);
+	if(packet_size > read_buffer - pointer + read_size - 4)
+	{
+	  SetError("Could not find next video header\n");
+	  errorstream = true;
+	  return(0);
+	}
       }
 
       if(stream_id == SYSTEM_STREAMID)
 	stream_id = 0;
-
-      packet_size = read_buffer + read_size - pointer;
     }
     else
     {
@@ -398,9 +663,10 @@ Uint8 MPEGsystem::FillBuffer()
 		pointer[1],
 		pointer[2],
 		pointer[3],
-		Tell() - read_size + (pointer - read_buffer));
+		read_total - read_size + (pointer - read_buffer));
 #endif
 	pointer++;
+	stream_list[0]->pos++;
 	seek_next_header();
 	return(0);
     }
@@ -420,6 +686,7 @@ Uint8 MPEGsystem::FillBuffer()
               int(timestamp)/60, cur_seconds);
     }
     pointer += packet_size;
+    stream_list[0]->pos += packet_size;
     /* since we skip data, request more */
     RequestBuffer();
     return (1);
@@ -430,6 +697,7 @@ Uint8 MPEGsystem::FillBuffer()
     case 0:
       /* Unknown stream, just get another packet */
       pointer += packet_size;
+      stream_list[0]->pos += packet_size;
     return(stream_id);
 
     case SYSTEM_STREAMID:
@@ -440,6 +708,7 @@ Uint8 MPEGsystem::FillBuffer()
     
       /* Read the stream table */
       pointer += 5;
+      stream_list[0]->pos += 5;
 
       while (pointer[0] & 0x80 )
       {
@@ -450,6 +719,7 @@ Uint8 MPEGsystem::FillBuffer()
 	  add_stream(new MPEGstream(this, pointer[1]));
 	}
 	pointer += 3;
+	stream_list[0]->pos += 3;
       }          
       /* Hack to detect video streams that are not advertised */
       if ( ! exist_stream(VIDEO_STREAMID, 0xF0) ) {
@@ -487,14 +757,24 @@ Uint8 MPEGsystem::FillBuffer()
 	{
 	  /* No stream found for packet, skip it */
 	  pointer += packet_size;
+	  stream_list[0]->pos += packet_size;
 	  return(stream_id);
 	}
       }
 
       /* Insert the new data at the end of the stream */
-      stream->insert_packet(pointer, packet_size, stream_timestamp);
-      pointer += packet_size;
-    return(stream_id);
+      if(pointer + packet_size < read_buffer + read_size)
+      {
+	stream->insert_packet(pointer, packet_size, stream_timestamp);
+	pointer += packet_size;
+      }
+      else
+      {
+	stream->insert_packet(pointer, 0, stream_timestamp);
+	errorstream = true;
+	pointer = read_buffer + read_size;
+      }
+      return(stream_id);
   }
 }
 
@@ -507,23 +787,45 @@ void MPEGsystem::Skip(double time)
  
 Uint32 MPEGsystem::Tell()
 {
-  /* Warning: 32 bits means that files > 4Go might return bad values */
-  return(read_total);
+  register int t;
+  register int i;
+
+  /* Sum all stream positions */
+  for(i = 0, t = 0; stream_list[i]; i++)
+    t += stream_list[i]->pos;
+
+  return(t);
 }
 
 Uint32 MPEGsystem::TotalSize()
 {
-#ifndef WIN32
-    struct stat st;
-    Uint32 size;
+  Uint32 size;
+  Uint32 pos;
 
-    if(!fstat(mpeg_fd, &st))
-      return(st.st_size);
-    else
-      return(0);
-#else
-#error "Not implemented"
-#endif
+  /* I made it this way (instead of fstat) to avoid #ifdef WIN32 everywhere */
+  /* in case 'in some weird perversion of nature' someone wants to port this to Win32 :-) */
+ if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) == (off_t) -1)
+  {
+    errorstream = true;
+    SetError(strerror(errno));
+    return(0);
+  }
+
+ if((size = lseek(mpeg_fd, 0, SEEK_END)) == (off_t) -1)
+  {
+    errorstream = true;
+    SetError(strerror(errno));  
+    return(0);
+  }
+  
+ if((pos = lseek(mpeg_fd, pos, SEEK_SET)) == (off_t) -1)
+  {
+    errorstream = true;
+    SetError(strerror(errno));  
+    return(0);
+  }
+
+  return(size);
 }
 
 void MPEGsystem::Rewind()
@@ -556,19 +858,24 @@ double MPEGsystem::Seek(int length)
   /* Reinitialize the read buffer */
   pointer = read_buffer;
   read_size = 0;
-  read_total = 0;
+  read_total = length;
+  stream_list[0]->pos += length;
   packet_total = 0;
   endofstream = false;
   errorstream = false;
+  timestamp = 0.0;
+  start_timestamp = -1;
+  skip_timestamp = -1;
 
   /* Get the first header */
-  if(!seek_next_header())
+  if(!seek_first_header())
   {
-    errorstream = true;
-    SetError("Could not find the beginning of MPEG data\n");
-    return (-1);
+    if(!Eof())
+    {
+      errorstream = true;
+      SetError("Could not find the beginning of MPEG data\n");
+    }
   }
-
   request = PRE_BUFFERED_MAX;
 
   /* Start the system thread */
@@ -580,12 +887,16 @@ double MPEGsystem::Seek(int length)
 
   /* Wait for prebuffering */
   while(request > 0 && !Eof())
+  {
+    if(timestamp > 0 && start_timestamp < 0)
+      start_timestamp = timestamp;
+
     SDL_Delay(1);
+  }
 
-  /* Get current play time */
-  FillBuffer();
+  if(start_timestamp < 0) start_timestamp = 0.0;
 
-  return(timestamp);
+  return(start_timestamp);
 }
 
 void MPEGsystem::Loop(bool toggle)
@@ -646,7 +957,7 @@ int MPEGsystem::SystemThread(void * udata)
       system->errorstream = false;
 
       /* Get the first header */
-      if(!system->seek_next_header())
+      if(!system->seek_first_header())
       {
 	system->errorstream = true;
 	system->SetError("Could not find the beginning of MPEG data\n");
@@ -745,6 +1056,28 @@ void MPEGsystem::loop_all_streams(bool toggle)
     stream_list[i]->loop(toggle);
 }
 
+bool MPEGsystem::seek_first_header()
+{
+  Read();
+
+  if(Eof())
+    return(false);
+
+  while(!(audio_aligned(pointer, read_buffer + read_size - pointer) ||
+	  system_aligned(pointer, read_buffer + read_size - pointer) ||
+ 	  Match4(pointer, VIDEO_CODE, VIDEO_MASK)))
+  {
+       ++pointer;
+       stream_list[0]->pos++;
+      /* Make sure buffer is always full */
+      Read();
+
+      if(Eof())
+	return(false);
+  }
+  return(true);
+}
+
 bool MPEGsystem::seek_next_header()
 {
   Read();
@@ -752,25 +1085,23 @@ bool MPEGsystem::seek_next_header()
   if(Eof())
     return(false);
 
-  while(!(Match4(pointer, PACKET_CODE, PACKET_MASK) ||
-	  Match4(pointer, VIDEO_CODE, VIDEO_MASK) ||
-	  (Match4(pointer, AUDIO_CODE, AUDIO_MASK) &&
-	   /* Check for a valid mpeg audio header : bitrate != 0 */ 
-	   ((pointer[2] & 0xf0) != 0xf0) && ((pointer[2] & 0xf0) != 0)) ||
-	  Match4(pointer, END_CODE, END_MASK) ||
-	  Match4(pointer, VIDEOSTREAM_CODE, VIDEOSTREAM_MASK) ||
-	  Match4(pointer, AUDIOSTREAM_CODE, AUDIOSTREAM_MASK) ||
-	  Match4(pointer, GOP_CODE, GOP_MASK) ||
-	  Match4(pointer, USER_CODE, USER_MASK) ||
-	  Match4(pointer, PICTURE_CODE, PICTURE_MASK)))
+  while(!( ((stream_list[0]->streamid == AUDIO_STREAMID) && audio_aligned(pointer, read_buffer + read_size - pointer)) ||
+	   ((stream_list[0]->streamid == SYSTEM_STREAMID) && system_aligned(pointer, read_buffer + read_size - pointer)) ||
+	   ((stream_list[0]->streamid == VIDEO_STREAMID) && (
+							     Match4(pointer, VIDEO_CODE, VIDEO_MASK) ||
+							     Match4(pointer, END_CODE, END_MASK) ||
+							     Match4(pointer, GOP_CODE, GOP_MASK) ||
+							     Match4(pointer, PICTURE_CODE, PICTURE_MASK)))
+	) )
   {
        ++pointer;
-
+       stream_list[0]->pos++;
       /* Make sure buffer is always full */
       Read();
 
       if(Eof())
 	return(false);
   }
+
   return(true);
 }

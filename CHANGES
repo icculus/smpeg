@@ -1,4 +1,6 @@
 0.4.0:
+Vivien Chappelier - Fri May 26 10:53:44 PDT 2000
+ * Added a movable progress slidebar to gtv
 Vivien, Manuel - Wed May 17 17:36:39 PDT 2000
  * Added support for timestamp synchronization in the MPEG stream
 Vivien, Damien - Mon May  8 11:06:08 PDT 2000
