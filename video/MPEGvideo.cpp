@@ -106,7 +106,6 @@ int quietFlag = 1;
                0: as fast as possible
                N (N>0): N frames/sec  
                */
-#define TIME_MPEG
 #ifdef TIME_MPEG
 int framerate = 0;
 #else
