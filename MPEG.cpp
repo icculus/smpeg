@@ -410,10 +410,10 @@ bool MPEG::seekIntoStream(int position)
   /* Seek first aligned data */
   if(audiostream && audioaction_enabled)
     while(audiostream->time() == -1)
-      audiostream->next_packet();
+      if ( ! audiostream->next_packet() ) return false;
   if(videostream && videoaction_enabled)
     while(videostream->time() == -1)
-      videostream->next_packet();
+      if ( ! videostream->next_packet() ) return false;
 
   /* Calculating current play time on audio only makes sense when there
      is no video */  
