@@ -36,6 +36,7 @@ void Color16DitherImageMMX( unsigned char *lum, unsigned char *cr,
                          unsigned char *cb, unsigned char *out,
                          int rows, int cols, int mod )
 {
+#ifdef USE_MMX
     unsigned short *row1;
     unsigned short *row2;
     row1 = (unsigned short* )out;         // 32 bit target
@@ -207,5 +208,6 @@ void Color16DitherImageMMX( unsigned char *lum, unsigned char *cr,
       __asm__ __volatile__(
          "emms\n"
          );
+#endif /* USE_MMX */
 }
 
