@@ -148,7 +148,7 @@ private:
 
 /* The actual MPEG audio class */
 class MPEGaudio : public MPEGerror, public MPEGaudioaction {
-    friend class MPEG;
+
     friend void Play_MPEGaudioSDL(void *udata, Uint8 *stream, int len);
     friend int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len);
 #ifdef THREADED_AUDIO
@@ -359,9 +359,6 @@ private:
   /********************/
   /* Timestamp sync   */
   /********************/
-
-  void setPlayTime (double time);
-
 public:
 #define N_TIMESTAMPS 5
 

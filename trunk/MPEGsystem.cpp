@@ -1062,24 +1062,11 @@ Uint32 MPEGsystem::TotalSize()
 
 double MPEGsystem::TotalTime()
 {
-    return TimeElapsed(0);
-}
-
-/* I don't think special calculation is needed for video,
-   but it's definitely needed for audio. This should work for
-   both. - JD */
-double MPEGsystem::TimeElapsed(int atByte)
-{
   off_t size, pos;
   off_t file_ptr;
   Uint8 * buffer, * p;
   double time;
 
-  if (atByte < 0)
-  {
-      return -1;
-  }
-  
   /* Lock to avoid concurrent access to the stream */
   SDL_mutexP(system_mutex);
 
@@ -1163,8 +1150,7 @@ double MPEGsystem::TimeElapsed(int atByte)
     audio_header(p, &framesize, &frametime);
     totalsize = TotalSize();
     if(framesize)
-      //is there a better way to do this?
-      time = (frametime * (atByte ? atByte:totalsize)) / framesize;
+      time = frametime * totalsize / framesize;
   }
   else
   {

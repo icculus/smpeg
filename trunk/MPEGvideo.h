@@ -42,11 +42,6 @@ class MPEGvideo : public MPEGerror, public MPEGvideoaction {
     /* Thread to play the video asynchronously */
     friend int Play_MPEGvideo(void *udata);
 
-    /* For when seek() is used - to update current "play time"
-       The same thing is in MPEGaudio. Ugly but I couldn't get
-       friend <functionname> to work! */
-    friend class MPEG;
-
     /* Various mpeg_play functions that need our data */
     friend VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first );
     friend int get_more_data( VidStream* vid_stream );
@@ -106,11 +101,6 @@ protected:
     SDL_mutex* _filter_mutex; // make sure the filter is not changed while being used
 
     void RewindStream(void);
-private:
-    /* This is needed, I think, because of the way inheritance
-       and 'friend' works. play_time is in MPEGaction.h, and that's
-       two levels of inheritance above us */
-    void setPlayTime(double time);
 };
 
 #endif /* _MPEGVIDEO_H_ */
