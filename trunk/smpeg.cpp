@@ -165,7 +165,16 @@ void SMPEG_loop( SMPEG* mpeg, int repeat )
 /* Scale pixel display on an SMPEG object */
 void SMPEG_scale( SMPEG* mpeg, int scale )
 {
-    mpeg->obj->ScaleDisplay(scale);
+    MPEG_VideoInfo vinfo;
+
+    if ( mpeg->obj->videostream != NULL ) {
+        mpeg->obj->GetVideoInfo(&vinfo);
+        mpeg->obj->ScaleDisplayXY(vinfo.width*scale, vinfo.height*scale);
+    }
+}
+void SMPEG_scaleXY( SMPEG* mpeg, int w, int h )
+{
+    mpeg->obj->ScaleDisplayXY(w, h);
 }
 
 /* Move the video display area within the destination surface */

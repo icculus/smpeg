@@ -83,7 +83,7 @@ public:
     bool SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
 		                 MPEG_DisplayCallback callback);
     void MoveDisplay(int x, int y);
-    void ScaleDisplay(int scale);
+    void ScaleDisplayXY(int w, int h);
     void RenderFrame(int frame);
     void RenderFinal(SDL_Surface *dst, int x, int y);
 

@@ -1,4 +1,8 @@
 0.4.0:
+Sam Lantinga - Thu Apr 27 18:22:04 PDT 2000
+ * Added support for arbitrary output scaling:
+	new API function SMPEG_scaleXY()
+ * Added -scale wxh option to plaympeg
 Sam Lantinga - Mon Apr 24 16:11:58 PDT 2000
  * A much improved semaphore based ring buffer implementation
 Sam Lantinga, Ryan Gordon - Mon Apr 24 14:12:59 PDT 2000

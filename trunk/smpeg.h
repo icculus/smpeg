@@ -121,6 +121,7 @@ extern DECLSPEC void SMPEG_setdisplay(SMPEG* mpeg, SDL_Surface* dst, SDL_mutex* 
 extern DECLSPEC void SMPEG_loop( SMPEG* mpeg, int repeat );
 
 /* Scale pixel display on an SMPEG object */
+extern DECLSPEC void SMPEG_scaleXY( SMPEG* mpeg, int width, int height );
 extern DECLSPEC void SMPEG_scale( SMPEG* mpeg, int scale );
 /* */
 #define SMPEG_double(mpeg, on) \
