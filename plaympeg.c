@@ -164,7 +164,6 @@ int main(int argc, char *argv[])
         while (!SDL_QuitRequested() && (SMPEG_status(mpeg) == SMPEG_PLAYING)) {
             SDL_Delay(1000/2);
         }
-printf("Deleting mpeg\n");
         SMPEG_delete(mpeg);
     }
     exit(0);
