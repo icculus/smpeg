@@ -40,6 +40,8 @@ struct MPEGstream_marker
     Uint8 *marked_stop;
 };
 
+typedef struct MPEGstream_marker MPEGstream_marker;
+
 struct MPEGstream {
     Uint32 pos;
     Uint8 streamid;

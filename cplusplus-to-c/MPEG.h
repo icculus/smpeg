@@ -60,6 +60,8 @@ struct MPEG
 
     char *mpeg_mem;       // Used to copy MPEG passed in as memory
     SDL_RWops *source;
+//    MPEGaudioaction *audioaction;
+//    MPEGvideoaction *videoaction;
     MPEGaudioaction *audioaction;
     MPEGvideoaction *videoaction;
 
@@ -74,7 +76,7 @@ struct MPEG
     bool loop;
     bool pause;
 
-    struct MPEGerror *MPEGerror;
+    struct MPEGerror *error;
 };
 
 typedef struct MPEG MPEG;

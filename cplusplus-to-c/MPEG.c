@@ -103,7 +103,7 @@ MPEG_Init (MPEG* self, SDL_RWops *mpeg_source, bool SDLaudio)
     self->system = MPEGsystem_new(self->source);
 
     /* Initialize everything to invalid values for cleanup */
-    self->MPEGerror->error = NULL;
+    self->error->error = NULL;
 
     self->audiostream = self->videostream = NULL;
     self->audioaction = NULL;
@@ -124,25 +124,25 @@ MPEG_Init (MPEG* self, SDL_RWops *mpeg_source, bool SDLaudio)
     }
 
 //    if ( self->system && system->WasError() ) {
-    if ( self->system && MPEGerror_WasError(self->system->MPEGerror) ) {
+    if ( self->system && MPEGerror_WasError(self->system->error) ) {
 //      SetError(system->TheError());
-      MPEG_SetError(self, MPEGerror_TheError(self->system->MPEGerror));
+      MPEG_SetError(self, MPEGerror_TheError(self->system->error));
     }
 
-    if ( self->audio && MPEGerror_WasError(self->audio->MPEGerror) ) {
+    if ( self->audio && MPEGerror_WasError(self->audio->error) ) {
 //      SetError(audio->TheError());
-      MPEG_SetError(self, MPEGerror_TheError(self->audio->MPEGerror));
+      MPEG_SetError(self, MPEGerror_TheError(self->audio->error));
     }
 
-    if ( self->video && MPEGerror_WasError(self->video->MPEGerror) ) {
+    if ( self->video && MPEGerror_WasError(self->video->error) ) {
 //      SetError(video->TheError());
-      MPEG_SetError(self, MPEGerror_TheError(self->video->MPEGerror));
+      MPEG_SetError(self, MPEGerror_TheError(self->video->error));
     }
 
 //    if ( WasError() ) {
-    if ( MPEGerror_WasError(self->MPEGerror) ) {
+    if ( MPEGerror_WasError(self->error) ) {
 //      SetError(TheError());
-      MPEG_SetError(self, MPEGerror_TheError(self->MPEGerror));
+      MPEG_SetError(self, MPEGerror_TheError(self->error));
     }
 }
 
@@ -152,7 +152,7 @@ MPEG_InitErrorState (MPEG *self)
     self->audio = NULL;
     self->video = NULL;
     self->system = NULL;
-    self->MPEGerror->error = NULL;
+    self->error->error = NULL;
     self->source = NULL;
 
     self->audiostream = self->videostream = NULL;
@@ -199,7 +199,8 @@ MPEG_EnableAudio (MPEG *self, bool enabled)
   /* Stop currently playing stream, if necessary */
   if ( self->audioaction && ! self->audioaction_enabled ) {
 //    audioaction->Stop();  /* XXX */
-    MPEGaudio_Stop(self->audioaction);
+//    MPEGaudio_Stop(self->audioaction);
+    self->audioaction->Stop(self->audioaction);
   } 
   /* Set the video time source */
   if ( self->videoaction ) {
@@ -224,20 +225,21 @@ MPEG_VideoEnabled (MPEG *self)
 
 void MPEG_EnableVideo (MPEG *self, bool enabled)
 {
-  if ( self->enabled && ! self->videoaction ) {
-    self->enabled = false;
+  if ( self->videostream->enabled && ! self->videoaction ) {
+    self->videostream->enabled = false;
   }
   self->videoaction_enabled = enabled;
 
   /* Stop currently playing stream, if necessary */
   if ( self->videoaction && ! self->videoaction_enabled ) {
 //    videoaction->Stop(); /* XXX: */
-    MPEGvideo_Stop(self->videoaction);
+//    MPEGvideo_Stop(self->videoaction);
+    self->videoaction->Stop(self->videoaction);
   } 
   if(self->videostream)
 //    videostream->enable(enabled); /* XXX */
-    self->videostream->enable(self->videostream, enabled);
-    MPEGstream_enable(self->videostream);
+//    self->videostream->enable(self->videostream, self->videostream->enabled);
+    MPEGstream_enable(self->videostream, self->videostream->enabled);
 }
 
 /* MPEG actions */
@@ -247,15 +249,18 @@ MPEG_Loop (MPEG *self, bool toggle)
   self->loop = toggle;
 }
 
+void
 MPEG_Play (MPEG *self)
 {
   if ( MPEG_AudioEnabled(self) ) {
 //    audioaction->Play(); /* XXX */
-    MPEGaudio_Play(self->audioaction);
+//    MPEGaudio_Play(self->audioaction);
+    self->audioaction->Play(self->audioaction);
   }
   if ( MPEG_VideoEnabled(self) ) {
 //    videoaction->Play(); /* XXX */
-    MPEGvideo_Play(self->videoaction);
+//    MPEGvideo_Play(self->videoaction);
+    self->videoaction->Play(self->videoaction);
   }
 }
 
@@ -264,11 +269,13 @@ MPEG_Stop (MPEG *self)
 {
   if ( MPEG_VideoEnabled(self) ) {
 //    videoaction->Stop(); /* XXX */
-    MPEGvideo_Stop(self->videoaction);
+//    MPEGvideo_Stop(self->videoaction);
+    self->videoaction->Stop(self->videoaction);
   }
   if ( MPEG_AudioEnabled(self) ) {
 //    audioaction->Stop(); /* XXX */
-    MPEGaudio_Stop(self->audioaction);
+//    MPEGaudio_Stop(self->audioaction);
+    self->audioaction->Stop(self->audioaction);
   }
 }
 
@@ -303,7 +310,8 @@ MPEG_GetStatus (MPEG *self)
   if ( MPEG_VideoEnabled(self) ) {
 		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
 //    switch (videoaction->GetStatus()) { /* XXX */
-    switch (MPEGvideo_GetStatus(self->videoaction)) {
+//    switch (MPEGvideo_GetStatus(self->videoaction)) {
+    switch (self->videoaction->GetStatus(self->videoaction)) {
       case MPEG_PLAYING:
         status = MPEG_PLAYING;
       break;
@@ -314,7 +322,8 @@ MPEG_GetStatus (MPEG *self)
   if ( MPEG_AudioEnabled(self) ) {
 		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
 //    switch (audioaction->GetStatus()) { /* XXX */
-    switch (MPEGaudio_GetStatus(self->audioaction)) {
+//    switch (MPEGaudio_GetStatus(self->audioaction)) {
+    switch (self->audioaction->GetStatus(self->audioaction)) {
       case MPEG_PLAYING:
         status = MPEG_PLAYING;
       break;
@@ -334,7 +343,8 @@ MPEG_GetStatus (MPEG *self)
     if ( MPEG_VideoEnabled(self) ) {
 		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
 //      switch (videoaction->GetStatus()) { /* XXX */
-      switch (MPEGvideo_GetStatus(self->videoaction)) {
+//      switch (MPEGvideo_GetStatus(self->videoaction)) {
+      switch (self->videoaction->GetStatus(self->videoaction)) {
       case MPEG_PLAYING:
         status = MPEG_PLAYING;
 	break;
@@ -345,7 +355,8 @@ MPEG_GetStatus (MPEG *self)
     if ( MPEG_AudioEnabled(self) ) {
 		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
 //      switch (audioaction->GetStatus()) { /* XXX */
-      switch (MPEGaudio_GetStatus(self->audioaction)) {
+//      switch (MPEGaudio_GetStatus(self->audioaction)) {
+      switch (self->audioaction->GetStatus(self->audioaction)) {
       case MPEG_PLAYING:
         status = MPEG_PLAYING;
 	break;
@@ -365,7 +376,8 @@ MPEG_GetAudioInfo (MPEG *self, MPEG_AudioInfo *info)
 {
   if ( MPEG_AudioEnabled(self) ) {
 //    return(audioaction->GetAudioInfo(info)); /* XXX */
-    return(MPEGaudio_GetAudioInfo(self->audioaction, info));
+//    return(MPEGaudio_GetAudioInfo(self->audioaction, info));
+    return(self->audioaction->GetAudioInfo(self->audioaction, info));
   }
   return(false);
 }
@@ -375,7 +387,8 @@ MPEG_Volume (MPEG *self, int vol)
 {
   if ( MPEG_AudioEnabled(self) ) {
 //    audioaction->Volume(vol); /* XXX */
-    MPEGaudio_Volume(self->audioaction, vol);
+//    MPEGaudio_Volume(self->audioaction, vol);
+    self->audioaction->Volume(self->audioaction, vol);
   }
 }
 
@@ -390,7 +403,7 @@ MPEG_WantedSpec (MPEG *self, SDL_AudioSpec *wanted)
 }
 
 void
-MPEG_ActualSpec (MEPG *self, const SDL_AudioSpec *actual)
+MPEG_ActualSpec (MPEG *self, const SDL_AudioSpec *actual)
 {
   if( self->audiostream ) {
 //    GetAudio()->ActualSpec(actual); /* XXX */
@@ -411,7 +424,8 @@ MPEG_GetVideoInfo (MPEG *self, MPEG_VideoInfo *info)
 {
   if ( MPEG_VideoEnabled(self) ) {
 //    return(videoaction->GetVideoInfo(info)); /* XXX */
-    return (MPEGvideo_GetVideoInfo(self->videoaction, info));
+//    return (MPEGvideo_GetVideoInfo(self->videoaction, info));
+    return (self->videoaction->GetVideoInfo(self->videoaction, info));
   }
   return(false);
 }
@@ -421,7 +435,8 @@ MPEG_SetDisplay (MPEG *self, SDL_Surface *dst, SDL_mutex *lock, MPEG_DisplayCall
 {
   if ( MPEG_VideoEnabled(self) ) {
 //    return(videoaction->SetDisplay(dst, lock, callback)); /* XXX */
-    return (MPEGvideo_SetDisplay(self->videoaction, dst, lock, callback));
+//    return (MPEGvideo_SetDisplay(self->videoaction, dst, lock, callback));
+    return (self->videoaction->SetDisplay(self->videoaction, dst, lock, callback));
   }
   return(false);
 }
@@ -431,7 +446,9 @@ MPEG_MoveDisplay (MPEG *self, int x, int y)
 {
   if ( MPEG_VideoEnabled(self) ) {
 //    videoaction->MoveDisplay(x, y); /* XXX */
-    return (MPEGvideo_MoveDisplay(self->videoaction, x, y));
+//    return (MPEGvideo_MoveDisplay(self->videoaction, x, y));
+//    return (self->videoaction->MoveDisplay(self->videoaction, x, y));
+    MPEGvideoaction_MoveDisplay(self->videoaction, x, y);
   }
 }
 
@@ -440,7 +457,8 @@ MPEG_ScaleDisplay (MPEG *self, int w, int h)
 {
   if ( MPEG_VideoEnabled(self) ) {
 //    videoaction->ScaleDisplayXY(w, h); /* XXX */
-    return (MPEGvideo_ScaleDisplayXY(self->videoaction, w, h));
+//    return (MPEGvideo_ScaleDisplayXY(self->videoaction, w, h));
+    return (self->videoaction->ScaleDisplayXY(self->videoaction, w, h));
   }
 }
 
@@ -449,7 +467,8 @@ MPEG_SetDisplayRegion (MPEG *self, int x, int y, int w, int h)
 {
   if ( MPEG_VideoEnabled(self) ) {
 //    videoaction->SetDisplayRegion(x, y, w, h); /* XXX */
-    return (MPEGvideo_SetDisplayRegion(self->videoaction, x, y, w, h));
+//    return (MPEGvideo_SetDisplayRegion(self->videoaction, x, y, w, h));
+    return (self->videoaction->SetDisplayRegion(self->videoaction, x, y, w, h));
   }
 }
 
@@ -458,7 +477,8 @@ MPEG_RenderFrame (MPEG *self, int frame)
 {
     if ( MPEG_VideoEnabled(self) ) {
 //        videoaction->RenderFrame(frame); /* XXX */
-        MPEGvideo_RenderFrame(self->videoaction, frame);
+//        MPEGvideo_RenderFrame(self->videoaction, frame);
+        self->videoaction->RenderFrame(self->videoaction, frame);
     }
 }
 
@@ -469,10 +489,12 @@ MPEG_RenderFinal (MPEG *self, SDL_Surface *dst, int x, int y)
     MPEG_Stop(self);
     if ( MPEG_VideoEnabled(self) ) {
 //        videoaction->RenderFinal(dst, x, y); /* XXX */
-        MPEGvideo_RenderFinal(self->videoaction, dst, x, y);
+//        MPEGvideo_RenderFinal(self->videoaction, dst, x, y);
+        self->videoaction->RenderFinal(self->videoaction, dst, x, y);
     }
 //    Rewind(); /* XXX */
     MPEG_Rewind(self);
+//    self->Rewind(self);
 }
 
 
@@ -481,7 +503,8 @@ MPEG_Filter (MPEG *self, SMPEG_Filter *filter)
 {
   if ( MPEG_VideoEnabled(self) ) {
 //    return(videoaction->Filter(filter)); /* XXX */
-    return (MPEGvideo_Filter(self->videoaction, filter));
+    return (MPEGvideo_Filter(self->video, filter));
+//    return (self->videoaction->Filter(self->videoaction, filter));
   }
   return 0;
 }
@@ -493,7 +516,7 @@ MPEG_Seek (MPEG *self, int position)
 
   /* Cannot seek past end of file */
 //  if((Uint32)self->position > system->TotalSize()) return; /* XXX */
-  if((Uint32)self->position > MPEGsystem_TotalSize(self->system)) return;
+  if((Uint32)position > MPEGsystem_TotalSize(self->system)) return;
   
 	/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name with popcorn */
   /* get info whrether we need to restart playing at the end */
@@ -510,15 +533,15 @@ MPEG_Seek (MPEG *self, int position)
 
   if (MPEG_VideoEnabled(self) && !was_playing) 
 //    videoaction->RenderFrame(0); /* XXX */
-    MPEGvideo_RenderFrame(self->videoaction, 0);
+    MPEGvideo_RenderFrame(self->video, 0);
 
-  if ( self->pause && MPEG_VideoEnabled(self)() ) {
+  if ( self->pause && MPEG_VideoEnabled(self) ) {
 //    videoaction->Pause(); /* XXX */
-    MPEGvideo_Pause(self->videoaction);
+    MPEGvideo_Pause(self->video);
   }
   if ( self->pause && MPEG_AudioEnabled(self) ) {
 //    audioaction->Pause(); /* XXX */
-    MPEGaudio_Pause(self->audioaction);
+    MPEGaudio_Pause(self->audio);
   }
 }
 
@@ -549,20 +572,20 @@ MPEG_seekIntoStream (MPEG *self, int position)
      is no video */  
   if ( self->audioaction && !self->videoaction) {
 //    audioaction->Rewind(); /* XXX */
-    MPEGaudio_Rewind(self->audioaction);
+    MPEGaudio_Rewind(self->audio);
 //    audioaction->ResetSynchro(system->TimeElapsedAudio(position)); /* XXX */
     MPEGaudio_ResetSynchro(MPEGsystem_TimeElapsedAudio(self->system, position));
   }
   /* And forget what we previouly buffered */
   else if ( self->audioaction ) {
 //    audioaction->Rewind(); /* XXX */
-    MPEGaudio_Rewind(self->audioaction);
+    MPEGaudio_Rewind(self->audio);
 //    audioaction->ResetSynchro(audiostream->time()); /* XXX */
     MPEGaudio_ResetSynchro(MPEGstream_time(self->audiostream));
   }
   if ( self->videoaction ) {
 //    videoaction->Rewind(); /* XXX */
-    MPEGvideo_Rewind(self->videoaction);
+    MPEGvideo_Rewind(self->video);
 //    videoaction->ResetSynchro(videostream->time()); /* XXX */
     MPEGvideo_ResetSynchro(MPEGstream_time(self->videostream));
   }
@@ -584,10 +607,10 @@ MPEG_Skip (MPEG *self, float seconds)
     /* No system information in MPEG */
 //    if( MPEG_VideoEnabled(self) ) videoaction->Skip(seconds); /* XXX */
     if ( MPEG_VideoEnabled(self) )
-        MPEGvideo_Skip(self->videoaction, seconds);
+        MPEGvideo_Skip(self->video, seconds);
 //    if( MPEG_AudioEnabled(self) ) audioaction->Skip(seconds); /* XXX */
     if (MPEG_AudioEnabled(self))
-        MPEGaudio_Skip(self->audioaction, seconds);
+        MPEGaudio_Skip(self->audio, seconds);
   }
 }
 
@@ -606,10 +629,10 @@ MPEG_GetSystemInfo (MPEG *self, MPEG_SystemInfo *sinfo)
   sinfo->current_time = 0;
   if( self->videoaction ) 
 //    sinfo->current_time = videoaction->Time(); /* XXX */
-    sinfo->current_time = MPEGvideo_Time(self->videoaction);
+    sinfo->current_time = MPEGvideo_Time(self->video);
   if( self->audioaction )
 //    sinfo->current_time = audioaction->Time(); /* XXX */
-    sinfo->current_time = MPEGaudio_Time(self->audioaction);
+    sinfo->current_time = MPEGaudio_Time(self->audio);
 }
 
 void
@@ -640,8 +663,8 @@ MPEG_parse_stream_list (MPEG *self)
 //	self->audiostream->next_packet(); /* XXX */
 	MPEGsystem_next_packet(self->audiostream);
 //	self->audio = new MPEGaudio(audiostream, sdlaudio);  /* XXX */
-	self->audio = MPEGaudio_new(audiostream, sdlaudio);
-	self->audioaction = audio;
+	self->audio = MPEGaudio_new(self->audiostream, self->sdlaudio);
+	self->audioaction = self->audio;
       break;
 
       case VIDEO_STREAMID:
@@ -650,8 +673,8 @@ MPEG_parse_stream_list (MPEG *self)
 //	self->videostream->next_packet(); /* XXX */
 	MPEGsystem_next_packet(self->videostream);
 //	self->video = new MPEGvideo(videostream); /* XXX */
-	self->video = MPEGvideo_new(videostream);
-	self->videoaction = video;
+	self->video = MPEGvideo_new(self->videostream);
+	self->videoaction = self->video;
       break;
     }
 

@@ -32,15 +32,18 @@
 
 /* This is the MPEG video stream structure in the mpeg_play code */
 struct vid_stream;
-typedef struct vid_stream VidStream;
+//typedef struct vid_stream VidStream;
+#define VidStream struct vid_stream
 
 /* Temporary definition of time stamp structure. */
 
 typedef double TimeStamp;
 
 struct MPEGvideo {
+    struct MPEGerror *error;
     struct MPEGstream *mpeg;
-    struct MPEGvideoaction *videoaction;
+//    MPEGvideoaction *videoaction;
+    struct MPEGaction *videoaction;
 
     VidStream *_stream;
     SDL_Surface *_dst;
@@ -60,8 +63,6 @@ struct MPEGvideo {
     SMPEG_Filter *_filter; // pointer to the current filter used
     SDL_mutex *_filter_mutex; // make sure the filter is not changed while being used
 
-    struct MPEGerror *MPEGerror;
-    struct MPEGvideoaction *MPEGvideoaction;
 };
 
 typedef struct MPEGvideo MPEGvideo;
@@ -74,7 +75,7 @@ VidStream *mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
 int get_more_data( VidStream* vid_stream );
 
 struct MPEGvideo *MPEGvideo_new(struct MPEGstream *stream);
-struct MPEGvideo *MPEGvideo_destroy(struct MPEGvideo *self);
+void MPEGvideo_destroy(struct MPEGvideo *self);
 
 /* MPEG actions */
 void MPEGvideo_Play(MPEGvideo *self);
@@ -88,22 +89,24 @@ MPEGstatus MPEGvideo_GetStatus(MPEGvideo *self);
 
 /* MPEG video actions */
 bool MPEGvideo_GetVideoInfo(MPEGvideo *self, MPEG_VideoInfo *info);
-bool MPEGvideo_SetDisplay(MPEGvideo *self, SDL_Surface *dst, pthread_mutex_t *lock, MPEG_DisplayCallback callback);
+//bool MPEGvideo_SetDisplay(MPEGvideo *self, SDL_Surface *dst, pthread_mutex_t *lock, MPEG_DisplayCallback callback);
+bool MPEGvideo_SetDisplay(MPEGvideo *self, SDL_Surface *dst, SDL_mutex *lock, MPEG_DisplayCallback callback);
 void MPEGvideo_MoveDisplay(MPEGvideo *self, int x, int y);
 void MPEGvideo_ScaleDisplayXY(MPEGvideo *self, int w, int h);
 void MPEGvideo_SetDisplayRegion(MPEGvideo *self, int x, int y, int w, int h);
 void MPEGvideo_RenderFrame(MPEGvideo *self, int frame);
 void MPEGvideo_RenderFinal(MPEGvideo *self, SDL_Surface *dst, int x, int y);
 
-SMPEG_Filter *Filter(SMPEG_Filter * filter);
+SMPEG_Filter *MPEGvideo_Filter(MPEGvideo *self, SMPEG_Filter * filter);
 
 /* Display and sync functions */
 void MPEGvideo_DisplayFrame( MPEGvideo *self, VidStream* vid_stream );
-void MPEGvideo_ExecuteDisplay( VidStream* vid_stream );
-int MPEGvideo_timeSync( VidStream* vid_stream );
+void MPEGvideo_ExecuteDisplay( MPEGvideo *self, VidStream* vid_stream );
+int MPEGvideo_timeSync( MPEGvideo *self, VidStream* vid_stream );
 
 /* Yes, it's a hack.. */
-MPEGaudioaction *MPEGvideo_TimeSource(MPEGvideo *self);
+MPEGaction *MPEGvideo_TimeSource(MPEGvideo *self);
 void RewindStream(void);
 
+#undef VidStream //struct vid_stream
 #endif /* _MPEGVIDEO_H_ */

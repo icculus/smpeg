@@ -604,7 +604,7 @@ struct MPEGaudio {
 
   double timestamp[N_TIMESTAMPS];
 
-  MPEGerror *MPEGerror;
+//  MPEGerror *error;
 };
 
 typedef struct MPEGaudio MPEGaudio;
