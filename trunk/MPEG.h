@@ -58,7 +58,7 @@ public:
                 while ( data[0] & 0x80 ) {
 #ifndef PROFILE_VIDEO
                     if ( (data[1] == AUDIO_STREAMID) && !audiostream ) {
-                        audiostream = new MPEG(mpeg, size, data[1]);
+                        audiostream = new MPEG(mpeg, size, data[1], sdlaudio);
                         if ( audiostream->WasError() ) {
                             SetError(audiostream->TheError());
                         }
@@ -67,7 +67,7 @@ public:
                     } else
 #endif
                     if ( (data[1] == VIDEO_STREAMID) && !videostream ) {
-                        videostream = new MPEG(mpeg, size, data[1]);
+                        videostream = new MPEG(mpeg, size, data[1], sdlaudio);
                         if ( videostream->WasError() ) {
                             SetError(videostream->TheError());
                         }

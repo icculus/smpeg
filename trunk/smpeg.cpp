@@ -188,19 +188,19 @@ void SMPEG_renderFinal( SMPEG* mpeg, SDL_Surface* dst, int x, int y )
 void SMPEG_playAudio(void *udata, Uint8 *stream, int len)
 {
     MPEGaudio *audio = ((SMPEG *)udata)->obj->mpeg->GetAudio();
-	Play_MPEGaudio(audio, stream, len);
+    Play_MPEGaudio(audio, stream, len);
 }
 
 /* Get the best SDL audio spec for the audio stream */
 int SMPEG_wantedSpec( SMPEG *mpeg, SDL_AudioSpec *wanted )
 {
-	return (int)mpeg->obj->WantedSpec(wanted);
+    return (int)mpeg->obj->WantedSpec(wanted);
 }
 
 /* Inform SMPEG of the actual SDL audio spec used for sound playback */
 void SMPEG_actualSpec( SMPEG *mpeg, SDL_AudioSpec *spec )
 {
-	mpeg->obj->ActualSpec(spec);
+    mpeg->obj->ActualSpec(spec);
 }
 
 /* Return NULL if there is no error in the MPEG stream, or an error message
