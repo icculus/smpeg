@@ -295,12 +295,12 @@ void MPEG::ScaleDisplay(int scale) {
     videoaction->ScaleDisplay(scale);
   }
 }
-void MPEG::RenderFrame(int frame, SDL_Surface *dst, int x, int y) {
+void MPEG::RenderFrame(int frame) {
   /* Prevent acces to the audio stream to avoid filling it */
   if( audiostream ) audiostream->enable(false);
 
   if ( VideoEnabled() ) {
-    videoaction->RenderFrame(frame, dst, x, y);
+    videoaction->RenderFrame(frame);
   }
 
   if( audiostream ) audiostream->enable(true);

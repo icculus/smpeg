@@ -152,6 +152,7 @@ extern const int scan[][8];
 /* Structure with reconstructed pixel values. */
 
 typedef struct pict_image {
+  SDL_Overlay *image;                    /* YV12 format image  */
   unsigned char *luminance;              /* Luminance plane.   */
   unsigned char *Cr;                     /* Cr plane.          */
   unsigned char *Cb;                     /* Cb plane.          */
@@ -285,6 +286,7 @@ typedef struct vid_stream {
   PictImage *future;                           /* Future predictive frame.   */
   PictImage *current;                          /* Current frame.             */
   PictImage *ring[RING_BUF_SIZE];              /* Ring buffer of frames.     */
+  PictImage *saved_ring[RING_BUF_SIZE];        /* Saved ring of frames.      */
 
 /* KR - beginning of added variables */
   int rate_deal;

@@ -66,7 +66,7 @@ public:
                                             MPEG_DisplayCallback callback);
     void MoveDisplay(int x, int y);
     void ScaleDisplay(int scale);
-    void RenderFrame(int frame, SDL_Surface *dst, int x, int y);
+    void RenderFrame(int frame);
     void RenderFinal(SDL_Surface *dst, int x, int y);
 
     /* Yes, it's a hack.. */
@@ -78,7 +78,7 @@ protected:
     MPEGstream *mpeg;
 
     VidStream* _stream;
-    SDL_Surface* _surf;
+    SDL_Surface* _dst;
     SDL_mutex* _mutex;
     SDL_Thread* _thread;
 
@@ -89,13 +89,7 @@ protected:
     int _h;             // height of movie
     int _x;             // pixel x offset
     int _y;             // pixel y offset
-    int _uw;            // update width
-    int _uh;            // update height
     float _fps;         // frames per second
-
-    int _lum[ 8 ];  	// hardcoded LUM_RANGE = 8
-    int _cr[ 4 ];   	// hardcoded CR_RANGE = 4
-    int _cb[ 4 ];   	// hardcoded CB_RANGE = 4
 
     void RewindStream(void);
 };

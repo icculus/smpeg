@@ -84,7 +84,7 @@ public:
 		                 MPEG_DisplayCallback callback);
     void MoveDisplay(int x, int y);
     void ScaleDisplay(int scale);
-    void RenderFrame(int frame, SDL_Surface *dst, int x, int y);
+    void RenderFrame(int frame);
     void RenderFinal(SDL_Surface *dst, int x, int y);
 
 public:

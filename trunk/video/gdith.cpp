@@ -79,16 +79,6 @@
    -lsh@cs.brown.edu (Loring Holden)
 */
 
-/* Range values for lum, cr, cb. */
-int LUM_RANGE;
-int CR_RANGE;
-int CB_RANGE;
-
-/* Arrays holding quantized value ranged for lum, cr, and cb. */
-int *lum_values;
-int *cr_values;
-int *cb_values;
-
 /* Frame Rate Info */
 extern int framerate;
 
@@ -98,147 +88,6 @@ extern int framerate;
    be nice and do it */
 static int VidRateNum[16]={ 30, 24, 24, 25, 30, 30, 50, 60, 
                             60, 15, 30, 30, 30, 30, 30, 30 };
-
-/* Luminance and chrominance lookup tables */
-static double *L_tab, *Cr_r_tab, *Cr_g_tab, *Cb_g_tab, *Cb_b_tab;
-
-
-/*
- *--------------------------------------------------------------
- *
- * InitColor --
- *
- *	Initialize lum, cr, and cb quantized range value arrays.
- *      Also initializes the lookup tables for the possible
- *      values of lum, cr, and cb.
- *    Color values from ITU-R BT.470-2 System B, G and SMPTE 170M
- *    see InitColorDither in 16bits.c for more
- *
- * Results: 
- *      None.
- *
- * Side effects:
- *      None.
- *
- *--------------------------------------------------------------
- */
-
-void InitColor()
-{
-  int i, CR, CB;
-
-  if ( L_tab ) free(L_tab);
-  L_tab    = (double *)malloc(LUM_RANGE*sizeof(double)); 
-  if ( Cr_r_tab ) free(Cr_r_tab);
-  Cr_r_tab = (double *)malloc(CR_RANGE*sizeof(double));
-  if ( Cr_g_tab ) free(Cr_g_tab);
-  Cr_g_tab = (double *)malloc(CR_RANGE*sizeof(double));
-  if ( Cb_g_tab ) free(Cb_g_tab);
-  Cb_g_tab = (double *)malloc(CB_RANGE*sizeof(double));
-  if ( Cb_b_tab ) free(Cb_b_tab);
-  Cb_b_tab = (double *)malloc(CB_RANGE*sizeof(double));
-
-  if (L_tab == NULL    || Cr_r_tab == NULL ||
-      Cr_g_tab == NULL || Cb_g_tab == NULL ||
-      Cb_b_tab == NULL) {
-    fprintf(stderr, "Could not alloc memory in InitColor\n");
-    exit(1);
-  }
-
-  for (i=0; i<LUM_RANGE; i++) {
-    lum_values[i]  = ((i * 256) / (LUM_RANGE)) + (256/(LUM_RANGE*2));
-    L_tab[i] = lum_values[i];
-    if (gammaCorrectFlag) {
-      L_tab[i] = GAMMA_CORRECTION(L_tab[i]);
-    }
-  }
-  
-  for (i=0; i<CR_RANGE; i++) {
-    register double tmp;
-    if (chromaCorrectFlag) {
-      tmp = ((i * 256) / (CR_RANGE)) + (256/(CR_RANGE*2));
-      Cr_r_tab[i] = (int) (0.419/0.299) * CHROMA_CORRECTION128D(tmp - 128.0);
-      Cr_g_tab[i] = (int) -(0.299/0.419) * CHROMA_CORRECTION128D(tmp - 128.0);
-      cr_values[i] = CHROMA_CORRECTION256(tmp);
-    } else {
-      tmp = ((i * 256) / (CR_RANGE)) + (256/(CR_RANGE*2));
-      Cr_r_tab[i] = (int)  (0.419/0.299) * (tmp - 128.0);
-      Cr_g_tab[i] = (int) -(0.299/0.419) * (tmp - 128.0);
-      cr_values[i] = (int) tmp;
-    }
-  }
-
-  for (i=0; i<CB_RANGE; i++) {
-    register double tmp;
-    if (chromaCorrectFlag) {
-      tmp = ((i * 256) / (CB_RANGE)) + (256/(CB_RANGE*2));
-      Cb_g_tab[i] = (int) -(0.114/0.331) * CHROMA_CORRECTION128D(tmp - 128.0);
-      Cb_b_tab[i] = (int)  (0.587/0.331) * CHROMA_CORRECTION128D(tmp - 128.0);
-      cb_values[i] = CHROMA_CORRECTION256(tmp);
-    } else {
-      tmp = ((i * 256) / (CB_RANGE)) + (256/(CB_RANGE*2));
-      Cb_g_tab[i] = (int) -(0.114/0.331) * (tmp - 128.0);
-      Cb_b_tab[i] = (int)  (0.587/0.331) * (tmp - 128.0);
-      cb_values[i] = (int) tmp;
-    }
-  }
-
-}
-
-
-/*
- *--------------------------------------------------------------
- *
- * ConvertColor --
- *
- *	Given a l, cr, cb tuple, converts it to r,g,b.
- *
- * Results:
- *	r,g,b values returned in pointers passed as parameters.
- *
- * Side effects:
- *      None.
- *
- *--------------------------------------------------------------
- */
-
-void ConvertColor( unsigned int l, unsigned int cr, unsigned int cb,
-                   unsigned char* r, unsigned char* g, unsigned char* b )
-{
-    double fl, fcr, fcb, fr, fg, fb;
-
-    /*
-     * Old method w/o lookup table
-     *
-     * fl = 1.164*(((double) l)-16.0);
-     * fcr =  ((double) cr) - 128.0;
-     * fcb =  ((double) cb) - 128.0;
-     *
-     * fr = fl + (1.366 * fcr);
-     * fg = fl - (0.700 * fcr) - (0.334 * fcb);
-     * fb = fl + (1.732 * fcb);
-     */
-
-    fl = L_tab[l];
-
-    fr = fl + Cr_r_tab[cr];
-    fg = fl + Cr_g_tab[cr] + Cb_g_tab[cb];
-    fb = fl + Cb_b_tab[cb];
-
-    if (fr < 0.0) fr = 0.0;
-    else if (fr > 255.0) fr = 255.0;
-
-    if (fg < 0.0) fg = 0.0;
-    else if (fg > 255.0) fg = 255.0;
-
-    if (fb < 0.0) fb = 0.0;
-    else if (fb > 255.0) fb = 255.0;
-
-    *r = (unsigned char) fr;
-    *g = (unsigned char) fg;
-    *b = (unsigned char) fb;
-}
-
 
 #ifdef CALCULATE_FPS
 static inline void TimestampFPS( VidStream* vid_stream )
@@ -408,104 +257,31 @@ printf("A lot behind, skipping %d frames\n", vid_stream->_skipFrame);
 
 /* Do the hard work of copying from the video stream working buffer to the
    screen display and then calling the update callback.
-   This has been optimized for writing to 16-bit SDL surfaces.
 */
 void DisplayCurrentFrame( VidStream* vid_stream )
 {
-#ifdef USE_MMX
-    extern int mmx_available;
-#endif
-    unsigned char* l = vid_stream->current->luminance;
-    unsigned char* Cr = vid_stream->current->Cr;
-    unsigned char* Cb = vid_stream->current->Cb;
-    unsigned char* disp;
+    SDL_Rect dstrect;
     MPEGvideo* mpeg = (MPEGvideo*) vid_stream->_smpeg;
 
-    if ( SDL_MUSTLOCK(mpeg->_surf) ) {
-        if ( SDL_LockSurface(mpeg->_surf) < 0 ) {
-            return;
-        }
-    }
-    disp = (unsigned char*) mpeg->_surf->pixels;
-    disp += mpeg->_x * 2;
-    disp += mpeg->_surf->pitch * mpeg->_y;
+    SDL_UnlockYUVOverlay(vid_stream->current->image);
 
     if ( mpeg->_mutex )
         SDL_mutexP( mpeg->_mutex );
 
-    if( mpeg->_scale != 1 )
-    {
-#ifdef USE_INTERLACED_VIDEO
-        static int start = 1;
-        if ( mpeg->_surf->format->BytesPerPixel == 2 ) {
-	  ScaleColor16DitherImageModInterlace( l, Cr, Cb, disp,
-					       vid_stream->v_size, vid_stream->h_size,
-					       (mpeg->_surf->pitch / 2) - (vid_stream->h_size * mpeg->_scale), start, mpeg->_scale);
-	}
-        start = !start;
-#else
-        if ( mpeg->_surf->format->BytesPerPixel == 2 ) {
-            ScaleColor16DitherImageMod( l, Cr, Cb, disp,
-					vid_stream->v_size, vid_stream->h_size,
-					(mpeg->_surf->pitch / 2) - (vid_stream->h_size * mpeg->_scale), mpeg->_scale);
-        } else
-        if ( mpeg->_surf->format->BytesPerPixel == 4 ) {
-            ScaleColor32DitherImageMod( l, Cr, Cb, disp,
-					vid_stream->v_size, vid_stream->h_size,
-					(mpeg->_surf->pitch / 4) - (vid_stream->h_size * mpeg->_scale), mpeg->_scale);
-        }
-#endif
-        if ( SDL_MUSTLOCK(mpeg->_surf) ) {
-            SDL_UnlockSurface(mpeg->_surf);
-        }
-        mpeg->_callback( mpeg->_surf, mpeg->_x, mpeg->_y,
-                     vid_stream->h_size * mpeg->_scale, vid_stream->v_size * mpeg->_scale );
-    }
-    else
-    {
-#ifdef USE_INTERLACED_VIDEO
-        static int start = 1;
-        if ( mpeg->_surf->format->BytesPerPixel == 2 ) {
-        	Color16DitherImageModInterlace( l, Cr, Cb, disp,
-                         vid_stream->v_size, vid_stream->h_size,
-                         (mpeg->_surf->pitch / 2) - vid_stream->h_size, start );
-	}
-        start = !start;
-#else
-        if ( mpeg->_surf->format->BytesPerPixel == 2 ) {
-#ifdef USE_MMX
-            if ( mmx_available ) {
-                Color16DitherImageMMX( l, Cr, Cb, disp,
-                         vid_stream->v_size, vid_stream->h_size,
-                         (mpeg->_surf->pitch / 2) - vid_stream->h_size );
-            } else
-#endif
-            Color16DitherImageMod( l, Cr, Cb, disp,
-                         vid_stream->v_size, vid_stream->h_size,
-                         (mpeg->_surf->pitch / 2) - vid_stream->h_size );
-        } else
-        if ( mpeg->_surf->format->BytesPerPixel == 4 ) {
-#ifdef USE_MMX
-            if ( mmx_available ) {
-                Color32DitherImageMMX( l, Cr, Cb, disp,
-                         vid_stream->v_size, vid_stream->h_size,
-                         (mpeg->_surf->pitch / 4) - vid_stream->h_size );
-            } else
-#endif
-            Color32DitherImageMod( l, Cr, Cb, disp,
-                         vid_stream->v_size, vid_stream->h_size,
-                         (mpeg->_surf->pitch / 4) - vid_stream->h_size );
-        }
-#endif
-        if ( SDL_MUSTLOCK(mpeg->_surf) ) {
-            SDL_UnlockSurface(mpeg->_surf);
-        }
-        mpeg->_callback( mpeg->_surf, mpeg->_x, mpeg->_y,
-                         vid_stream->h_size, vid_stream->v_size );
-    }
+    dstrect.x = mpeg->_x;
+    dstrect.y = mpeg->_y;
+    dstrect.w = vid_stream->h_size * mpeg->_scale;
+    dstrect.h = vid_stream->v_size * mpeg->_scale;
+
+    SDL_DisplayYUVOverlay(vid_stream->current->image, &dstrect);
+
+    if ( mpeg->_callback )
+        mpeg->_callback(mpeg->_dst, dstrect.x, dstrect.y, dstrect.w, dstrect.h);
 
     if ( mpeg->_mutex )
         SDL_mutexV( mpeg->_mutex );
+
+    SDL_LockYUVOverlay(vid_stream->current->image);
 }
 
 /*

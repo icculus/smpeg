@@ -108,14 +108,6 @@ int quietFlag = 1;
                */
 int framerate = -1;
 
-/* Flag for gamma correction */
-int gammaCorrectFlag = 0;
-double gammaCorrect = 1.0;
-
-/* Flag for chroma correction */
-int chromaCorrectFlag = 0;
-double chromaCorrect = 1.0;
-
 /* Flag for high quality at the expense of speed */
 #ifdef QUALITY
 int qualityFlag = 1;
@@ -139,7 +131,7 @@ MPEGvideo::MPEGvideo(MPEGstream *stream)
     _x = 0;
     _y = 0;
     _scale = 1;
-    _surf = NULL;
+    _dst = NULL;
     _mutex = NULL;
     _stream = NULL;
 
@@ -360,33 +352,11 @@ bool
 MPEGvideo:: SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
                              MPEG_DisplayCallback callback)
 {
-    _surf = dst;
     _mutex = lock;
-    if( callback ) {
-        _callback = callback;
-    } else {
-        _callback = SDL_UpdateRect;
-    }
-
-    LUM_RANGE = 8;
-    CR_RANGE = 4;
-    CB_RANGE = 4;
-
-    lum_values = _lum;
-    cr_values  = _cr;
-    cb_values  = _cb;
+    _dst = dst;
+    _callback = callback;
 
     decodeInitTables();
-
-    InitColor();
-    {
-        /* Replace InitColorDisplay() */
-
-        InitColorDither(dst->format->BitsPerPixel,
-                        dst->format->Rmask,
-                        dst->format->Gmask,
-                        dst->format->Bmask);
-    }
 
     InitCrop();
     InitIDCT();
@@ -406,6 +376,8 @@ MPEGvideo:: SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
             return false;
         }
     }
+    if ( ! InitPictImages(_stream, _w, _h, _dst) )
+        return false;
     return true;
 }
 
@@ -429,22 +401,12 @@ MPEGvideo:: ScaleDisplay( int scale )
 }
 
 
+/* API CHANGE: This function no longer takes a destination surface and x/y
+   You must use SetDisplay() and MoveDisplay() to set those attributes.
+*/
 void
-MPEGvideo:: RenderFrame( int frame, SDL_Surface* dst, int x, int y )
+MPEGvideo:: RenderFrame( int frame )
 {
-    int saved_x, saved_y;
-    SDL_Surface *saved_surf;
-
-    /* Save original mpeg stream parameters */
-    saved_x = _x;
-    saved_y = _y;
-    saved_surf = _surf;
-
-    /* Set the parameters for this render */
-    _x = x;
-    _y = y;
-    _surf = dst;
-
     if( _stream->totNumFrames > frame ) {
         mpeg->rewind_stream();
 	mpeg->next_packet();
@@ -460,18 +422,12 @@ MPEGvideo:: RenderFrame( int frame, SDL_Surface* dst, int x, int y )
     }
 
     _stream->_jumpFrame = -1;
-
-    /* Now restore the parameters */
-    _x = saved_x;
-    _y = saved_y;
-    _surf = saved_surf;
 }
 
 void
 MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
 {
-    int saved_x, saved_y;
-    SDL_Surface *saved_surf;
+    SDL_Overlay *yuv;
 
     Stop();
 
@@ -511,27 +467,25 @@ MPEGvideo:: RenderFinal(SDL_Surface *dst, int x, int y)
 
         /* Process all frames without displaying any */
         _stream->_skipFrame = 1;
-        RenderFrame( INT_MAX, dst, x, y );
+        RenderFrame( INT_MAX );
 	mpeg->garbage_collect();
     }
 
-    /* Save original mpeg stream parameters */
-    saved_x = _x;
-    saved_y = _y;
-    saved_surf = _surf;
-
-    /* Set the parameters for this render */
-    _x = x;
-    _y = y;
-    _surf = dst;
-
-    /* Display the last frame processed */
-    DisplayCurrentFrame( _stream );
-
-    /* Now restore the parameters */
-    _x = saved_x;
-    _y = saved_y;
-    _surf = saved_surf;
+    /* Create a temporary YUV surface and display the frame */
+    yuv = SDL_CreateYUVOverlay(_w, _h, SDL_YV12_OVERLAY, dst);
+    if ( yuv ) {
+        SDL_Rect dstrect;
+        if ( SDL_LockYUVOverlay(yuv) == 0 ) {
+            memcpy(yuv->pixels, _stream->current->image, (_w*_h)+2*(_w*_h)/4);
+            SDL_UnlockYUVOverlay(yuv);
+            dstrect.x = x;
+            dstrect.y = x;
+            dstrect.w = _w*_scale;
+            dstrect.h = _h*_scale;
+            SDL_DisplayYUVOverlay(yuv, &dstrect);
+        }
+        SDL_FreeYUVOverlay(yuv);
+    }
 }
 
 

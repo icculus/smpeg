@@ -585,13 +585,7 @@ static void gtv_step( GtkWidget* item, gpointer raw )
 	active = gtk_toggle_button_get_active( GTK_TOGGLE_BUTTON( twotimes ) );
 	sdl_screen = (SDL_Surface*) gtk_object_get_data( GTK_OBJECT( raw ), "sdl_screen" );
 
-	if( active ) {
-	    SMPEG_renderFrame( mpeg, next_frame, sdl_screen, 0, 0 );
-	} else {
-	    SMPEG_renderFrame( mpeg, next_frame, sdl_screen,
-			       ( sdl_screen->w - info->width ) / 2,
-			       ( sdl_screen->h - info->height ) / 2 );
-	}
+	SMPEG_renderFrame( mpeg, next_frame );
 
 	SMPEG_getinfo( mpeg, info );
 

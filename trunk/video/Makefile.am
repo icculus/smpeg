@@ -2,9 +2,6 @@
 noinst_LTLIBRARIES = libvideo.la
 
 libvideo_la_SOURCES =		\
-	16bit.cpp		\
-	16bit_mmx.cpp		\
-	32bit_mmx.cpp		\
 	MPEGvideo.cpp		\
 	decoders.cpp		\
 	decoders.h		\
