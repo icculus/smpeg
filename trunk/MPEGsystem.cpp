@@ -396,6 +396,7 @@ MPEGsystem::MPEGsystem(int Mpeg_FD)
 
   /* Create a mutex to avoid concurrent access to the stream */
   system_mutex = SDL_CreateMutex();
+  request_wait = SDL_CreateSemaphore(0);
 
   /*
      We are not being passed data, so we don't need to simulate
@@ -436,8 +437,6 @@ MPEGsystem::MPEGsystem(int Mpeg_FD)
     SetError("Could not find the beginning of MPEG data\n");
     return;
   }
-  
-  request_wait = SDL_CreateSemaphore(0);
 
 #ifdef USE_SYSTEM_THREAD
   /* Start the system thread */
@@ -468,6 +467,7 @@ MPEGsystem::MPEGsystem(void *data, int size)
 
   /* Create a mutex to avoid concurrent access to the stream */
   system_mutex = SDL_CreateMutex();
+  request_wait = SDL_CreateSemaphore(0);
 
   /* 
      Our argument list indicates that we are being passed data, 
@@ -512,8 +512,6 @@ MPEGsystem::MPEGsystem(void *data, int size)
     SetError("Could not find the beginning of MPEG data\n");
     return;
   }
-  
-  request_wait = SDL_CreateSemaphore(0);
 
 #ifdef USE_SYSTEM_THREAD
   /* Start the system thread */

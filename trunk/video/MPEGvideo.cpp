@@ -311,15 +311,6 @@ MPEGvideo:: Rewind(void)
 #ifdef ANALYSIS 
       init_stats();
 #endif
-      /* Process start codes */
-      /* Vivien: seems unnecessary */
-#if 0
-      if( mpegVidRsrc( 0, _stream, 1 ) == NULL )
-      {
-	SetError("Not an MPEG video stream");
-	return;
-      }
-#endif
     }
 }
 
