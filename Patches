@@ -1,5 +1,32 @@
 *************************************************************************
 *** Applied ***
+Date: Thu, 21 Dec 2000 02:07:07 -0800 (PST)
+From: Stephane Peter <megastep@lokigames.com>
+Subject: plaympeg patch
+
+
+The following patch prevents plaympeg to switch between fullscreen/windowed
+modes for each file when several MPEG files are passed on the command line.
+Trivial really...
+
+
+
+diff -u -r1.39 plaympeg.c
+--- plaympeg.c  2000/12/18 03:31:35     1.39
++++ plaympeg.c  2000/12/21 10:04:36
+@@ -765,6 +765,7 @@
+                          // toggle fullscreen
+                          if ( event.key.keysym.mod & KMOD_ALT ) {
+                             SDL_WM_ToggleFullScreen(screen);
++                           fullscreen = !fullscreen;
+                           }
+                         } else if ( event.key.keysym.sym == SDLK_UP ) {
+                          // Volume up
+
+
+
+*************************************************************************
+*** Applied ***
 Date: Wed, 13 Dec 2000 03:01:58 +0100 (CET)
 From: Vivien Chappelier <vivien.chappelier@enst-bretagne.fr>
 Subject: Re: [Fwd: v0.4.2 Re: SMPEG 0.4.1 system streams]
