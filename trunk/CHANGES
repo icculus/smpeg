@@ -1,6 +1,6 @@
 0.4.0:
-Vivien, Manuel, Damien - Mon May  8 11:06:08 PDT 2000
- * Added support for seeking and timestamp synchronization in the MPEG stream
+Vivien, Damien - Mon May  8 11:06:08 PDT 2000
+ * Added support for seeking in the MPEG stream
 Sam Lantinga - Fri Apr 28 15:57:25 PDT 2000
  * Added support to plaympeg allowing the user to resize the window
 Sam Lantinga - Fri Apr 28 14:22:14 PDT 2000
