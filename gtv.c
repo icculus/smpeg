@@ -809,6 +809,7 @@ static GtkWidget* create_gtv_window( void )
   gtv_window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_object_set_data (GTK_OBJECT (gtv_window), "gtv_window", gtv_window);
   gtk_window_set_title (GTK_WINDOW (gtv_window), "gtv");
+  gtk_widget_set_uposition (GTK_WIDGET (gtv_window), 0, 0);
 
   vbox1 = gtk_vbox_new (FALSE, 0);
   gtk_widget_ref (vbox1);
