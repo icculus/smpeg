@@ -1,5 +1,30 @@
 *************************************************************************
 *** Applied ***
+Date: Fri, 13 Apr 2001 22:57:00 -0400
+From: Joe Drew <hoserhead@woot.net>
+Subject: Non-encrypted mail; patch for gtv
+
+
+Basically, I found an unmerged patch for smpeg which stops a segfault in gtv
+(when seeking without a file loaded, iirc).. I'll attach it.
+
+Anyhow, ttyl.
+
+--- smpeg-0.4.2.orig/gtv.c
++++ smpeg-0.4.2/gtv.c
+@@ -794,9 +794,9 @@
+       SMPEG_getinfo( mpeg, info );
+       
+       SMPEG_seek(mpeg, (int)((info->total_size*adjust->value)/100));
++      SMPEG_getinfo( mpeg, info );
++      gtv_set_frame( raw, info->current_frame );
+     }
+-    SMPEG_getinfo( mpeg, info );
+-    gtv_set_frame( raw, info->current_frame );
+ }
+ 
+*************************************************************************
+*** Applied ***
 Date: Fri, 23 Feb 2001 13:52:45 +0100
 From: Andreas Kloeckner <ak@ixion.net>
 Subject: [patch] making smpeg use SDL_RWops file read abstraction
