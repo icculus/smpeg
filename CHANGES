@@ -1,4 +1,6 @@
 0.4.3:
+Nicolas Vignal - Wed Apr  4 13:25:28 PDT 2001
+ * Added smpeg.m4
 Sam Lantinga - Wed Feb 21 16:24:46 PST 2001
  * SDL 1.2.0 supports 24 bpp displays, allow that in plaympeg
 Sam Lantinga - Fri Feb  9 23:37:31 PST 2001
