@@ -2,7 +2,9 @@
 Hiroshi Yamashita - Mon Mar  6 07:48:35 PST 2000
  * Added audio information to the MPEG info.
  * Added support for videos starting with Video Start Code 0xe0 0xe2.
- * Added a fix for FreeBSD to ltmain.sh
+ * Added a fix for FreeBSD to ltmain.sh.
+Sam Lantinga - Mon Mar  6 08:27:35 PST 2000
+ * Fixed a potential starting crash in plaympeg.
 
 0.3.4:
 Sam Lantinga - Fri Mar  3 13:40:43 PST 2000
