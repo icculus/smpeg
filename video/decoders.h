@@ -81,7 +81,7 @@ typedef struct {
 
 /* External declaration of coded block pattern table. */
 
-extern coded_block_pattern_entry coded_block_pattern[512];
+extern const coded_block_pattern_entry coded_block_pattern[512];
 
 
 
@@ -108,13 +108,13 @@ typedef struct {
 
 /* External declaration of dct dc size lumiance table. */
 
-extern dct_dc_size_entry dct_dc_size_luminance[32];
-extern dct_dc_size_entry dct_dc_size_luminance1[16];
+extern const dct_dc_size_entry dct_dc_size_luminance[32];
+extern const dct_dc_size_entry dct_dc_size_luminance1[16];
 
 /* External declaration of dct dc size chrom table. */
 
-extern dct_dc_size_entry dct_dc_size_chrominance[32];
-extern dct_dc_size_entry dct_dc_size_chrominance1[32];
+extern const dct_dc_size_entry dct_dc_size_chrominance[32];
+extern const dct_dc_size_entry dct_dc_size_chrominance1[32];
 
 
 /* DCT coeff tables. */
@@ -127,12 +127,12 @@ extern dct_dc_size_entry dct_dc_size_chrominance1[32];
 
 /* External declaration of dct coeff tables. */
 
-extern unsigned short int dct_coeff_tbl_0[256];
-extern unsigned short int dct_coeff_tbl_1[16];
-extern unsigned short int dct_coeff_tbl_2[4];
-extern unsigned short int dct_coeff_tbl_3[4];
-extern unsigned short int dct_coeff_next[256];
-extern unsigned short int dct_coeff_first[256];
+extern const unsigned short int dct_coeff_tbl_0[256];
+extern const unsigned short int dct_coeff_tbl_1[16];
+extern const unsigned short int dct_coeff_tbl_2[4];
+extern const unsigned short int dct_coeff_tbl_3[4];
+extern const unsigned short int dct_coeff_next[256];
+extern const unsigned short int dct_coeff_first[256];
 
 #define DecodeDCTDCSizeLum(macro_val)                    \
 {                                                    \

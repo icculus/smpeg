@@ -10,6 +10,10 @@
 #endif
 
 #include "MPEGaudio.h"
+#if defined(_WIN32) && defined(_MSC_VER)
+// disable warnings about double to float conversions
+#pragma warning(disable: 4244 4305)
+#endif
 
 // Tables for layer 1
 static const REAL factortable[15] = 

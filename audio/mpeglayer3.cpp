@@ -19,6 +19,10 @@
 #include <stdlib.h>
 
 #include "MPEGaudio.h"
+#if defined(_WIN32) && defined(_MSC_VER)
+// disable warnings about double to float conversions
+#pragma warning(disable: 4244 4305)
+#endif
 
 inline void Mpegbitwindow::wrap(void)
 {

@@ -226,7 +226,7 @@ void SMPEG_seek( SMPEG* mpeg, int bytes )
 /* Skip 'seconds' seconds of the MPEG */
 void SMPEG_skip( SMPEG* mpeg, float seconds )
 {
-  return(mpeg->obj->Skip(seconds));
+    mpeg->obj->Skip(seconds);
 }
 
 /* Render a particular frame in the MPEG video */

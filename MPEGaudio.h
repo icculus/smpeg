@@ -343,9 +343,10 @@ private:
   int     samplesperframe;
   int     rawdatareadoffset, rawdatawriteoffset;
   Sint16 *rawdata;
-  Sint16  spillover[ RAWDATASIZE ];
 #ifdef THREADED_AUDIO
   MPEG_ring *ring;
+#else
+  Sint16  spillover[ RAWDATASIZE ];
 #endif
   int volume;
 

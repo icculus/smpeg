@@ -1,5 +1,362 @@
 *************************************************************************
 *** Applied ***
+Date: Tue, 30 May 2000 03:57:33 +0200 (CEST)
+From: "Markus F.X.J. Oberhumer" <markus.oberhumer@jk.uni-linz.ac.at>
+To: Sam Lantinga <slouken@devolution.com>
+Subject: smpeg win32 patches
+
+Hello Sam,
+
+below you will find some smpeg win32 patches. They are
+against yesterday's CVS version, and I've also used
+the lastest SDL-CVS version for testing.
+
+Main changes:
+  - allow compilation with VC++ 6
+  - avoid some warnings
+  - make some tables const
+  - increase decoder thread priority (just like the SDL audio thread)
+
+I've tested this successfully with my pysolsoundserver. Still,
+some problems remain:
+
+ - there are noticaable distortions (thread/semaphore problem ???)
+ - SMPEG_stop() seems to cause a deadlock, at least from SDL_mixer
+ - the version not using THREADED_AUDIO immediately crashes
+Cheers,
+Markus
+
+----   Markus F.X.J. Oberhumer  @  http://oberhumer.tsx.org   ----
+----     5E CB 5C 85 DE AF 9E BF  E9 DA 7E 6A 39 F8 CC 67     ----
+
+                      3 WARPS TO URANUS
+
+diff -ur smpeg/MPEGaudio.h smpeg-20000529/MPEGaudio.h
+--- smpeg/MPEGaudio.h	Fri May 26 19:57:09 2000
++++ smpeg-20000529/MPEGaudio.h	Tue May 30 03:02:02 2000
+@@ -343,9 +343,10 @@
+   int     samplesperframe;
+   int     rawdatareadoffset, rawdatawriteoffset;
+   Sint16 *rawdata;
+-  Sint16  spillover[ RAWDATASIZE ];
+ #ifdef THREADED_AUDIO
+   MPEG_ring *ring;
++#else
++  Sint16  spillover[ RAWDATASIZE ];
+ #endif
+   int volume;
+ 
+diff -ur smpeg/MPEGring.cpp smpeg-20000529/MPEGring.cpp
+--- smpeg/MPEGring.cpp	Fri May 26 19:57:09 2000
++++ smpeg-20000529/MPEGring.cpp	Tue May 30 01:48:36 2000
+@@ -152,7 +152,7 @@
+ */
+ 
+ void
+-MPEG_ring:: WriteDone( Uint32 len, double timestamp=-1 )
++MPEG_ring:: WriteDone( Uint32 len, double timestamp)
+ {
+     if ( ring->active ) {
+         assert(len <= ring->bufSize);
+diff -ur smpeg/MPEGstream.cpp smpeg-20000529/MPEGstream.cpp
+--- smpeg/MPEGstream.cpp	Fri May 26 19:57:09 2000
++++ smpeg-20000529/MPEGstream.cpp	Tue May 30 01:48:36 2000
+@@ -298,7 +298,7 @@
+   return(!br->Size());
+ }
+ 
+-void MPEGstream::insert_packet(Uint8 * Data, Uint32 Size, double timestamp=-1)
++void MPEGstream::insert_packet(Uint8 * Data, Uint32 Size, double timestamp)
+ {
+   MPEGlist * newbr;
+ 
+diff -ur smpeg/MPEGsystem.cpp smpeg-20000529/MPEGsystem.cpp
+--- smpeg/MPEGsystem.cpp	Fri May 26 19:57:09 2000
++++ smpeg-20000529/MPEGsystem.cpp	Tue May 30 01:50:34 2000
+@@ -3,6 +3,7 @@
+ #include <errno.h>
+ #include <assert.h>
+ #ifdef WIN32
++#include <sys/types.h>
+ #include <io.h>
+ #include <winsock.h>
+ #else
+@@ -575,7 +576,7 @@
+ 
+     if(!stream_list[1])
+     { 
+-      Uint8 * packet_end;
++      //Uint8 * packet_end;
+ 
+       packet_size = 0;
+ 
+diff -ur smpeg/audio/MPEGaudio.cpp smpeg-20000529/audio/MPEGaudio.cpp
+--- smpeg/audio/MPEGaudio.cpp	Fri May 26 19:57:11 2000
++++ smpeg-20000529/audio/MPEGaudio.cpp	Tue May 30 01:50:34 2000
+@@ -290,7 +290,7 @@
+ bool
+ MPEGaudio:: issync(void)
+ {
+-  return (bitindex&7);
++  return (bitindex&7) != 0;
+ }
+   
+ int 
+diff -ur smpeg/audio/mpeglayer1.cpp smpeg-20000529/audio/mpeglayer1.cpp
+--- smpeg/audio/mpeglayer1.cpp	Thu Aug 26 06:37:52 1999
++++ smpeg-20000529/audio/mpeglayer1.cpp	Tue May 30 02:22:22 2000
+@@ -10,6 +10,10 @@
+ #endif
+ 
+ #include "MPEGaudio.h"
++#if defined(_WIN32) && defined(_MSC_VER)
++// disable warnings about double to float conversions
++#pragma warning(disable: 4244 4305)
++#endif
+ 
+ // Tables for layer 1
+ static const REAL factortable[15] = 
+diff -ur smpeg/audio/mpeglayer2.cpp smpeg-20000529/audio/mpeglayer2.cpp
+--- smpeg/audio/mpeglayer2.cpp	Fri May  5 09:38:21 2000
++++ smpeg-20000529/audio/mpeglayer2.cpp	Tue May 30 02:22:24 2000
+@@ -8,8 +8,9 @@
+ #ifdef HAVE_CONFIG_H
+ #include "config.h"
+ #endif
+-#ifdef _MSC_VER
+-#pragma warning(disable:4305) 
++#if defined(_WIN32) && defined(_MSC_VER)
++// disable warnings about double to float conversions
++#pragma warning(disable: 4244 4305)
+ #endif
+ 
+ #include "MPEGaudio.h"
+diff -ur smpeg/audio/mpeglayer3.cpp smpeg-20000529/audio/mpeglayer3.cpp
+--- smpeg/audio/mpeglayer3.cpp	Tue Apr 11 16:22:53 2000
++++ smpeg-20000529/audio/mpeglayer3.cpp	Tue May 30 02:22:24 2000
+@@ -19,6 +19,10 @@
+ #include <stdlib.h>
+ 
+ #include "MPEGaudio.h"
++#if defined(_WIN32) && defined(_MSC_VER)
++// disable warnings about double to float conversions
++#pragma warning(disable: 4244 4305)
++#endif
+ 
+ inline void Mpegbitwindow::wrap(void)
+ {
+diff -ur smpeg/audio/mpegtoraw.cpp smpeg-20000529/audio/mpegtoraw.cpp
+--- smpeg/audio/mpegtoraw.cpp	Fri May 26 19:57:11 2000
++++ smpeg-20000529/audio/mpegtoraw.cpp	Tue May 30 03:16:28 2000
+@@ -16,6 +16,9 @@
+ 
+ #include "MPEGaudio.h"
+ #include "MPEGstream.h"
++#if defined(_WIN32)
++#include <windows.h>
++#endif
+ 
+ #define MY_PI 3.14159265358979323846
+ 
+@@ -264,7 +267,7 @@
+ }
+ 
+ 
+-bool MPEGaudio::run( int frames, double *timestamp = NULL)
++bool MPEGaudio::run( int frames, double *timestamp)
+ {
+     double last_timestamp = -1;
+     int totFrames = frames;
+@@ -316,6 +319,10 @@
+     MPEGaudio *audio = (MPEGaudio *)udata;
+     double timestamp;
+ 
++#if defined(_WIN32)
++    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
++#endif
++
+     while ( audio->decoding && ! audio->mpeg->eof() ) {
+         audio->rawdata = (Sint16 *)audio->ring->NextWriteBuffer();
+ 
+@@ -425,12 +432,12 @@
+         copylen = (audio->rawdatawriteoffset-audio->rawdatareadoffset);
+         assert(copylen >= 0);
+         if ( copylen >= len ) {
+-            SDL_MixAudio(stream, &audio->spillover[audio->rawdatareadoffset],
++            SDL_MixAudio(stream, (Uint8 *)&audio->spillover[audio->rawdatareadoffset],
+                                                        len*2, volume);
+             audio->rawdatareadoffset += len;
+             return;
+         }
+-        SDL_MixAudio(stream, &audio->spillover[audio->rawdatareadoffset],
++        SDL_MixAudio(stream, (Uint8 *)&audio->spillover[audio->rawdatareadoffset],
+                                                        copylen*2, volume);
+         len -= copylen;
+         stream += copylen*2;
+@@ -448,7 +455,7 @@
+     audio->rawdatawriteoffset = 0;
+     if ( audio->run(1) ) {
+         assert(audio->rawdatawriteoffset > len);
+-        SDL_MixAudio(stream, audio->spillover, len*2, volume);
++        SDL_MixAudio(stream, (Uint8 *) audio->spillover, len*2, volume);
+         audio->rawdatareadoffset = len;
+     } else {
+         audio->rawdatareadoffset = 0;
+diff -ur smpeg/smpeg.cpp smpeg-20000529/smpeg.cpp
+--- smpeg/smpeg.cpp	Fri May 26 19:57:11 2000
++++ smpeg-20000529/smpeg.cpp	Tue May 30 01:48:16 2000
+@@ -226,7 +226,7 @@
+ /* Skip 'seconds' seconds of the MPEG */
+ void SMPEG_skip( SMPEG* mpeg, float seconds )
+ {
+-  return(mpeg->obj->Skip(seconds));
++    mpeg->obj->Skip(seconds);
+ }
+ 
+ /* Render a particular frame in the MPEG video */
+diff -ur smpeg/video/decoders.cpp smpeg-20000529/video/decoders.cpp
+--- smpeg/video/decoders.cpp	Thu Aug 26 06:37:52 1999
++++ smpeg-20000529/video/decoders.cpp	Tue May 30 02:21:18 2000
+@@ -78,7 +78,7 @@
+ 
+ /* Decoding table for coded_block_pattern */
+ 
+-coded_block_pattern_entry coded_block_pattern[512] = 
++const coded_block_pattern_entry coded_block_pattern[512] = 
+ { {(unsigned int)ERROR, 0}, {(unsigned int)ERROR, 0}, {39, 9}, {27, 9}, {59, 9}, {55, 9}, {47, 9}, {31, 9},
+     {58, 8}, {58, 8}, {54, 8}, {54, 8}, {46, 8}, {46, 8}, {30, 8}, {30, 8},
+     {57, 8}, {57, 8}, {53, 8}, {53, 8}, {45, 8}, {45, 8}, {29, 8}, {29, 8},
+@@ -146,27 +146,27 @@
+ };
+ 
+ /* Decoding tables for dct_dc_size_luminance */
+-dct_dc_size_entry dct_dc_size_luminance[32] =
++const dct_dc_size_entry dct_dc_size_luminance[32] =
+ {   {1, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, 
+     {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, 
+     {0, 3}, {0, 3}, {0, 3}, {0, 3}, {3, 3}, {3, 3}, {3, 3}, {3, 3}, 
+     {4, 3}, {4, 3}, {4, 3}, {4, 3}, {5, 4}, {5, 4}, {6, 5}, {(unsigned int)ERROR, 0}
+ };
+ 
+-dct_dc_size_entry dct_dc_size_luminance1[16] =
++const dct_dc_size_entry dct_dc_size_luminance1[16] =
+ {   {7, 6}, {7, 6}, {7, 6}, {7, 6}, {7, 6}, {7, 6}, {7, 6}, {7, 6},
+     {8, 7}, {8, 7}, {8, 7}, {8, 7}, {9, 8}, {9, 8}, {10, 9}, {11, 9}
+ };
+ 
+ /* Decoding table for dct_dc_size_chrominance */
+-dct_dc_size_entry dct_dc_size_chrominance[32] =
++const dct_dc_size_entry dct_dc_size_chrominance[32] =
+ {   {0, 2}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, {0, 2}, 
+     {1, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, {1, 2}, 
+     {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, 
+     {3, 3}, {3, 3}, {3, 3}, {3, 3}, {4, 4}, {4, 4}, {5, 5}, {(unsigned int)ERROR, 0}
+ };
+ 
+-dct_dc_size_entry dct_dc_size_chrominance1[32] =
++const dct_dc_size_entry dct_dc_size_chrominance1[32] =
+ {   {6, 6}, {6, 6}, {6, 6}, {6, 6}, {6, 6}, {6, 6}, {6, 6}, {6, 6}, 
+     {6, 6}, {6, 6}, {6, 6}, {6, 6}, {6, 6}, {6, 6}, {6, 6}, {6, 6}, 
+     {7, 7}, {7, 7}, {7, 7}, {7, 7}, {7, 7}, {7, 7}, {7, 7}, {7, 7}, 
+@@ -175,7 +175,7 @@
+ 
+ /* DCT coeff tables. */
+ 
+-unsigned short int dct_coeff_tbl_0[256] =
++const unsigned short int dct_coeff_tbl_0[256] =
+ {
+ 0xffff, 0xffff, 0xffff, 0xffff, 
+ 0xffff, 0xffff, 0xffff, 0xffff, 
+@@ -243,7 +243,7 @@
+ 0x581c, 0x581c, 0x581c, 0x581c, 
+ };
+ 
+-unsigned short int dct_coeff_tbl_1[16] = 
++const unsigned short int dct_coeff_tbl_1[16] = 
+ {
+ 0x00bb, 0x202b, 0x103b, 0x00ab, 
+ 0x084b, 0x1c2b, 0x541b, 0x501b, 
+@@ -251,17 +251,17 @@
+ 0x0c3b, 0x008b, 0x182b, 0x441b, 
+ };
+ 
+-unsigned short int dct_coeff_tbl_2[4] =
++const unsigned short int dct_coeff_tbl_2[4] =
+ {
+ 0x4019, 0x1429, 0x0079, 0x0839, 
+ };
+ 
+-unsigned short int dct_coeff_tbl_3[4] = 
++const unsigned short int dct_coeff_tbl_3[4] = 
+ {
+ 0x0449, 0x3c19, 0x3819, 0x1029, 
+ };
+ 
+-unsigned short int dct_coeff_next[256] = 
++const unsigned short int dct_coeff_next[256] = 
+ {
+ 0xffff, 0xffff, 0xffff, 0xffff, 
+ 0xf7d5, 0xf7d5, 0xf7d5, 0xf7d5, 
+@@ -329,7 +329,7 @@
+ 0x0011, 0x0011, 0x0011, 0x0011, 
+ };
+ 
+-unsigned short int dct_coeff_first[256] = 
++const unsigned short int dct_coeff_first[256] = 
+ {
+ 0xffff, 0xffff, 0xffff, 0xffff, 
+ 0xf7d5, 0xf7d5, 0xf7d5, 0xf7d5, 
+diff -ur smpeg/video/decoders.h smpeg-20000529/video/decoders.h
+--- smpeg/video/decoders.h	Thu Aug 26 06:37:52 1999
++++ smpeg-20000529/video/decoders.h	Tue May 30 02:20:54 2000
+@@ -81,7 +81,7 @@
+ 
+ /* External declaration of coded block pattern table. */
+ 
+-extern coded_block_pattern_entry coded_block_pattern[512];
++extern const coded_block_pattern_entry coded_block_pattern[512];
+ 
+ 
+ 
+@@ -108,13 +108,13 @@
+ 
+ /* External declaration of dct dc size lumiance table. */
+ 
+-extern dct_dc_size_entry dct_dc_size_luminance[32];
+-extern dct_dc_size_entry dct_dc_size_luminance1[16];
++extern const dct_dc_size_entry dct_dc_size_luminance[32];
++extern const dct_dc_size_entry dct_dc_size_luminance1[16];
+ 
+ /* External declaration of dct dc size chrom table. */
+ 
+-extern dct_dc_size_entry dct_dc_size_chrominance[32];
+-extern dct_dc_size_entry dct_dc_size_chrominance1[32];
++extern const dct_dc_size_entry dct_dc_size_chrominance[32];
++extern const dct_dc_size_entry dct_dc_size_chrominance1[32];
+ 
+ 
+ /* DCT coeff tables. */
+@@ -127,12 +127,12 @@
+ 
+ /* External declaration of dct coeff tables. */
+ 
+-extern unsigned short int dct_coeff_tbl_0[256];
+-extern unsigned short int dct_coeff_tbl_1[16];
+-extern unsigned short int dct_coeff_tbl_2[4];
+-extern unsigned short int dct_coeff_tbl_3[4];
+-extern unsigned short int dct_coeff_next[256];
+-extern unsigned short int dct_coeff_first[256];
++extern const unsigned short int dct_coeff_tbl_0[256];
++extern const unsigned short int dct_coeff_tbl_1[16];
++extern const unsigned short int dct_coeff_tbl_2[4];
++extern const unsigned short int dct_coeff_tbl_3[4];
++extern const unsigned short int dct_coeff_next[256];
++extern const unsigned short int dct_coeff_first[256];
+ 
+ #define DecodeDCTDCSizeLum(macro_val)                    \
+ {                                                    \
+*************************************************************************
+*** Applied ***
 Subject: Re: Audio synchronisation with new timestamp sync code
 Date: Thu, 25 May 2000 16:53:03 +0200
 From: Vivien Chappelier <vivien.chappelier@enst-bretagne.fr>

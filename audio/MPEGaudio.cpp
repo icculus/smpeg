@@ -290,7 +290,7 @@ MPEGaudio:: sync(void)
 bool
 MPEGaudio:: issync(void)
 {
-  return (bitindex&7);
+  return (bitindex&7) != 0;
 }
   
 int 
