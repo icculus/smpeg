@@ -1,3 +1,11 @@
+0.4.2:
+Sam Lantinga - Wed Oct  4 10:12:58 PDT 2000
+ * Fixed various compiler warnings
+Vivien Chappelier - Mon, 25 Sep 2000 20:37:43 +0200
+ * Added ATI Rage 128 hardware acceleration support (see README.ATI)
+Hiroshi Yamashita - Sat, 19 Aug 2000 00:22:25 +0900
+ * Fixed lseek problem on FreeBSD
+
 0.4.1:
 Vivien Chappelier - Sat Sep 23 17:48:59 PDT 2000
  * Updated for SDL 1.1.5 and ATI hardware accelerated overlays

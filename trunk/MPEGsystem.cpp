@@ -983,8 +983,8 @@ Uint32 MPEGsystem::Tell()
 
 Uint32 MPEGsystem::TotalSize()
 {
-  Uint32 size;
-  Uint32 pos;
+  off_t size;
+  off_t pos;
 
   if(data_reader.fromData == true)
   {
@@ -1000,7 +1000,7 @@ Uint32 MPEGsystem::TotalSize()
 
   /* I made it this way (instead of fstat) to avoid #ifdef WIN32 everywhere */
   /* in case 'in some weird perversion of nature' someone wants to port this to Win32 :-) */
-  if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) == (off_t) -1)
+  if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) < 0)
   {
     if(errno != ESPIPE)
     {
@@ -1011,7 +1011,7 @@ Uint32 MPEGsystem::TotalSize()
     return(0);
   }
 
-  if((size = lseek(mpeg_fd, 0, SEEK_END)) == (off_t) -1)
+  if((size = lseek(mpeg_fd, 0, SEEK_END)) < 0)
   {
     if(errno != ESPIPE)
     {
@@ -1022,7 +1022,7 @@ Uint32 MPEGsystem::TotalSize()
     return(0);
   }
   
-  if((pos = lseek(mpeg_fd, pos, SEEK_SET)) == (off_t) -1)
+  if((pos = lseek(mpeg_fd, pos, SEEK_SET)) < 0)
   {
     if(errno != ESPIPE)
     {
@@ -1039,8 +1039,8 @@ Uint32 MPEGsystem::TotalSize()
 
 double MPEGsystem::TotalTime()
 {
-  Uint32 size, pos;
-  Uint32 file_ptr;
+  off_t size, pos;
+  off_t file_ptr;
   Uint8 * buffer, * p;
   double time;
 
@@ -1052,7 +1052,7 @@ double MPEGsystem::TotalTime()
 	  /* from data, no lseek needed */
 	  pos = data_reader.offset;
   } else {
-	  if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) == (off_t) -1)
+	  if((pos = lseek(mpeg_fd, 0, SEEK_CUR)) < 0)
 	  {
 	    if(errno != ESPIPE)
 	    {
@@ -1077,7 +1077,7 @@ double MPEGsystem::TotalTime()
 	      size = data_reader.offset;
       }
       else {
-	      if((size = lseek(mpeg_fd, file_ptr, SEEK_SET)) == (off_t) -1)
+	      if((size = lseek(mpeg_fd, file_ptr, SEEK_SET)) < 0)
 	      {
 		if(errno != ESPIPE)
 		{
@@ -1137,7 +1137,7 @@ double MPEGsystem::TotalTime()
 	      data_reader.offset = data_reader.size - file_ptr;
 	      size = data_reader.offset;
       } else {
-	      if((size = lseek(mpeg_fd, file_ptr, SEEK_END)) == (off_t) -1)
+	      if((size = lseek(mpeg_fd, file_ptr, SEEK_END)) < 0)
 	      {
 		if(errno != ESPIPE)
 		{
@@ -1198,7 +1198,7 @@ double MPEGsystem::TotalTime()
       data_reader.offset = pos;
   } else {
       /* Get back to saved position */
-      if((pos = lseek(mpeg_fd, pos, SEEK_SET)) == (off_t) -1)
+      if((pos = lseek(mpeg_fd, pos, SEEK_SET)) < 0)
       {
         if(errno != ESPIPE)
         {
@@ -1232,7 +1232,7 @@ bool MPEGsystem::Seek(int length)
     data_reader.offset = length;
   } else {
     /* Get into the stream */
-    if(lseek(mpeg_fd, length, SEEK_SET) == (off_t) -1)
+    if(lseek(mpeg_fd, length, SEEK_SET) < 0)
     {
       if(errno != ESPIPE)
       {
@@ -1327,8 +1327,6 @@ int MPEGsystem::SystemThread(void * udata)
 
   while(system->system_thread_running)
   {
-    int delay = 1;
-
     /* Check for end of file */
     if(system->Eof())
     {
@@ -1340,7 +1338,7 @@ int MPEGsystem::SystemThread(void * udata)
         system->data_reader.offset = 0;
       } else {
 	      /* Get back to the beginning of the stream if possible */
-	      if(lseek(system->mpeg_fd, 0, SEEK_SET) == (long) -1)
+	      if(lseek(system->mpeg_fd, 0, SEEK_SET) < 0)
 	      {
 		if(errno != ESPIPE)
 		{

@@ -47,6 +47,7 @@
 #endif
 
 #ifdef VCD_SUPPORT
+#include <signal.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <linux/cdrom.h>
@@ -189,7 +190,6 @@ int http_open(char * arg)
   char * request;
   int tcp_sock;
   char http_request[1024];
-  int i;
   char c;
 
   /* Check for URL syntax */
@@ -275,11 +275,10 @@ int ftp_open(char * arg)
   char * file;
   int tcp_sock;
   int data_sock;
-  int read_size;
   char ftp_request[1024];
   struct sockaddr_in stLclAddr;
+  socklen_t namelen;
   int i;
-  char c;
 
   /* Check for URL syntax */
   if(strncmp(arg, "ftp://", strlen("ftp://"))) return(0);
@@ -327,8 +326,9 @@ int ftp_open(char * arg)
   }
     
   /* Get interface address */
-  i = sizeof(stLclAddr);
-  if(getsockname(tcp_sock, (struct sockaddr *) &stLclAddr, &i) < 0) return(0);
+  namelen = sizeof(stLclAddr);
+  if(getsockname(tcp_sock, (struct sockaddr *) &stLclAddr, &namelen) < 0)
+    return(0);
 
   /* Open data socket */
   if ((data_sock = socket(PF_INET, SOCK_STREAM, 0)) < 0) return(0);
@@ -365,7 +365,6 @@ int ftp_open(char * arg)
 int vcd_read(int fd, int lba, unsigned char *buf)
 {
     struct cdrom_msf *msf;
-    int    rc;
 
     msf = (struct cdrom_msf*) buf;
     msf->cdmsf_min0   = (lba + CD_MSF_OFFSET) / CD_FRAMES / CD_SECS; 

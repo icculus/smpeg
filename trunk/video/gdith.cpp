@@ -54,6 +54,10 @@
 #include "dither.h"
 #include "SDL_timer.h"
 
+#ifdef USE_ATI
+#include "vhar128.h"
+#endif
+
 #ifdef __STDC__
 #include <stdlib.h>
 #include <string.h>
@@ -318,6 +322,9 @@ void MPEGvideo::DisplayFrame( VidStream * vid_stream )
     Uint8 *pixels[3];
 
     /* Fill in an SDL YV12 overlay structure for the source */
+#ifdef USE_ATI
+    vhar128_lockimage(vid_stream->ati_handle, vid_stream->current->image, &src);
+#else
     src.format = SDL_YV12_OVERLAY;
     src.w = _w;
     src.h = _h;
@@ -331,10 +338,15 @@ void MPEGvideo::DisplayFrame( VidStream * vid_stream )
     pixels[2] = vid_stream->current->image + pitches[0] * _h +
                                              pitches[1] * _h / 2;
     src.pixels = pixels;
+#endif
 
     _filter->callback(_image, &src, &_srcrect, &info, _filter->data );
+
+#ifdef USE_ATI
+    vhar128_unlockimage(vid_stream->ati_handle, vid_stream->current->image, &src);
+#endif
   }
-  
+
   /* Now display the image */
   if ( _mutex )
     SDL_mutexP( _mutex );

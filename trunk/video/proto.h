@@ -69,7 +69,7 @@ void ResetVidStream P((VidStream *vid ));
 void DestroyVidStream P((VidStream *astream ));
 PictImage *NewPictImage P(( VidStream *vid_stream ));
 bool InitPictImages P(( VidStream *vid_stream, int w, int h, SDL_Surface *dst ));
-void DestroyPictImage P((PictImage *apictimage ));
+void DestroyPictImage P(( VidStream *vid_stream, PictImage *apictimage ));
 VidStream *mpegVidRsrc P((TimeStamp time_stamp,VidStream *vid_stream, int first  ));
 void SetBFlag P((BOOLEAN val ));
 void SetPFlag P((BOOLEAN val ));
