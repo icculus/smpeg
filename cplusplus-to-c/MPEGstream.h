@@ -58,7 +58,7 @@ struct MPEGstream {
 
 typedef struct MPEGstream MPEGstream;
 
-MPEGstream *MPEGstream_create (struct MPEGsystem * System, Uint8 Streamid);
+MPEGstream *MPEGstream_new (struct MPEGsystem * System, Uint8 Streamid);
 void MPEGstream_destroy (MPEGstream *self);
 
 /* Cleanup the buffers and reset the stream */

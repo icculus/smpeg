@@ -32,7 +32,7 @@ struct MPEGerror {
 
 typedef struct MPEGerror MPEGerror;
 
-MPEGerror *MPEGerror_create();
+MPEGerror *MPEGerror_new();
 void MPEGerror_SetError(MPEGerror *self, char *fmt, ...);
 int MPEGerror_WasError(MPEGerror *self);
 char *MPEGerror_TheError(MPEGerror *self);

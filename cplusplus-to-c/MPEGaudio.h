@@ -165,27 +165,27 @@ typedef struct Mpegbitwindow Mpegbitwindow;
 #undef METH
 #define METH(name) Mpegbitwindow_##name
 //  Mpegbitwindow(){bitindex=point=0;};
-//#define Mpegbitwindow_create() (Mpegbitwindow*)(calloc(sizeof(struct Mpegbitwindow)))
+//#define Mpegbitwindow_new() (Mpegbitwindow*)(calloc(sizeof(struct Mpegbitwindow)))
 Mpegbitwindow * METH(new) (_THIS);
 Mpegbitwindow * METH(init) (_THIS);
 
 //  void initialize(void)  {bitindex=point=0;};
-#define Mpegbitwindow_initialize(self) (self->bitindex = self->point = 0)
+#define Mpegbitwindow_initialize(self) ((self)->bitindex = (self)->point = 0)
 
 //  int  gettotalbit(void) const {return bitindex;};
-#define Mpegbitwindow_gettotalbit(self) (self->bitindex)
+#define Mpegbitwindow_gettotalbit(self) ((self)->bitindex)
 
 //  void putbyte(int c)    {buffer[point&(WINDOWSIZE-1)]=c;point++;};
-#define Mpegbitwindow_putbyte(self, c) (self->buffer[self->point&(WINDOWSIZE-1)]=c, self->point++)
+#define Mpegbitwindow_putbyte(self, c) ((self)->buffer[(self)->point&(WINDOWSIZE-1)]=c, (self)->point++)
 
 //  void wrap(void);
 void METH(wrap) (_THIS);
 
 //  void rewind(int bits)  {bitindex-=bits;};
-#define Mpegbitwindow_rewind(self, bits) (self->bitindex -= bits)
+#define Mpegbitwindow_rewind(self, bits) ((self)->bitindex -= bits)
 
 //  void forward(int bits) {bitindex+=bits;};
-#define Mpegbitwindow_forward(self, bits) (self->bitindex += bits)
+#define Mpegbitwindow_forward(self, bits) ((self)->bitindex += bits)
 
 
 //  int getbit(void) {
@@ -635,7 +635,7 @@ int Play_MPEGaudio(struct MPEGaudio *audio, Uint8 *stream, int len);
 int Decode_MPEGaudio(void *udata);
 #endif
 
-_THIS METH(create) (struct MPEGstream *stream, bool initSDL);
+_THIS METH(new) (struct MPEGstream *stream, bool initSDL);
 void METH(destroy) (_THIS);
 
 /* MPEG actions */

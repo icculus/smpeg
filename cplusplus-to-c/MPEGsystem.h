@@ -60,8 +60,8 @@ struct MPEGsystem {
 typedef struct MPEGsystem MPEGsystem;
 
 
-MPEGsystem *MPEGsystem_create();
-MPEGsystem *MPEGsystem_create_rwops(SDL_RWops *mpeg_source);
+MPEGsystem *MPEGsystem_new();
+MPEGsystem *MPEGsystem_new_rwops(SDL_RWops *mpeg_source);
 void MPEGsystem_destroy(MPEGsystem *self);
 
 /* Buffered I/O functions */

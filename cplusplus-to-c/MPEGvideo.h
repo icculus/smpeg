@@ -38,8 +38,9 @@ typedef struct vid_stream VidStream;
 
 typedef double TimeStamp;
 
-typedef struct {
+struct MPEGvideo {
     struct MPEGstream *mpeg;
+    struct MPEGvideoaction *videoaction;
 
     VidStream *_stream;
     SDL_Surface *_dst;
@@ -61,7 +62,9 @@ typedef struct {
 
     struct MPEGerror *MPEGerror;
     struct MPEGvideoaction *MPEGvideoaction;
-} MPEGvideo;
+};
+
+typedef struct MPEGvideo MPEGvideo;
 
 /* Thread to play the video asynchronously */
 int Play_MPEGvideo(void *udata);
@@ -70,7 +73,7 @@ int Play_MPEGvideo(void *udata);
 VidStream *mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first );
 int get_more_data( VidStream* vid_stream );
 
-struct MPEGvideo *MPEGvideo_create(struct MPEGstream *stream);
+struct MPEGvideo *MPEGvideo_new(struct MPEGstream *stream);
 struct MPEGvideo *MPEGvideo_destroy(struct MPEGvideo *self);
 
 /* MPEG actions */

@@ -79,11 +79,11 @@ struct MPEG
 
 typedef struct MPEG MPEG;
 
-MPEG *MPEG_create();
-MPEG *MPEG_create_file(const char *path, bool SDLaudio);
-MPEG *MPEG_create_fd(int Mpeg_FD, bool SDLaudio);
-MPEG *MPEG_create_mem(void *data, int size, bool SDLaudio);
-MPEG *MPEG_create_rwops(SDL_RWops *mpeg_source, bool SDLaudio);
+MPEG *MPEG_new();
+MPEG *MPEG_new_file(const char *path, bool SDLaudio);
+MPEG *MPEG_new_fd(int Mpeg_FD, bool SDLaudio);
+MPEG *MPEG_new_mem(void *data, int size, bool SDLaudio);
+MPEG *MPEG_new_rwops(SDL_RWops *mpeg_source, bool SDLaudio);
 void MPEG_destroy(MPEG *self);
 
 void MPEG_Init(MPEG *self, SDL_RWops *mpeg_source, bool SDLaudio);

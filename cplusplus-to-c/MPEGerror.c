@@ -19,7 +19,7 @@
 
 #include "MPEGerror.h"
 
-MPEGerror *MPEGerror_create() {
+MPEGerror *MPEGerror_new() {
     MPEGerror *ret = (MPEGerror *)malloc(sizeof(MPEGerror));
 
     if (ret) MPEGerror_ClearError(ret);

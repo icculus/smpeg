@@ -1,7 +1,7 @@
 #include "MPEGlist.h"
 
 MPEGlist *
-MPEGlist_create ()
+MPEGlist_new ()
 {
   MPEGlist *ret;
 
@@ -35,7 +35,7 @@ MPEGlist_Alloc (MPEGlist *self, Uint32 bufsize)
   MPEGlist *tmp;
 
   tmp = self->next;
-  self->next = MPEGlist_create();
+  self->next = MPEGlist_new();
   self->next->next = tmp;
 
   if (bufsize)

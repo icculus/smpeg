@@ -29,7 +29,7 @@
 
 
 MPEG_ring*
-MPEG_ring_create(Uint32 size, Uint32 count)
+MPEG_ring_new(Uint32 size, Uint32 count)
 {
     MPEG_ring *ring;
     Uint32 tSize;

@@ -17,7 +17,7 @@ typedef struct MPEGlist {
   double TimeStamp;
 } MPEGlist;
 
-MPEGlist* MPEGlist_create();
+MPEGlist* MPEGlist_new();
 void MPEGlist_destroy(MPEGlist*);
 MPEGlist* MPEGlist_Alloc(MPEGlist*, Uint32);
 void MPEGlist_Lock(MPEGlist*);

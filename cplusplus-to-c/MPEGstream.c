@@ -28,7 +28,7 @@
 /* This is the limit of the quantity of pre-read data */
 #define MAX_QUEUE (256 * 1024)
 
-MPEGstream *MPEGstream_create(MPEGsystem *System, Uint8 Streamid)
+MPEGstream *MPEGstream_new(MPEGsystem *System, Uint8 Streamid)
 {
     MPEGstream *ret;
     
@@ -37,7 +37,7 @@ MPEGstream *MPEGstream_create(MPEGsystem *System, Uint8 Streamid)
     if (ret) {
         ret->system = System;
         ret->streamid = Streamid;
-        ret->br = MPEGlist_create();
+        ret->br = MPEGlist_new();
         ret->cleareof = true;
         
         ret->data = 0;
@@ -85,7 +85,7 @@ void MPEGstream_reset_stream(MPEGstream *self)
     }
     MPEGlist_destroy(newbr);
     
-    self->br = MPEGlist_create();
+    self->br = MPEGlist_new();
     self->cleareof = true;
     self->data = 0;
     self->stop = 0;
