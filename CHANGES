@@ -1,4 +1,7 @@
 0.3.4:
+Sam Lantinga - Fri Mar  3 13:40:43 PST 2000
+ * Split RPM into runtime and development packages
+ * Added smpeg-config script to tell where the development runtime is installed
 Sam Lantinga - Fri Mar  3 13:25:10 PST 2000
  * Fixed MP3 audio on big-endian systems
 Sam Lantinga - Wed Mar  1 07:02:17 PST 2000

@@ -4,6 +4,8 @@
 # These are the subdirectories that are always built
 SUBDIRS = audio video
 
+bin_SCRIPTS = smpeg-config
+
 # The smpeg library target
 lib_LTLIBRARIES = libsmpeg.la
 
