@@ -303,8 +303,9 @@ void MPEGstream::insert_packet(Uint8 * Data, Uint32 Size, double timestamp=-1)
 
   /* Position ourselves at the end of the stream */
   newbr = newbr->Alloc(Size);
-
-  memcpy(newbr->Buffer(), Data, Size);
+  if ( Size ) {
+    memcpy(newbr->Buffer(), Data, Size);
+  }
   newbr->TimeStamp = timestamp;
 
   SDL_mutexV(mutex);
