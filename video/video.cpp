@@ -130,10 +130,7 @@ const int zigzag[64][2] =
 };
 
 /* Array mapping zigzag to array pointer offset. */
-
-/* zigzag_direct should be const but parseblock.c cannot see it when linked
-   with Redhat 5.2 g++ (egcs-2.90.29) */
-int zigzag_direct[64] =
+const int zigzag_direct[64] =
 {
   0, 1, 8, 16, 9, 2, 3, 10, 17, 24, 32, 25, 18, 11, 4, 5, 12,
   19, 26, 33, 40, 48, 41, 34, 27, 20, 13, 6, 7, 14, 21, 28, 35,
@@ -159,6 +156,7 @@ const int scan[8][8] =
 /* Max lum, chrom indices for illegal block checking. */
 
 
+#ifdef USE_CROP_TABLE
 /*
  * We use a lookup table to make sure values stay in the 0..255 range.
  * Since this is cropping (ie, x = (x < 0)?0:(x>255)?255:x; ), wee call this
@@ -169,6 +167,18 @@ const int scan[8][8] =
 #define MAX_NEG_CROP 2048
 #define NUM_CROP_ENTRIES (2048+2*MAX_NEG_CROP)
 static unsigned char cropTbl[NUM_CROP_ENTRIES];
+
+#define crop(x) cm[x]
+#else
+static inline unsigned char crop(int x)
+{
+  if(x<=0)
+    return 0;
+  if(x>=255)
+    return 255;
+  return x;
+}
+#endif /* USE_CROP_TABLE */
 
 /*
   The following accounts for time and size  spent in various parsing acitivites
@@ -625,7 +635,7 @@ InitCrop()
   int i;
 
   /* Initialize crop table. */
-
+#ifdef USE_CROP_TABLE
   for (i = (-MAX_NEG_CROP); i < NUM_CROP_ENTRIES - MAX_NEG_CROP; i++) {
     if (i <= 0) {
       cropTbl[i + MAX_NEG_CROP] = 0;
@@ -639,7 +649,7 @@ InitCrop()
       cropTbl[i + MAX_NEG_CROP] = i;
     }
   }
-
+#endif /* USE_CROP_TABLE */
 }
 
 
@@ -2084,7 +2094,7 @@ static int ParseMacroBlock( VidStream* vid_stream )
  *
  *--------------------------------------------------------------
  */
-#ifndef NDEBUG
+#if defined(USE_CROP_TABLE) && !defined(NDEBUG)
 /* If people really want to see such things, check 'em */
 #define myassert(x,expression)\
   if (!(expression)) {\
@@ -2170,42 +2180,44 @@ static void ReconIMBlock( VidStream* vid_stream, int bnum )
    */
   {
     short *sp = &vid_stream->block.dct_recon[0][0];
+#ifdef USE_CROP_TABLE
     unsigned char *cm = cropTbl + MAX_NEG_CROP;
+#endif
     dest += row * row_size + col;
     for (rr = 0; rr < 4; rr++, sp += 16, dest += row_size) {
-      dest[0] = cm[sp[0]];
+      dest[0] = crop(sp[0]);
           assertCrop(sp[0]);
-      dest[1] = cm[sp[1]];
+      dest[1] = crop(sp[1]);
       assertCrop(sp[1]);
-      dest[2] = cm[sp[2]];
+      dest[2] = crop(sp[2]);
       assertCrop(sp[2]);
-      dest[3] = cm[sp[3]];
+      dest[3] = crop(sp[3]);
       assertCrop(sp[3]);
-      dest[4] = cm[sp[4]];
+      dest[4] = crop(sp[4]);
       assertCrop(sp[4]);
-      dest[5] = cm[sp[5]];
+      dest[5] = crop(sp[5]);
       assertCrop(sp[5]);
-      dest[6] = cm[sp[6]];
+      dest[6] = crop(sp[6]);
       assertCrop(sp[6]);
-      dest[7] = cm[sp[7]];
+      dest[7] = crop(sp[7]);
       assertCrop(sp[7]);
 
       dest += row_size;
-      dest[0] = cm[sp[8]];
+      dest[0] = crop(sp[8]);
       assertCrop(sp[8]);
-      dest[1] = cm[sp[9]];
+      dest[1] = crop(sp[9]);
       assertCrop(sp[9]);
-      dest[2] = cm[sp[10]];
+      dest[2] = crop(sp[10]);
       assertCrop(sp[10]);
-      dest[3] = cm[sp[11]];
+      dest[3] = crop(sp[11]);
       assertCrop(sp[11]);
-      dest[4] = cm[sp[12]];
+      dest[4] = crop(sp[12]);
       assertCrop(sp[12]);
-      dest[5] = cm[sp[13]];
+      dest[5] = crop(sp[13]);
       assertCrop(sp[13]);
-      dest[6] = cm[sp[14]];
+      dest[6] = crop(sp[14]);
       assertCrop(sp[14]);
-      dest[7] = cm[sp[15]];
+      dest[7] = crop(sp[15]);
       assertCrop(sp[15]);
     }
   }
@@ -2491,28 +2503,30 @@ static void ReconPMBlock( VidStream* vid_stream, int bnum,
      */
     
     if ((!vid_stream->down_half_for) && (!vid_stream->right_half_for)) {
+#ifdef USE_CROP_TABLE
       unsigned char *cm = cropTbl + MAX_NEG_CROP;
+#endif
       if (!zflag)
         for (rr = 0; rr < 4; rr++) {
-          index[0] = cm[(int) rindex1[0] + (int) blockvals[0]];
-          index[1] = cm[(int) rindex1[1] + (int) blockvals[1]];
-          index[2] = cm[(int) rindex1[2] + (int) blockvals[2]];
-          index[3] = cm[(int) rindex1[3] + (int) blockvals[3]];
-          index[4] = cm[(int) rindex1[4] + (int) blockvals[4]];
-          index[5] = cm[(int) rindex1[5] + (int) blockvals[5]];
-          index[6] = cm[(int) rindex1[6] + (int) blockvals[6]];
-          index[7] = cm[(int) rindex1[7] + (int) blockvals[7]];
+          index[0] = crop((int) rindex1[0] + (int) blockvals[0]);
+          index[1] = crop((int) rindex1[1] + (int) blockvals[1]);
+          index[2] = crop((int) rindex1[2] + (int) blockvals[2]);
+          index[3] = crop((int) rindex1[3] + (int) blockvals[3]);
+          index[4] = crop((int) rindex1[4] + (int) blockvals[4]);
+          index[5] = crop((int) rindex1[5] + (int) blockvals[5]);
+          index[6] = crop((int) rindex1[6] + (int) blockvals[6]);
+          index[7] = crop((int) rindex1[7] + (int) blockvals[7]);
           index += row_size;
           rindex1 += row_size;
       
-          index[0] = cm[(int) rindex1[0] + (int) blockvals[8]];
-          index[1] = cm[(int) rindex1[1] + (int) blockvals[9]];
-          index[2] = cm[(int) rindex1[2] + (int) blockvals[10]];
-          index[3] = cm[(int) rindex1[3] + (int) blockvals[11]];
-          index[4] = cm[(int) rindex1[4] + (int) blockvals[12]];
-          index[5] = cm[(int) rindex1[5] + (int) blockvals[13]];
-          index[6] = cm[(int) rindex1[6] + (int) blockvals[14]];
-          index[7] = cm[(int) rindex1[7] + (int) blockvals[15]];
+          index[0] = crop((int) rindex1[0] + (int) blockvals[8]);
+          index[1] = crop((int) rindex1[1] + (int) blockvals[9]);
+          index[2] = crop((int) rindex1[2] + (int) blockvals[10]);
+          index[3] = crop((int) rindex1[3] + (int) blockvals[11]);
+          index[4] = crop((int) rindex1[4] + (int) blockvals[12]);
+          index[5] = crop((int) rindex1[5] + (int) blockvals[13]);
+          index[6] = crop((int) rindex1[6] + (int) blockvals[14]);
+          index[7] = crop((int) rindex1[7] + (int) blockvals[15]);
           blockvals += 16;
           index += row_size;
           rindex1 += row_size;
@@ -2582,7 +2596,9 @@ static void ReconPMBlock( VidStream* vid_stream, int bnum,
         }
       }
     } else {
+#ifdef USE_CROP_TABLE
       unsigned char *cm = cropTbl + MAX_NEG_CROP;
+#endif
       rindex2 = rindex1 + vid_stream->right_half_for 
                 + (vid_stream->down_half_for * row_size);
 
@@ -2592,26 +2608,26 @@ static void ReconPMBlock( VidStream* vid_stream, int bnum,
         
         if (!zflag) {
           for (rr = 0; rr < 4; rr++) {
-            index[0] = cm[((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[0]];
-            index[1] = cm[((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[1]];
-            index[2] = cm[((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[2]];
-            index[3] = cm[((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[3]];
-            index[4] = cm[((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[4]];
-            index[5] = cm[((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[5]];
-            index[6] = cm[((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[6]];
-            index[7] = cm[((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[7]];
+            index[0] = crop(((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[0]);
+            index[1] = crop(((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[1]);
+            index[2] = crop(((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[2]);
+            index[3] = crop(((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[3]);
+            index[4] = crop(((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[4]);
+            index[5] = crop(((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[5]);
+            index[6] = crop(((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[6]);
+            index[7] = crop(((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[7]);
             index += row_size;
             rindex1 += row_size;
             rindex2 += row_size;
         
-            index[0] = cm[((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[8]];
-            index[1] = cm[((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[9]];
-            index[2] = cm[((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[10]];
-            index[3] = cm[((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[11]];
-            index[4] = cm[((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[12]];
-            index[5] = cm[((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[13]];
-            index[6] = cm[((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[14]];
-            index[7] = cm[((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[15]];
+            index[0] = crop(((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[8]);
+            index[1] = crop(((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[9]);
+            index[2] = crop(((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[10]);
+            index[3] = crop(((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[11]);
+            index[4] = crop(((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[12]);
+            index[5] = crop(((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[13]);
+            index[6] = crop(((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[14]);
+            index[7] = crop(((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[15]);
             blockvals += 16;
             index += row_size;
             rindex1 += row_size;
@@ -2637,28 +2653,28 @@ static void ReconPMBlock( VidStream* vid_stream, int bnum,
         rindex4 = rindex1 + (vid_stream->down_half_for * row_size);
         if (!zflag) {
           for (rr = 0; rr < 4; rr++) {
-            index[0] = cm[((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[0]];
-            index[1] = cm[((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[1]];
-            index[2] = cm[((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[2]];
-            index[3] = cm[((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[3]];
-            index[4] = cm[((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[4]];
-            index[5] = cm[((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[5]];
-            index[6] = cm[((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[6]];
-            index[7] = cm[((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[7]];
+            index[0] = crop(((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[0]);
+            index[1] = crop(((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[1]);
+            index[2] = crop(((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[2]);
+            index[3] = crop(((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[3]);
+            index[4] = crop(((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[4]);
+            index[5] = crop(((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[5]);
+            index[6] = crop(((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[6]);
+            index[7] = crop(((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[7]);
             index += row_size;
             rindex1 += row_size;
             rindex2 += row_size;
             rindex3 += row_size;
             rindex4 += row_size;
         
-            index[0] = cm[((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[8]];
-            index[1] = cm[((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[9]];
-            index[2] = cm[((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[10]];
-            index[3] = cm[((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[11]];
-            index[4] = cm[((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[12]];
-            index[5] = cm[((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[13]];
-            index[6] = cm[((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[14]];
-            index[7] = cm[((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[15]];
+            index[0] = crop(((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[8]);
+            index[1] = crop(((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[9]);
+            index[2] = crop(((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[10]);
+            index[3] = crop(((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[11]);
+            index[4] = crop(((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[12]);
+            index[5] = crop(((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[13]);
+            index[6] = crop(((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[14]);
+            index[7] = crop(((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[15]);
             blockvals += 16;
             index += row_size;
             rindex1 += row_size;
@@ -2964,28 +2980,30 @@ static void ReconBMBlock( VidStream* vid_stream, int bnum,
     blockvals = &(vid_stream->block.dct_recon[0][0]);
 
     if ((!right_half_back) && (!down_half_back)) {
+#ifdef USE_CROP_TABLE
       unsigned char *cm = cropTbl + MAX_NEG_CROP;
+#endif
       if (!zflag)
         for (rr = 0; rr < 4; rr++) {
-          index[0] = cm[(int) rindex1[0] + (int) blockvals[0]];
-          index[1] = cm[(int) rindex1[1] + (int) blockvals[1]];
-          index[2] = cm[(int) rindex1[2] + (int) blockvals[2]];
-          index[3] = cm[(int) rindex1[3] + (int) blockvals[3]];
-          index[4] = cm[(int) rindex1[4] + (int) blockvals[4]];
-          index[5] = cm[(int) rindex1[5] + (int) blockvals[5]];
-          index[6] = cm[(int) rindex1[6] + (int) blockvals[6]];
-          index[7] = cm[(int) rindex1[7] + (int) blockvals[7]];
+          index[0] = crop((int) rindex1[0] + (int) blockvals[0]);
+          index[1] = crop((int) rindex1[1] + (int) blockvals[1]);
+          index[2] = crop((int) rindex1[2] + (int) blockvals[2]);
+          index[3] = crop((int) rindex1[3] + (int) blockvals[3]);
+          index[4] = crop((int) rindex1[4] + (int) blockvals[4]);
+          index[5] = crop((int) rindex1[5] + (int) blockvals[5]);
+          index[6] = crop((int) rindex1[6] + (int) blockvals[6]);
+          index[7] = crop((int) rindex1[7] + (int) blockvals[7]);
           index += row_size;
           rindex1 += row_size;
           
-          index[0] = cm[(int) rindex1[0] + (int) blockvals[8]];
-          index[1] = cm[(int) rindex1[1] + (int) blockvals[9]];
-          index[2] = cm[(int) rindex1[2] + (int) blockvals[10]];
-          index[3] = cm[(int) rindex1[3] + (int) blockvals[11]];
-          index[4] = cm[(int) rindex1[4] + (int) blockvals[12]];
-          index[5] = cm[(int) rindex1[5] + (int) blockvals[13]];
-          index[6] = cm[(int) rindex1[6] + (int) blockvals[14]];
-          index[7] = cm[(int) rindex1[7] + (int) blockvals[15]];
+          index[0] = crop((int) rindex1[0] + (int) blockvals[8]);
+          index[1] = crop((int) rindex1[1] + (int) blockvals[9]);
+          index[2] = crop((int) rindex1[2] + (int) blockvals[10]);
+          index[3] = crop((int) rindex1[3] + (int) blockvals[11]);
+          index[4] = crop((int) rindex1[4] + (int) blockvals[12]);
+          index[5] = crop((int) rindex1[5] + (int) blockvals[13]);
+          index[6] = crop((int) rindex1[6] + (int) blockvals[14]);
+          index[7] = crop((int) rindex1[7] + (int) blockvals[15]);
           blockvals += 16;
           index += row_size;
           rindex1 += row_size;
@@ -3055,32 +3073,34 @@ static void ReconBMBlock( VidStream* vid_stream, int bnum,
         }
       }
     } else {
+#ifdef USE_CROP_TABLE
       unsigned char *cm = cropTbl + MAX_NEG_CROP;
+#endif
       rindex2 = rindex1 + right_half_back + (down_half_back * row_size);
       if (!qualityFlag) {
         
         if (!zflag) {
           for (rr = 0; rr < 4; rr++) {
-            index[0] = cm[((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[0]];
-            index[1] = cm[((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[1]];
-            index[2] = cm[((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[2]];
-            index[3] = cm[((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[3]];
-            index[4] = cm[((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[4]];
-            index[5] = cm[((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[5]];
-            index[6] = cm[((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[6]];
-            index[7] = cm[((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[7]];
+            index[0] = crop(((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[0]);
+            index[1] = crop(((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[1]);
+            index[2] = crop(((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[2]);
+            index[3] = crop(((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[3]);
+            index[4] = crop(((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[4]);
+            index[5] = crop(((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[5]);
+            index[6] = crop(((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[6]);
+            index[7] = crop(((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[7]);
             index += row_size;
             rindex1 += row_size;
             rindex2 += row_size;
         
-            index[0] = cm[((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[8]];
-            index[1] = cm[((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[9]];
-            index[2] = cm[((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[10]];
-            index[3] = cm[((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[11]];
-            index[4] = cm[((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[12]];
-            index[5] = cm[((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[13]];
-            index[6] = cm[((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[14]];
-            index[7] = cm[((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[15]];
+            index[0] = crop(((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[8]);
+            index[1] = crop(((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[9]);
+            index[2] = crop(((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[10]);
+            index[3] = crop(((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[11]);
+            index[4] = crop(((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[12]);
+            index[5] = crop(((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[13]);
+            index[6] = crop(((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[14]);
+            index[7] = crop(((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[15]);
             blockvals += 16;
             index += row_size;
             rindex1 += row_size;
@@ -3106,28 +3126,28 @@ static void ReconBMBlock( VidStream* vid_stream, int bnum,
         rindex4 = rindex1 + (down_half_back * row_size);
         if (!zflag) {
           for (rr = 0; rr < 4; rr++) {
-            index[0] = cm[((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[0]];
-            index[1] = cm[((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[1]];
-            index[2] = cm[((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[2]];
-            index[3] = cm[((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[3]];
-            index[4] = cm[((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[4]];
-            index[5] = cm[((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[5]];
-            index[6] = cm[((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[6]];
-            index[7] = cm[((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[7]];
+            index[0] = crop(((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[0]);
+            index[1] = crop(((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[1]);
+            index[2] = crop(((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[2]);
+            index[3] = crop(((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[3]);
+            index[4] = crop(((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[4]);
+            index[5] = crop(((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[5]);
+            index[6] = crop(((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[6]);
+            index[7] = crop(((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[7]);
             index += row_size;
             rindex1 += row_size;
             rindex2 += row_size;
             rindex3 += row_size;
             rindex4 += row_size;
         
-            index[0] = cm[((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[8]];
-            index[1] = cm[((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[9]];
-            index[2] = cm[((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[10]];
-            index[3] = cm[((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[11]];
-            index[4] = cm[((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[12]];
-            index[5] = cm[((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[13]];
-            index[6] = cm[((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[14]];
-            index[7] = cm[((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[15]];
+            index[0] = crop(((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[8]);
+            index[1] = crop(((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[9]);
+            index[2] = crop(((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[10]);
+            index[3] = crop(((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[11]);
+            index[4] = crop(((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[12]);
+            index[5] = crop(((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[13]);
+            index[6] = crop(((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[14]);
+            index[7] = crop(((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[15]);
             blockvals += 16;
             index += row_size;
             rindex1 += row_size;
@@ -3397,29 +3417,31 @@ static void ReconBiMBlock( VidStream* vid_stream, int bnum,
   blockvals = (short int *) &(vid_stream->block.dct_recon[0][0]);
 
   {
+#ifdef USE_CROP_TABLE
   unsigned char *cm = cropTbl + MAX_NEG_CROP;
+#endif
   if (!zflag)
     for (rr = 0; rr < 4; rr++) {
-      index[0] = cm[((int) (rindex1[0] + bindex1[0]) >> 1) + blockvals[0]];
-      index[1] = cm[((int) (rindex1[1] + bindex1[1]) >> 1) + blockvals[1]];
-      index[2] = cm[((int) (rindex1[2] + bindex1[2]) >> 1) + blockvals[2]];
-      index[3] = cm[((int) (rindex1[3] + bindex1[3]) >> 1) + blockvals[3]];
-      index[4] = cm[((int) (rindex1[4] + bindex1[4]) >> 1) + blockvals[4]];
-      index[5] = cm[((int) (rindex1[5] + bindex1[5]) >> 1) + blockvals[5]];
-      index[6] = cm[((int) (rindex1[6] + bindex1[6]) >> 1) + blockvals[6]];
-      index[7] = cm[((int) (rindex1[7] + bindex1[7]) >> 1) + blockvals[7]];
+      index[0] = crop(((int) (rindex1[0] + bindex1[0]) >> 1) + blockvals[0]);
+      index[1] = crop(((int) (rindex1[1] + bindex1[1]) >> 1) + blockvals[1]);
+      index[2] = crop(((int) (rindex1[2] + bindex1[2]) >> 1) + blockvals[2]);
+      index[3] = crop(((int) (rindex1[3] + bindex1[3]) >> 1) + blockvals[3]);
+      index[4] = crop(((int) (rindex1[4] + bindex1[4]) >> 1) + blockvals[4]);
+      index[5] = crop(((int) (rindex1[5] + bindex1[5]) >> 1) + blockvals[5]);
+      index[6] = crop(((int) (rindex1[6] + bindex1[6]) >> 1) + blockvals[6]);
+      index[7] = crop(((int) (rindex1[7] + bindex1[7]) >> 1) + blockvals[7]);
       index += row_size;
       rindex1 += row_size;
       bindex1 += row_size;
 
-      index[0] = cm[((int) (rindex1[0] + bindex1[0]) >> 1) + blockvals[8]];
-      index[1] = cm[((int) (rindex1[1] + bindex1[1]) >> 1) + blockvals[9]];
-      index[2] = cm[((int) (rindex1[2] + bindex1[2]) >> 1) + blockvals[10]];
-      index[3] = cm[((int) (rindex1[3] + bindex1[3]) >> 1) + blockvals[11]];
-      index[4] = cm[((int) (rindex1[4] + bindex1[4]) >> 1) + blockvals[12]];
-      index[5] = cm[((int) (rindex1[5] + bindex1[5]) >> 1) + blockvals[13]];
-      index[6] = cm[((int) (rindex1[6] + bindex1[6]) >> 1) + blockvals[14]];
-      index[7] = cm[((int) (rindex1[7] + bindex1[7]) >> 1) + blockvals[15]];
+      index[0] = crop(((int) (rindex1[0] + bindex1[0]) >> 1) + blockvals[8]);
+      index[1] = crop(((int) (rindex1[1] + bindex1[1]) >> 1) + blockvals[9]);
+      index[2] = crop(((int) (rindex1[2] + bindex1[2]) >> 1) + blockvals[10]);
+      index[3] = crop(((int) (rindex1[3] + bindex1[3]) >> 1) + blockvals[11]);
+      index[4] = crop(((int) (rindex1[4] + bindex1[4]) >> 1) + blockvals[12]);
+      index[5] = crop(((int) (rindex1[5] + bindex1[5]) >> 1) + blockvals[13]);
+      index[6] = crop(((int) (rindex1[6] + bindex1[6]) >> 1) + blockvals[14]);
+      index[7] = crop(((int) (rindex1[7] + bindex1[7]) >> 1) + blockvals[15]);
       blockvals += 16;
       index += row_size;
       rindex1 += row_size;

@@ -1,4 +1,10 @@
 
+0.3.4:
+Sam Lantinga - Mon Jan 24 12:57:54 PST 2000
+ * Disabled consistency checks by default, now plays more video streams
+Laurent Bonnaud - Tue Jan 25 13:46:32 PST 2000
+ * Speeded up cropping by using an inline function
+
 0.3.3:
 Sam Lantinga - Mon Jan 17 19:52:32 PST 2000
  * Updated for the new SDL mixer library release (1.0.3)

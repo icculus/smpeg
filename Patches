@@ -1,5 +1,365 @@
 *************************************************************************
 *** Applied ***
+From: Laurent Bonnaud <Laurent.Bonnaud@inpg.fr>
+Subject: Problems with crop table
+Date: 25 Jan 2000 11:32:22 +0100
+
+Hi,
+
+some time ago, when you released the first versions of smpeg, I
+reported a bug against the crop table which was too small for some
+MPEG1 streams, and you increased its size.
+
+With my recent tests, I found MPEG1 streams with crop values below
+-3500 !  So I suggest this patch:
+
+diff -rw smpeg-0.3.3.org/video/video.cpp smpeg-0.3.3/video/video.cpp
+169c170
+< #define MAX_NEG_CROP 2048
+---
+> #define MAX_NEG_CROP 4096
+
+
+In order to get rid of the problem once and for all, I tried to replace
+this table with an inline function.  With processors becoming always
+faster than memory, I even observed a small speedup on my system (K6-2
+and gcc -O2 -fstrict-aliasing with code optimization for K6).  Here is
+my quick hack:
+
+diff -rw smpeg-0.3.3.org/video/video.cpp smpeg-0.3.3/video/video.cpp
+172a174,184
+> inline unsigned char crop(int x)
+> {
+>   if(x<=0)
+>     return 0;
+>   if(x>=255)
+>     return 255;
+>   return x;
+> }
+> 
+> //#define crop(x) cm[x]
+> 
+2176c2188
+<       dest[0] = cm[sp[0]];
+---
+>       dest[0] = crop(sp[0]);
+2178c2190
+<       dest[1] = cm[sp[1]];
+---
+>       dest[1] = crop(sp[1]);
+2180c2192
+<       dest[2] = cm[sp[2]];
+---
+>       dest[2] = crop(sp[2]);
+2182c2194
+<       dest[3] = cm[sp[3]];
+---
+>       dest[3] = crop(sp[3]);
+2184c2196
+<       dest[4] = cm[sp[4]];
+---
+>       dest[4] = crop(sp[4]);
+2186c2198
+<       dest[5] = cm[sp[5]];
+---
+>       dest[5] = crop(sp[5]);
+2188c2200
+<       dest[6] = cm[sp[6]];
+---
+>       dest[6] = crop(sp[6]);
+2190c2202
+<       dest[7] = cm[sp[7]];
+---
+>       dest[7] = crop(sp[7]);
+2194c2206
+<       dest[0] = cm[sp[8]];
+---
+>       dest[0] = crop(sp[8]);
+2196c2208
+<       dest[1] = cm[sp[9]];
+---
+>       dest[1] = crop(sp[9]);
+2198c2210
+<       dest[2] = cm[sp[10]];
+---
+>       dest[2] = crop(sp[10]);
+2200c2212
+<       dest[3] = cm[sp[11]];
+---
+>       dest[3] = crop(sp[11]);
+2202c2214
+<       dest[4] = cm[sp[12]];
+---
+>       dest[4] = crop(sp[12]);
+2204c2216
+<       dest[5] = cm[sp[13]];
+---
+>       dest[5] = crop(sp[13]);
+2206c2218
+<       dest[6] = cm[sp[14]];
+---
+>       dest[6] = crop(sp[14]);
+2208c2220
+<       dest[7] = cm[sp[15]];
+---
+>       dest[7] = crop(sp[15]);
+2497,2504c2509,2516
+<           index[0] = cm[(int) rindex1[0] + (int) blockvals[0]];
+<           index[1] = cm[(int) rindex1[1] + (int) blockvals[1]];
+<           index[2] = cm[(int) rindex1[2] + (int) blockvals[2]];
+<           index[3] = cm[(int) rindex1[3] + (int) blockvals[3]];
+<           index[4] = cm[(int) rindex1[4] + (int) blockvals[4]];
+<           index[5] = cm[(int) rindex1[5] + (int) blockvals[5]];
+<           index[6] = cm[(int) rindex1[6] + (int) blockvals[6]];
+<           index[7] = cm[(int) rindex1[7] + (int) blockvals[7]];
+---
+>           index[0] = crop((int) rindex1[0] + (int) blockvals[0]);
+>           index[1] = crop((int) rindex1[1] + (int) blockvals[1]);
+>           index[2] = crop((int) rindex1[2] + (int) blockvals[2]);
+>           index[3] = crop((int) rindex1[3] + (int) blockvals[3]);
+>           index[4] = crop((int) rindex1[4] + (int) blockvals[4]);
+>           index[5] = crop((int) rindex1[5] + (int) blockvals[5]);
+>           index[6] = crop((int) rindex1[6] + (int) blockvals[6]);
+>           index[7] = crop((int) rindex1[7] + (int) blockvals[7]);
+2508,2515c2520,2527
+<           index[0] = cm[(int) rindex1[0] + (int) blockvals[8]];
+<           index[1] = cm[(int) rindex1[1] + (int) blockvals[9]];
+<           index[2] = cm[(int) rindex1[2] + (int) blockvals[10]];
+<           index[3] = cm[(int) rindex1[3] + (int) blockvals[11]];
+<           index[4] = cm[(int) rindex1[4] + (int) blockvals[12]];
+<           index[5] = cm[(int) rindex1[5] + (int) blockvals[13]];
+<           index[6] = cm[(int) rindex1[6] + (int) blockvals[14]];
+<           index[7] = cm[(int) rindex1[7] + (int) blockvals[15]];
+---
+>           index[0] = crop((int) rindex1[0] + (int) blockvals[8]);
+>           index[1] = crop((int) rindex1[1] + (int) blockvals[9]);
+>           index[2] = crop((int) rindex1[2] + (int) blockvals[10]);
+>           index[3] = crop((int) rindex1[3] + (int) blockvals[11]);
+>           index[4] = crop((int) rindex1[4] + (int) blockvals[12]);
+>           index[5] = crop((int) rindex1[5] + (int) blockvals[13]);
+>           index[6] = crop((int) rindex1[6] + (int) blockvals[14]);
+>           index[7] = crop((int) rindex1[7] + (int) blockvals[15]);
+2595,2602c2607,2614
+<             index[0] = cm[((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[0]];
+<             index[1] = cm[((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[1]];
+<             index[2] = cm[((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[2]];
+<             index[3] = cm[((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[3]];
+<             index[4] = cm[((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[4]];
+<             index[5] = cm[((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[5]];
+<             index[6] = cm[((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[6]];
+<             index[7] = cm[((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[7]];
+---
+>             index[0] = crop(((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[0]);
+>             index[1] = crop(((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[1]);
+>             index[2] = crop(((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[2]);
+>             index[3] = crop(((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[3]);
+>             index[4] = crop(((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[4]);
+>             index[5] = crop(((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[5]);
+>             index[6] = crop(((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[6]);
+>             index[7] = crop(((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[7]);
+2607,2614c2619,2626
+<             index[0] = cm[((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[8]];
+<             index[1] = cm[((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[9]];
+<             index[2] = cm[((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[10]];
+<             index[3] = cm[((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[11]];
+<             index[4] = cm[((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[12]];
+<             index[5] = cm[((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[13]];
+<             index[6] = cm[((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[14]];
+<             index[7] = cm[((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[15]];
+---
+>             index[0] = crop(((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[8]);
+>             index[1] = crop(((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[9]);
+>             index[2] = crop(((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[10]);
+>             index[3] = crop(((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[11]);
+>             index[4] = crop(((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[12]);
+>             index[5] = crop(((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[13]);
+>             index[6] = crop(((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[14]);
+>             index[7] = crop(((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[15]);
+2640,2647c2652,2659
+<             index[0] = cm[((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[0]];
+<             index[1] = cm[((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[1]];
+<             index[2] = cm[((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[2]];
+<             index[3] = cm[((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[3]];
+<             index[4] = cm[((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[4]];
+<             index[5] = cm[((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[5]];
+<             index[6] = cm[((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[6]];
+<             index[7] = cm[((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[7]];
+---
+>             index[0] = crop(((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[0]);
+>             index[1] = crop(((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[1]);
+>             index[2] = crop(((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[2]);
+>             index[3] = crop(((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[3]);
+>             index[4] = crop(((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[4]);
+>             index[5] = crop(((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[5]);
+>             index[6] = crop(((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[6]);
+>             index[7] = crop(((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[7]);
+2654,2661c2666,2673
+<             index[0] = cm[((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[8]];
+<             index[1] = cm[((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[9]];
+<             index[2] = cm[((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[10]];
+<             index[3] = cm[((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[11]];
+<             index[4] = cm[((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[12]];
+<             index[5] = cm[((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[13]];
+<             index[6] = cm[((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[14]];
+<             index[7] = cm[((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[15]];
+---
+>             index[0] = crop(((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[8]);
+>             index[1] = crop(((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[9]);
+>             index[2] = crop(((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[10]);
+>             index[3] = crop(((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[11]);
+>             index[4] = crop(((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[12]);
+>             index[5] = crop(((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[13]);
+>             index[6] = crop(((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[14]);
+>             index[7] = crop(((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[15]);
+2970,2977c2982,2989
+<           index[0] = cm[(int) rindex1[0] + (int) blockvals[0]];
+<           index[1] = cm[(int) rindex1[1] + (int) blockvals[1]];
+<           index[2] = cm[(int) rindex1[2] + (int) blockvals[2]];
+<           index[3] = cm[(int) rindex1[3] + (int) blockvals[3]];
+<           index[4] = cm[(int) rindex1[4] + (int) blockvals[4]];
+<           index[5] = cm[(int) rindex1[5] + (int) blockvals[5]];
+<           index[6] = cm[(int) rindex1[6] + (int) blockvals[6]];
+<           index[7] = cm[(int) rindex1[7] + (int) blockvals[7]];
+---
+>           index[0] = crop((int) rindex1[0] + (int) blockvals[0]);
+>           index[1] = crop((int) rindex1[1] + (int) blockvals[1]);
+>           index[2] = crop((int) rindex1[2] + (int) blockvals[2]);
+>           index[3] = crop((int) rindex1[3] + (int) blockvals[3]);
+>           index[4] = crop((int) rindex1[4] + (int) blockvals[4]);
+>           index[5] = crop((int) rindex1[5] + (int) blockvals[5]);
+>           index[6] = crop((int) rindex1[6] + (int) blockvals[6]);
+>           index[7] = crop((int) rindex1[7] + (int) blockvals[7]);
+2981,2988c2993,3000
+<           index[0] = cm[(int) rindex1[0] + (int) blockvals[8]];
+<           index[1] = cm[(int) rindex1[1] + (int) blockvals[9]];
+<           index[2] = cm[(int) rindex1[2] + (int) blockvals[10]];
+<           index[3] = cm[(int) rindex1[3] + (int) blockvals[11]];
+<           index[4] = cm[(int) rindex1[4] + (int) blockvals[12]];
+<           index[5] = cm[(int) rindex1[5] + (int) blockvals[13]];
+<           index[6] = cm[(int) rindex1[6] + (int) blockvals[14]];
+<           index[7] = cm[(int) rindex1[7] + (int) blockvals[15]];
+---
+>           index[0] = crop((int) rindex1[0] + (int) blockvals[8]);
+>           index[1] = crop((int) rindex1[1] + (int) blockvals[9]);
+>           index[2] = crop((int) rindex1[2] + (int) blockvals[10]);
+>           index[3] = crop((int) rindex1[3] + (int) blockvals[11]);
+>           index[4] = crop((int) rindex1[4] + (int) blockvals[12]);
+>           index[5] = crop((int) rindex1[5] + (int) blockvals[13]);
+>           index[6] = crop((int) rindex1[6] + (int) blockvals[14]);
+>           index[7] = crop((int) rindex1[7] + (int) blockvals[15]);
+3064,3071c3076,3083
+<             index[0] = cm[((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[0]];
+<             index[1] = cm[((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[1]];
+<             index[2] = cm[((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[2]];
+<             index[3] = cm[((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[3]];
+<             index[4] = cm[((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[4]];
+<             index[5] = cm[((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[5]];
+<             index[6] = cm[((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[6]];
+<             index[7] = cm[((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[7]];
+---
+>             index[0] = crop(((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[0]);
+>             index[1] = crop(((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[1]);
+>             index[2] = crop(((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[2]);
+>             index[3] = crop(((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[3]);
+>             index[4] = crop(((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[4]);
+>             index[5] = crop(((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[5]);
+>             index[6] = crop(((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[6]);
+>             index[7] = crop(((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[7]);
+3076,3083c3088,3095
+<             index[0] = cm[((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[8]];
+<             index[1] = cm[((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[9]];
+<             index[2] = cm[((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[10]];
+<             index[3] = cm[((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[11]];
+<             index[4] = cm[((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[12]];
+<             index[5] = cm[((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[13]];
+<             index[6] = cm[((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[14]];
+<             index[7] = cm[((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[15]];
+---
+>             index[0] = crop(((int) (rindex1[0] + rindex2[0] + 1) >> 1) + blockvals[8]);
+>             index[1] = crop(((int) (rindex1[1] + rindex2[1] + 1) >> 1) + blockvals[9]);
+>             index[2] = crop(((int) (rindex1[2] + rindex2[2] + 1) >> 1) + blockvals[10]);
+>             index[3] = crop(((int) (rindex1[3] + rindex2[3] + 1) >> 1) + blockvals[11]);
+>             index[4] = crop(((int) (rindex1[4] + rindex2[4] + 1) >> 1) + blockvals[12]);
+>             index[5] = crop(((int) (rindex1[5] + rindex2[5] + 1) >> 1) + blockvals[13]);
+>             index[6] = crop(((int) (rindex1[6] + rindex2[6] + 1) >> 1) + blockvals[14]);
+>             index[7] = crop(((int) (rindex1[7] + rindex2[7] + 1) >> 1) + blockvals[15]);
+3109,3116c3121,3128
+<             index[0] = cm[((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[0]];
+<             index[1] = cm[((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[1]];
+<             index[2] = cm[((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[2]];
+<             index[3] = cm[((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[3]];
+<             index[4] = cm[((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[4]];
+<             index[5] = cm[((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[5]];
+<             index[6] = cm[((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[6]];
+<             index[7] = cm[((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[7]];
+---
+>             index[0] = crop(((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[0]);
+>             index[1] = crop(((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[1]);
+>             index[2] = crop(((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[2]);
+>             index[3] = crop(((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[3]);
+>             index[4] = crop(((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[4]);
+>             index[5] = crop(((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[5]);
+>             index[6] = crop(((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[6]);
+>             index[7] = crop(((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[7]);
+3123,3130c3135,3142
+<             index[0] = cm[((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[8]];
+<             index[1] = cm[((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[9]];
+<             index[2] = cm[((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[10]];
+<             index[3] = cm[((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[11]];
+<             index[4] = cm[((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[12]];
+<             index[5] = cm[((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[13]];
+<             index[6] = cm[((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[14]];
+<             index[7] = cm[((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[15]];
+---
+>             index[0] = crop(((int) (rindex1[0] + rindex2[0] + rindex3[0] + rindex4[0] + 2) >> 2) + blockvals[8]);
+>             index[1] = crop(((int) (rindex1[1] + rindex2[1] + rindex3[1] + rindex4[1] + 2) >> 2) + blockvals[9]);
+>             index[2] = crop(((int) (rindex1[2] + rindex2[2] + rindex3[2] + rindex4[2] + 2) >> 2) + blockvals[10]);
+>             index[3] = crop(((int) (rindex1[3] + rindex2[3] + rindex3[3] + rindex4[3] + 2) >> 2) + blockvals[11]);
+>             index[4] = crop(((int) (rindex1[4] + rindex2[4] + rindex3[4] + rindex4[4] + 2) >> 2) + blockvals[12]);
+>             index[5] = crop(((int) (rindex1[5] + rindex2[5] + rindex3[5] + rindex4[5] + 2) >> 2) + blockvals[13]);
+>             index[6] = crop(((int) (rindex1[6] + rindex2[6] + rindex3[6] + rindex4[6] + 2) >> 2) + blockvals[14]);
+>             index[7] = crop(((int) (rindex1[7] + rindex2[7] + rindex3[7] + rindex4[7] + 2) >> 2) + blockvals[15]);
+3403,3410c3415,3422
+<       index[0] = cm[((int) (rindex1[0] + bindex1[0]) >> 1) + blockvals[0]];
+<       index[1] = cm[((int) (rindex1[1] + bindex1[1]) >> 1) + blockvals[1]];
+<       index[2] = cm[((int) (rindex1[2] + bindex1[2]) >> 1) + blockvals[2]];
+<       index[3] = cm[((int) (rindex1[3] + bindex1[3]) >> 1) + blockvals[3]];
+<       index[4] = cm[((int) (rindex1[4] + bindex1[4]) >> 1) + blockvals[4]];
+<       index[5] = cm[((int) (rindex1[5] + bindex1[5]) >> 1) + blockvals[5]];
+<       index[6] = cm[((int) (rindex1[6] + bindex1[6]) >> 1) + blockvals[6]];
+<       index[7] = cm[((int) (rindex1[7] + bindex1[7]) >> 1) + blockvals[7]];
+---
+>       index[0] = crop(((int) (rindex1[0] + bindex1[0]) >> 1) + blockvals[0]);
+>       index[1] = crop(((int) (rindex1[1] + bindex1[1]) >> 1) + blockvals[1]);
+>       index[2] = crop(((int) (rindex1[2] + bindex1[2]) >> 1) + blockvals[2]);
+>       index[3] = crop(((int) (rindex1[3] + bindex1[3]) >> 1) + blockvals[3]);
+>       index[4] = crop(((int) (rindex1[4] + bindex1[4]) >> 1) + blockvals[4]);
+>       index[5] = crop(((int) (rindex1[5] + bindex1[5]) >> 1) + blockvals[5]);
+>       index[6] = crop(((int) (rindex1[6] + bindex1[6]) >> 1) + blockvals[6]);
+>       index[7] = crop(((int) (rindex1[7] + bindex1[7]) >> 1) + blockvals[7]);
+3415,3422c3427,3434
+<       index[0] = cm[((int) (rindex1[0] + bindex1[0]) >> 1) + blockvals[8]];
+<       index[1] = cm[((int) (rindex1[1] + bindex1[1]) >> 1) + blockvals[9]];
+<       index[2] = cm[((int) (rindex1[2] + bindex1[2]) >> 1) + blockvals[10]];
+<       index[3] = cm[((int) (rindex1[3] + bindex1[3]) >> 1) + blockvals[11]];
+<       index[4] = cm[((int) (rindex1[4] + bindex1[4]) >> 1) + blockvals[12]];
+<       index[5] = cm[((int) (rindex1[5] + bindex1[5]) >> 1) + blockvals[13]];
+<       index[6] = cm[((int) (rindex1[6] + bindex1[6]) >> 1) + blockvals[14]];
+<       index[7] = cm[((int) (rindex1[7] + bindex1[7]) >> 1) + blockvals[15]];
+---
+>       index[0] = crop(((int) (rindex1[0] + bindex1[0]) >> 1) + blockvals[8]);
+>       index[1] = crop(((int) (rindex1[1] + bindex1[1]) >> 1) + blockvals[9]);
+>       index[2] = crop(((int) (rindex1[2] + bindex1[2]) >> 1) + blockvals[10]);
+>       index[3] = crop(((int) (rindex1[3] + bindex1[3]) >> 1) + blockvals[11]);
+>       index[4] = crop(((int) (rindex1[4] + bindex1[4]) >> 1) + blockvals[12]);
+>       index[5] = crop(((int) (rindex1[5] + bindex1[5]) >> 1) + blockvals[13]);
+>       index[6] = crop(((int) (rindex1[6] + bindex1[6]) >> 1) + blockvals[14]);
+>       index[7] = crop(((int) (rindex1[7] + bindex1[7]) >> 1) + blockvals[15]);
+
+-- 
+Laurent.
+*************************************************************************
+*** Applied ***
 Date: Tue, 04 Jan 2000 00:48:34 +0100
 From: Stefan Gybas <stefan@gybas.com>
 Subject: Byte order detection patch for ARM architecture

@@ -147,6 +147,7 @@ typedef Uint8 UINT8;
 #endif
 
 /* External declaration of row,col to zig zag conversion matrix. */
+extern const int zigzag_direct[64];
 
 /* Brown - changed to const int because it is a help variable */
 extern const int scan[][8];
