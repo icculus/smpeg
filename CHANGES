@@ -5,7 +5,6 @@ SOL -	Added autoconf support.
 MKV -	Added GTk mpeg player.
 MKV -	Added OpenGL mpeg player.
 SP  -	Exported the audio mixing function for flexible audio setup.
-Niels Larsen - Synchronize the video with audio, when possible.
 Mo DeJong - plaympeg now prints out usage if given no arguments.
 Stefan Gybas - Contributed a man page for plaympeg.
 
