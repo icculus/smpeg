@@ -297,7 +297,7 @@ int Play_MPEGvideo( void *udata )
 }
 
 
-/* dethreaded. */
+/* Dethreaded video.  Call regularly (such as every 10ms).  Automagic synchronise to audio. */
 int
 METH(run) (_THIS)
 {
@@ -309,7 +309,8 @@ METH(run) (_THIS)
 
   while (mark == self->_stream->totNumFrames) /* Get whole frame. */
     {
-      mpegVidRsrc(0, self->_stream, 0);
+/* XXX: this function may hang if playing from stream and stream hangs. */
+      mpegVidRsrc(0, self->_stream, 0); /* automagic sychronise w/ audio. */
     }
 
   if (self->_stream->film_has_ended)

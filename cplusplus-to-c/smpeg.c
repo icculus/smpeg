@@ -293,7 +293,8 @@ void SMPEG_setdisplayregion(SMPEG* mpeg, int x, int y, int w, int h)
     MPEG_SetDisplayRegion(mpeg->obj, x, y, w, h);
 }
 
-/* dethreaded video. */
+/* Dethreaded video.  Call regularly (every 10ms is good...). */
+/* Video automagically synchronizes with audio (if audio available), so no concern about calling _too_ frequently. */
 void SMPEG_run (SMPEG* mpeg)
 {
   MPEG_run(mpeg->obj);

@@ -57,7 +57,7 @@ METH(Alloc) (_THIS, Uint32 bufsize)
 
   if (bufsize)
     {
-      self->next->data = (Uint8*)malloc(bufsize);  /* XXX: of what type? */
+      self->next->data = (Uint8*)malloc(bufsize);
       if (!self->next->data)
         {
           fprintf(stderr, "Alloc : Not enough memory\n");
