@@ -1,5 +1,112 @@
 *************************************************************************
 *** Applied ***
+Date: 30 Jun 2000 15:40:51 -0700
+From: David Hedbor <david@hedbor.org>
+To: Sam Lantinga <slouken@devolution.com>
+Subject: more patches
+
+Firstly, this one adds -Wl,-rpath,... on Linux/fbsd to smpeg-config
+--libs. Second patch fixes some typos in plaympeg --help (it had
+spaces instead of tab in the help).
+
+
+Index: smpeg-config.in
+===================================================================
+RCS file: /cvs/smpeg/smpeg-config.in,v
+retrieving revision 1.2
+diff -c -r1.2 smpeg-config.in
+*** smpeg-config.in	2000/06/28 03:38:38	1.2
+--- smpeg-config.in	2000/06/30 22:39:09
+***************
+*** 48,54 ****
+        if [ "`uname`" = "SunOS" ]; then
+          libdirs="-L@libdir@ -R@libdir@"
+        else
+!         libdirs="-L@libdir@"
+        fi
+        echo $libdirs -lsmpeg
+        ;;
+--- 48,54 ----
+        if [ "`uname`" = "SunOS" ]; then
+          libdirs="-L@libdir@ -R@libdir@"
+        else
+!         libdirs="-L@libdir@ @SMPEG_RLD_FLAGS@"
+        fi
+        echo $libdirs -lsmpeg
+        ;;
+Index: configure.in
+===================================================================
+RCS file: /cvs/smpeg/configure.in,v
+retrieving revision 1.35
+diff -c -r1.35 configure.in
+*** configure.in	2000/06/21 21:59:27	1.35
+--- configure.in	2000/06/30 22:39:09
+***************
+*** 61,66 ****
+--- 61,82 ----
+          ;;
+  esac
+  
++ # Set runtime shared library paths as needed 
++ 
++ case "$target" in
++     *-*-linux*)
++ 	SMPEG_RLD_FLAGS="-Wl,-rpath,\${exec_prefix}/lib"
++ 	;;
++     *-*-freebsd*)
++ 	SMPEG_RLD_FLAGS="-Wl,-rpath,\${exec_prefix}/lib"
++ 	;;
++     *-*-solaris*)
++ 	SMPEG_RLD_FLAGS="-R\${exec_prefix}/lib"
++ 	;;
++ esac
++ 
++ AC_SUBST(SMPEG_RLD_FLAGS)
++ 
+  dnl Add compiler-specific optimization flags
+  
+  AC_ARG_ENABLE(debug,
+***************
+*** 187,192 ****
+--- 203,209 ----
+      CC="$save_CC"
+      CFLAGS="$save_CFLAGS"
+  fi
++ 
+  
+  # Finally create all the generated files
+  AC_OUTPUT([
+Index: plaympeg.c
+===================================================================
+RCS file: /cvs/smpeg/plaympeg.c,v
+retrieving revision 1.29
+diff -c -r1.29 plaympeg.c
+*** plaympeg.c	2000/06/15 08:41:04	1.29
+--- plaympeg.c	2000/06/30 22:39:09
+***************
+*** 64,72 ****
+  "	--loop or -l	     Play MPEG over and over\n"
+  "	--volume N or -v N   Set audio volume to N (0-100)\n"
+  "	--scale wxh or -s wxh  Play MPEG at given resolution\n"
+! "       --seek N or -S N     Skip N bytes\n"
+  #ifdef USE_SYSTEM_TIMESTAMP
+! "       --skip N or -k N     Skip N seconds\n"
+  #endif
+  "	--help or -h\n"
+  "	--version or -V\n"
+--- 64,72 ----
+  "	--loop or -l	     Play MPEG over and over\n"
+  "	--volume N or -v N   Set audio volume to N (0-100)\n"
+  "	--scale wxh or -s wxh  Play MPEG at given resolution\n"
+! "	--seek N or -S N     Skip N bytes\n"
+  #ifdef USE_SYSTEM_TIMESTAMP
+! "	--skip N or -k N     Skip N seconds\n"
+  #endif
+  "	--help or -h\n"
+  "	--version or -V\n"
+
+*************************************************************************
+*** Applied ***
 Date: Wed, 14 Jun 2000 21:36:33 +0200
 From: Vivien Chappelier <vivien.chappelier@enst-bretagne.fr>
 Subject: Re: Bug in SMPEG CVS audio stop
