@@ -45,6 +45,7 @@ void Color32DitherImageMMX( unsigned char *lum, unsigned char *cr,
                          unsigned char *cb, unsigned char *out,
                          int rows, int cols, int mod )
 {
+#ifdef USE_MMX
     unsigned int *row1;
     unsigned int *row2;
     row1 = (unsigned int *)out;           // 32 bit target
@@ -183,4 +184,5 @@ void Color32DitherImageMMX( unsigned char *lum, unsigned char *cr,
 		 : "r" (cr), "r"(cb),"r"(lum),
 		 "r"(row1),"r"(cols),"r"(row2),"m"(x),"m"(y),"m"(mod)
 		 );
+#endif /* USE_MMX */
 }
