@@ -32,7 +32,7 @@
 #include "MPEGring.h"
 #endif
 
-class MPEGstream;
+//class MPEGstream;
 
 /* MPEG/WAVE Sound library
 
@@ -113,6 +113,7 @@ typedef struct
 }HUFFMANCODETABLE;
 
 
+#if 0
 // Class for Mpeg layer3
 class Mpegbitwindow
 {
@@ -147,7 +148,84 @@ private:
   int  point,bitindex;
   char buffer[2*WINDOWSIZE];
 };
+#endif /* 0 */
 
+// Class for Mpeg layer3
+struct Mpegbitwindow
+{
+
+  int  point,bitindex;
+  char buffer[2*WINDOWSIZE];
+};
+
+typedef struct Mpegbitwindow Mpegbitwindow;
+
+#undef _THIS
+#define _THIS struct Mpegbitwindow*
+#undef METH
+#define METH(name) Mpegbitwindow_##name
+//  Mpegbitwindow(){bitindex=point=0;};
+#define Mpegbitwindow_create() (calloc(sizeof(struct Mpegbitwindow)))
+
+//  void initialize(void)  {bitindex=point=0;};
+#define Mpegbitwindow_initialize(self) (self->bitindex = self->point = 0)
+
+//  int  gettotalbit(void) const {return bitindex;};
+#define Mpegbitwindow_gettotalbit(self) (self->bitindex)
+
+//  void putbyte(int c)    {buffer[point&(WINDOWSIZE-1)]=c;point++;};
+#define Mpegbitwindow_putbyte(self, c) (self->buffer[self->point&(WINDOWSIZE-1)]=c, self->point++)
+
+//  void wrap(void);
+void METH(wrap) (_THIS);
+
+//  void rewind(int bits)  {bitindex-=bits;};
+#define Mpegbitwindow_rewind(self, bits) (self->bitindex -= bits)
+
+//  void forward(int bits) {bitindex+=bits;};
+#define Mpegbitwindow_forward(self, bits) (self->bitindex += bits)
+
+
+//  int getbit(void) {
+//      register int r=(buffer[bitindex>>3]>>(7-(bitindex&7)))&1;
+//      bitindex++;
+//      return r;
+//  }
+inline static int METH(getbit) (_THIS self) {
+  register int r=(self->buffer[self->bitindex>>3]>>(7-(self->bitindex&7)))&1;
+  self->bitindex++;
+  return r;
+}
+
+//  int getbits9(int bits)
+//  {
+//      register unsigned short a;
+//      { int offset=bitindex>>3;
+//
+//        a=(((unsigned char)buffer[offset])<<8) | ((unsigned char)buffer[offset+1]);
+//      }
+//      a<<=(bitindex&7);
+//      bitindex+=bits;
+//      return (int)((unsigned int)(a>>(16-bits)));
+//  }
+inline static int METH(getbits9) (_THIS self, int bits)
+{
+  register unsigned short a;
+  int offset = self->bitindex>>3;
+
+  a=(((unsigned char)self->buffer[offset])<<8) | ((unsigned char)self->buffer[offset+1]);
+
+  a<<=(self->bitindex&7);
+  self->bitindex+=bits;
+  return (int)((unsigned int)(a>>(16-bits)));
+}
+
+
+int METH(getbits) (_THIS self, int bits);
+
+
+
+#if 0
 /* The actual MPEG audio class */
 class MPEGaudio : public MPEGerror, public MPEGaudioaction {
 
@@ -368,5 +446,312 @@ public:
 
   double timestamp[N_TIMESTAMPS];
 };
+#endif /* 0 */
+
+
+
+
+
+/* MPEG audio state information. */
+
+struct MPEGaudio {
+//  struct MPEGerror MPEGerror;
+//  struct MPEGaudioaction MEPGaudioaction;
+
+    bool sdl_audio;
+    struct MPEGstream *mpeg;
+    int valid_stream;
+    bool stereo;
+    double rate_in_s;
+    Uint32 frags_playing;
+    Uint32 frag_time;
+#ifdef THREADED_AUDIO
+    bool decoding;
+    SDL_Thread *decode_thread;
+
+#endif
+
+/* from splay 1.8.2 */
+
+  /*****************************/
+  /* Constant tables for layer */
+  /*****************************/
+/* XXX: SHIT */
+//  static const int bitrate[2][3][15],frequencies[2][3];
+//  static const REAL scalefactorstable[64];
+//  static const HUFFMANCODETABLE ht[HTN];
+//  static const REAL filter[512];
+//  static REAL hcos_64[16],hcos_32[8],hcos_16[4],hcos_8[2],hcos_4;
+
+  /*************************/
+  /* MPEG header variables */
+  /*************************/
+  int last_speed;
+  int layer,protection,bitrateindex,padding,extendedmode;
+  enum _mpegversion  {mpeg1,mpeg2}                               version;
+  enum _mode    {fullstereo,joint,dual,single}                   mode;
+  enum _frequency {frequency44100,frequency48000,frequency32000} frequency;
+
+  /***************************************/
+  /* Interface for setting music quality */
+  /***************************************/
+  bool forcetomonoflag;
+  bool forcetostereoflag;
+  int  downfrequency;
+
+  /******************************/
+  /* Frame management variables */
+  /******************************/
+  int decodedframe,currentframe,totalframe;
+
+  /***************************************/
+  /* Variables made by MPEG-Audio header */
+  /***************************************/
+  int tableindex,channelbitrate;
+  int stereobound,subbandnumber,inputstereo,outputstereo;
+  REAL scalefactor;
+  int framesize;
+
+  /*******************/
+  /* Mpegtoraw class */
+  /*******************/
+
+  /*****************************/
+  /* Loading MPEG-Audio stream */
+  /*****************************/
+  Uint8 _buffer[4096];
+  Uint32 _buffer_pos;
+
+
+  /********************/
+  /* Global variables */
+  /********************/
+  int lastfrequency,laststereo;
+
+  // for Layer3
+  int layer3slots,layer3framestart,layer3part2start;
+  REAL prevblck[2][2][SBLIMIT][SSLIMIT];
+  int currentprevblock;
+  layer3sideinfo sideinfo;
+  layer3scalefactor scalefactors[2];
+
+  struct Mpegbitwindow bitwindow;
+//  int wgetbit  (void)    {return bitwindow.getbit  ();    }
+#define MPEGaudio_wgetbit(self) (Mpegbitwindow_getbit(self->bitwindow))
+//  int wgetbits9(int bits){return bitwindow.getbits9(bits);}
+#define MPEGaudio_wgetbits9(self, bits) (Mpegbitwindow_getbits9(self->bitwindow))
+//  int wgetbits (int bits){return bitwindow.getbits (bits);}
+#define MPEGaudio_wgetbits(self, bits) (Mpegwindow_getbits(self->bitwindow))
+
+
+  /*************************************/
+  /* Decoding functions for each layer */
+  /*************************************/
+
+  //
+  // Subbandsynthesis
+  //
+  REAL calcbufferL[2][CALCBUFFERSIZE],calcbufferR[2][CALCBUFFERSIZE];
+  int  currentcalcbuffer,calcbufferoffset;
+
+
+  // Extractor
+
+  // Functions for layer 3
+
+  /********************/
+  /* Playing raw data */
+  /********************/
+  int     samplesperframe;
+  int     rawdatareadoffset, rawdatawriteoffset;
+  Sint16 *rawdata;
+#ifdef THREADED_AUDIO
+  MPEG_ring *ring;
+#else
+  Sint16  spillover[ RAWDATASIZE ];
+#endif
+  int volume;
+
+//  void clearrawdata(void)    {
+//        rawdatareadoffset=0;
+//        rawdatawriteoffset=0;
+//        rawdata=NULL;
+//  }
+#define Mpegaudio_clearrawdata(self) (self->rawdatareadoffset = 0, self->rawdatawriteoffset = 0, self->rawdata = 0)
+//  void putraw(short int pcm) {rawdata[rawdatawriteoffset++]=pcm;}
+#define Mpegaudio_putraw(self, pcm) (self->rawdata[self->rawdatawriteoffset++] = pcm)
+
+  /********************/
+  /* Timestamp sync   */
+  /********************/
+#define N_TIMESTAMPS 5
+
+  double timestamp[N_TIMESTAMPS];
+
+  MPEGerror *MPEGerror;
+};
+
+typedef struct MPEGaudio MPEGaudio;
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* MPEG audio methods. */
+
+#undef _THIS
+#define _THIS struct MPEGaudio*
+#undef METH
+#define METH(name) MPEGaudio_##name
+/* The actual MPEG audio class */
+
+void Play_MPEGaudioSDL(void *udata, Uint8 *stream, int len);
+int Play_MPEGaudio(struct MPEGaudio *audio, Uint8 *stream, int len);
+#ifdef THREADED_AUDIO
+int Decode_MPEGaudio(void *udata);
+#endif
+
+_THIS METH(create) (struct MPEGstream *stream, bool initSDL);
+void METH(destroy) (_THIS);
+
+/* MPEG actions */
+bool METH(GetAudioInfo) (_THIS, MPEG_AudioInfo *info);
+double METH(Time) (void);
+void METH(Play) (_THIS);
+void METH(Stop) (_THIS);
+void METH(Rewind) (_THIS);
+void METH(ResetSynchro) (_THIS, double time);
+void METH(Skip) (_THIS, float seconds);
+void METH(Volume) (_THIS, int vol);
+		/* Michel Darricau from eProcess <mdarricau@eprocess.fr> conflict name in popcorn */
+MPEGstatus METH(GetStatus) (_THIS);
+
+/* Returns the desired SDL audio spec for this stream */
+bool METH(WantedSpec) (_THIS, SDL_AudioSpec *wanted);
+
+/* Inform SMPEG of the actual audio format if configuring SDL
+   outside of this class */
+void METH(ActualSpec) (_THIS, const SDL_AudioSpec *actual);
+
+#ifdef THREADED_AUDIO
+void METH(StartDecoding) (_THIS);
+void METH(StopDecoding) (_THIS);
+#endif
+
+/* from splay 1.8.2 */
+
+  /*****************************/
+  /* Constant tables for layer */
+  /*****************************/
+/* XXX: shit */
+//  static const int bitrate[2][3][15],frequencies[2][3];
+//  static const REAL scalefactorstable[64];
+//  static const HUFFMANCODETABLE ht[HTN];
+//  static const REAL filter[512];
+//  static REAL hcos_64[16],hcos_32[8],hcos_16[4],hcos_8[2],hcos_4;
+
+  /*************************/
+  /* MPEG header variables */
+  /*************************/
+
+  /***************************************/
+  /* Interface for setting music quality */
+  /***************************************/
+void METH(setforcetomono) (_THIS, bool flag);
+void METH(setdownfrequency) (_THIS, int value);
+
+  /******************************/
+  /* Frame management variables */
+  /******************************/
+
+  /***************************************/
+  /* Variables made by MPEG-Audio header */
+  /***************************************/
+
+  /*******************/
+  /* Mpegtoraw class */
+  /*******************/
+void METH(initialize) (_THIS);
+bool METH(run) (_THIS, int frames, double *timestamp);
+void METH(clearbuffer) (_THIS);
+
+  /*****************************/
+  /* Loading MPEG-Audio stream */
+  /*****************************/
+bool METH(fillbuffer) (_THIS, int size);
+void METH(sync) (_THIS);
+bool METH(issync) (_THIS);
+int METH(getbyte) (_THIS);
+int METH(getbit) (_THIS);
+int METH(getbits8) (_THIS);
+int METH(getbits9) (_THIS, int bits);
+int METH(getbits) (_THIS, int bits);
+
+
+  /********************/
+  /* Global variables */
+  /********************/
+
+
+  /*************************************/
+  /* Decoding functions for each layer */
+  /*************************************/
+bool METH(loadheader) (_THIS);
+
+  //
+  // Subbandsynthesis
+  //
+
+void METH(computebuffer) (_THIS, REAL *fraction,REAL buffer[2][CALCBUFFERSIZE]);
+void METH(generatesingle) (_THIS);
+void METH(generate) (_THIS);
+void METH(subbandsynthesis) (_THIS, REAL *fractionL,REAL *fractionR);
+
+void METH(computebuffer_2) (_THIS, REAL *fraction,REAL buffer[2][CALCBUFFERSIZE]);
+void METH(generatesingle_2) (_THIS);
+void METH(generate_2) (_THIS);
+void METH(subbandsynthesis_2) (_THIS, REAL *fractionL,REAL *fractionR);
+
+  // Extractor
+void METH(extractlayer1) (_THIS);    // MPEG-1
+void METH(extractlayer2) (_THIS);
+void METH(extractlayer3) (_THIS);
+void METH(extractlayer3_2) (_THIS);  // MPEG-2
+
+
+  // Functions for layer 3
+void METH(layer3initialize) (_THIS);
+bool METH(layer3getsideinfo) (_THIS);
+bool METH(layer3getsideinfo_2) (_THIS);
+void METH(layer3getscalefactors) (_THIS, int ch,int gr);
+void METH(layer3getscalefactors_2) (_THIS, int ch);
+void METH(layer3huffmandecode) (_THIS, int ch,int gr,int out[SBLIMIT][SSLIMIT]);
+REAL METH(layer3twopow2) (_THIS, int scale,int preflag,int pretab_offset,int l);
+REAL METH(layer3twopow2_1) (_THIS, int a,int b,int c);
+void METH(layer3dequantizesample) (_THIS, int ch,int gr,int   in[SBLIMIT][SSLIMIT],
+                                REAL out[SBLIMIT][SSLIMIT]);
+void METH(layer3fixtostereo) (_THIS, int gr,REAL  in[2][SBLIMIT][SSLIMIT]);
+void METH(layer3reorderandantialias) (_THIS, int ch,int gr,REAL  in[SBLIMIT][SSLIMIT],
+                               REAL out[SBLIMIT][SSLIMIT]);
+
+void METH(layer3hybrid) (_THIS, int ch,int gr,REAL in[SBLIMIT][SSLIMIT],
+                          REAL out[SSLIMIT][SBLIMIT]);
+  
+void METH(huffmandecoder_1) (_THIS, const HUFFMANCODETABLE *h,int *x,int *y);
+void METH(huffmandecoder_2) (_THIS, const HUFFMANCODETABLE *h,int *x,int *y,int *v,int *w);
+
+  /********************/
+  /* Playing raw data */
+  /********************/
+
+
 
 #endif /* _MPEGAUDIO_H_ */
