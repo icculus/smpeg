@@ -200,9 +200,13 @@ void
 MPEGaudio:: Stop(void)
 {
     if ( valid_stream ) {
-        SDL_LockAudio();
+        if ( sdl_audio )
+            SDL_LockAudio();
+
         playing = false;
-        SDL_UnlockAudio();
+
+        if ( sdl_audio )
+            SDL_UnlockAudio();
     }
     ResetPause();
 }
