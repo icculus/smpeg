@@ -85,7 +85,7 @@ extern SMPEGstatus SMPEG_status( SMPEG* mpeg );
 extern void SMPEG_setvolume( SMPEG* mpeg, int volume );
 
 /* Set the destination surface for MPEG video playback
-   'surfLock' is a mutex used to synchronize access to 'dst'.
+   'surfLock' is a mutex used to synchronize access to 'dst', and can be NULL.
    'callback' is a function called when an area of 'dst' needs to be updated.
    If 'callback' is NULL, the default function (SDL_UpdateRect) will be used.
 */
