@@ -104,11 +104,15 @@ void MPEGaudio::initialize()
 
   if( ! initialized )
   {
-    for(i=0;i<16;i++) hcos_64[i] = 1.0/(2.0*cos(MY_PI*double(i*2+1)/64.0));
-    for(i=0;i< 8;i++) hcos_32[i] = 1.0/(2.0*cos(MY_PI*double(i*2+1)/32.0));
-    for(i=0;i< 4;i++) hcos_16[i] = 1.0/(2.0*cos(MY_PI*double(i*2+1)/16.0));
-    for(i=0;i< 2;i++) hcos_8 [i] = 1.0/(2.0*cos(MY_PI*double(i*2+1)/ 8.0));
-    hcos_4 = 1.0 / (2.0 * cos( MY_PI * 1.0 / 4.0 ));
+    for(i=0;i<16;i++) hcos_64[i] = (float)
+			(1.0/(2.0*cos(MY_PI*double(i*2+1)/64.0)));
+    for(i=0;i< 8;i++) hcos_32[i] = (float)
+			(1.0/(2.0*cos(MY_PI*double(i*2+1)/32.0)));
+    for(i=0;i< 4;i++) hcos_16[i] = (float)
+			(1.0/(2.0*cos(MY_PI*double(i*2+1)/16.0)));
+    for(i=0;i< 2;i++) hcos_8 [i] = (float)
+			(1.0/(2.0*cos(MY_PI*double(i*2+1)/ 8.0)));
+    hcos_4 = (float)(1.0f / (2.0f * cos( MY_PI * 1.0 / 4.0 )));
     initialized = true;
   }
 
@@ -333,7 +337,7 @@ int Decode_MPEGaudio(void *udata)
             audio->rawdatawriteoffset = 0;
             audio->run(1, &timestamp);
 
-	    if(audio->rawdatawriteoffset*2 <= audio->ring->BufferSize())
+	    if((Uint32)audio->rawdatawriteoffset*2 <= audio->ring->BufferSize())
 	      audio->ring->WriteDone(audio->rawdatawriteoffset*2, timestamp);
         }
     }

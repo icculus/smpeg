@@ -104,7 +104,7 @@ SMPEG_Filter *SMPEGfilter_null(void)
 
 static void filter_bilinear_callback(SDL_Overlay * dest, SDL_Overlay * source, SDL_Rect * region, SMPEG_FilterInfo * info, void * data)
 {
-  register Uint32 x, y;
+  register int x, y;
   register Uint8 * s, * d;
 
   s = (Uint8 *) source->pixels;
@@ -197,10 +197,10 @@ SMPEG_Filter *SMPEGfilter_bilinear(void)
 
 static void filter_deblocking_callback(SDL_Overlay * dest, SDL_Overlay * source, SDL_Rect * region, SMPEG_FilterInfo * info, void * data)
 {
-  Uint32 x, y;
+  int x, y;
   Uint32 dL, dU, dR, dD;
   Uint32 aL, aU, aR, aD;
-  Uint32 Q, Q9;
+  Uint32 Q;
   Uint16 * coeffs;
   register Uint8 * s, * d;
 
@@ -298,8 +298,8 @@ static void filter_deblocking_callback(SDL_Overlay * dest, SDL_Overlay * source,
 static void *allocate_deblocking_data(void)
 {
   void * data;
-  Uint16 * coeffs, * c;
-  Uint32 pos, q, q1, q5, q9, d;
+  Uint16 * c;
+  Uint32 q, q1, q5, q9, d;
 
   /* precalc table is 256Kb long */
   data = malloc(sizeof(*c)*8*32*512);

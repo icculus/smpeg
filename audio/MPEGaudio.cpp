@@ -138,7 +138,7 @@ MPEGaudio:: ActualSpec(const SDL_AudioSpec *actual)
         fprintf(stderr, "Warning: incorrect audio format\n");
     }
     rate_in_s=((double)((actual->format&0xFF)/8)*actual->channels*actual->freq);
-    stereo=(actual->channels-1);
+    stereo=((actual->channels-1) > 0);
 }
 
 #ifdef THREADED_AUDIO
@@ -236,7 +236,7 @@ MPEGaudio:: Skip(float seconds)
    printf("Audio: Skipping %f seconds...\n", seconds);
    while(seconds > 0)
    {
-     seconds -= (double) samplesperframe / ((double) frequencies[version][frequency]*(1+inputstereo));
+     seconds -= (float) samplesperframe / ((float) frequencies[version][frequency]*(1+inputstereo));
      if(!loadheader()) break;
    }
  }

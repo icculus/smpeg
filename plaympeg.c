@@ -846,7 +846,10 @@ int main(int argc, char *argv[])
     }
     SDL_Quit();
 
+#if defined(RAW_SUPPORT) || defined(HTTP_SUPPORT) || defined(FTP_SUPPORT) || \
+    defined(VCD_SUPPORT)
     if(fd) close(fd);
+#endif
 
-    exit(0);
+    return(0);
 }
