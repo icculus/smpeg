@@ -57,3 +57,5 @@ cpu_flags.L1:
 	.size	 cpu_flags,.Lfe1-cpu_flags
 
 #endif /* i386 && USE_MMX */
+
+.section .note.GNU-stack,"",@progbits

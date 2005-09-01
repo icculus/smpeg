@@ -1,4 +1,6 @@
 current:
+Ryan C. Gordon - Wed Aug 31 22:55:18 EDT 2005
+ * Disable executable stack in library (thanks, Mike Frysinger!)
 Ryan C. Gordon - Wed Apr 27 11:15:01 EDT 2005
  * automake fix in smpeg.m4 by Thomas Klausner.
 Martin Köhler -  Sun Mar 20 10:48:54 EST 2005
