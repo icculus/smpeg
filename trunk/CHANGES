@@ -1,4 +1,6 @@
 current:
+Ryan C. Gordon - Wed Oct 12 18:22:02 EDT 2005
+ * Patch from Jorge to allow graceful (and faster) exit of threads.
 Ryan C. Gordon - Wed Aug 31 22:55:18 EDT 2005
  * Disable executable stack in library (thanks, Mike Frysinger!)
 Ryan C. Gordon - Wed Apr 27 11:15:01 EDT 2005

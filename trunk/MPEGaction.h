@@ -70,6 +70,8 @@ protected:
     bool looping;
     double play_time;
 
+    bool force_exit;
+    
     void ResetPause(void) {
         paused = false;
     }

@@ -161,6 +161,7 @@ MPEGaudio:: StopDecoding(void)
 {
     decoding = false;
     if ( decode_thread ) {
+        force_exit = true;
         if( ring ) ring->ReleaseThreads();
         SDL_WaitThread(decode_thread, NULL);
         decode_thread = NULL;
