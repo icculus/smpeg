@@ -349,7 +349,8 @@ int Decode_MPEGaudio(void *udata)
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 #endif
 
-    while ( audio->decoding && ! audio->mpeg->eof() ) {
+    audio->force_exit = false;
+    while ( audio->decoding && ! audio->mpeg->eof() && !audio->force_exit ) {
         audio->rawdata = (Sint16 *)audio->ring->NextWriteBuffer();
 
         if ( audio->rawdata ) {
@@ -446,7 +447,9 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
 #endif
 	    audio->timestamp[0] = -1;
 	}
-    } while ( copylen && (len > 0) && ((audio->currentframe < audio->decodedframe) || audio->decoding));
+    } while ( copylen && (len > 0) && ((audio->currentframe < audio->decodedframe) || audio->decoding)  
+              && !audio->force_exit );
+              
 #else
     /* The length is interpreted as being in samples */
     len /= 2;

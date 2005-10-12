@@ -243,17 +243,18 @@ int Play_MPEGvideo( void *udata )
     start_frames = mpeg->_stream->totNumFrames;
     start_time = SDL_GetTicks();
 #endif
-    while( mpeg->playing )
+    mpeg->force_exit = false;
+    while( mpeg->playing && !mpeg->force_exit )
     {
         int mark = mpeg->_stream->totNumFrames;
 
         /* make sure we do a whole frame */
-        while( (mark == mpeg->_stream->totNumFrames) && mpeg->playing )
+        while( (mark == mpeg->_stream->totNumFrames) && mpeg->playing && !mpeg->force_exit )
         {
             mpegVidRsrc( 0, mpeg->_stream, 0 );
         }
 
-        if( mpeg->_stream->film_has_ended )
+        if( mpeg->_stream->film_has_ended || mpeg->force_exit )
         {
             mpeg->playing = false;
         }
@@ -297,6 +298,7 @@ void
 MPEGvideo:: Stop(void)
 {
     if ( _thread ) {
+        force_exit = true;
         SDL_WaitThread(_thread, NULL);
         _thread = NULL;
     }
