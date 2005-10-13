@@ -674,4 +674,6 @@ IDCT_mmx:
 
 #endif /* i386 && USE_MMX */
 
+#ifdef __ELF__
 .section .note.GNU-stack,"",@progbits
+#endif

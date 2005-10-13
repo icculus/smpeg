@@ -58,4 +58,6 @@ cpu_flags.L1:
 
 #endif /* i386 && USE_MMX */
 
+#ifdef __ELF__
 .section .note.GNU-stack,"",@progbits
+#endif
