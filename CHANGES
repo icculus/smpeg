@@ -2,7 +2,8 @@ current:
 Ryan C. Gordon - Wed Oct 12 18:22:02 EDT 2005
  * Patch from Jorge to allow graceful (and faster) exit of threads.
  * Patch from Mike Frysinger to disable executable stack.
- * Patch from Mike Frysinger add sanity checks to autogen.sh
+ * Patch from Mike Frysinger to add sanity checks to autogen.sh
+ * Patch from Mike Frysinger for MMX/asm code fixes (PIC and TEXTREL stuff).
 Ryan C. Gordon - Wed Aug 31 22:55:18 EDT 2005
  * Disable executable stack in library (thanks, Mike Frysinger!)
 Ryan C. Gordon - Wed Apr 27 11:15:01 EDT 2005
