@@ -2,6 +2,7 @@ current:
 Ryan C. Gordon - Fri Dec 16 22:07:22 EST 2005
  * gcc4 fixes (compliments of Gentoo Bugzilla #73579).
  * gcc4.1 fixes, too. (compliments of Robert Marmorstein).
+ * Shortened filenames because "ar" apparently doesn't like them (thanks, LGP).
 Ryan C. Gordon - Wed Oct 12 18:22:02 EDT 2005
  * Patch from Jorge to allow graceful (and faster) exit of threads.
  * Patch from Mike Frysinger to disable executable stack.

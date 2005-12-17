@@ -565,7 +565,7 @@
 		};
 		F8508D3E03AD9BF301A8000A = {
 			isa = PBXFileReference;
-			path = huffmantable.cpp;
+			path = hufftable.cpp;
 			refType = 4;
 		};
 		F8508D4203AD9BF301A8000A = {
@@ -709,7 +709,7 @@
 		};
 		F8508D5E03AD9BF301A8000A = {
 			isa = PBXFileReference;
-			path = motionvector.cpp;
+			path = motionvec.cpp;
 			refType = 4;
 		};
 		F8508D5F03AD9BF301A8000A = {
