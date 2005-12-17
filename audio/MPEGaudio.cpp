@@ -21,6 +21,8 @@
 
 /* A class based on the MPEG stream class, used to parse and play audio */
 
+using namespace std;
+
 #include "MPEGaudio.h"
 #include "MPEGstream.h"
 

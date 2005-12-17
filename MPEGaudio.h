@@ -32,12 +32,16 @@
 #include "MPEGring.h"
 #endif
 
+void Play_MPEGaudioSDL(void *udata, Uint8 *stream, int len);
+#ifdef THREADED_AUDIO
+    int Decode_MPEGaudio(void *udata);
+#endif
+
 class MPEGstream;
 
 /* MPEG/WAVE Sound library
-
    (C) 1997 by Woo-jae Jung */
-
+    
 /**************************/
 /* Define values for MPEG */
 /**************************/
