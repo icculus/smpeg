@@ -6,7 +6,7 @@ libaudio_la_SOURCES =		\
 	bitwindow.cpp		\
 	filter.cpp		\
 	filter_2.cpp		\
-	huffmantable.cpp	\
+	hufftable.cpp	\
 	mpeglayer1.cpp		\
 	mpeglayer2.cpp		\
 	mpeglayer3.cpp		\

@@ -9,7 +9,7 @@ libvideo_la_SOURCES =		\
 	floatdct.cpp		\
 	gdith.cpp		\
 	jrevdct.cpp		\
-	motionvector.cpp	\
+	motionvec.cpp	\
 	parseblock.cpp		\
 	proto.h			\
 	readfile.cpp		\
