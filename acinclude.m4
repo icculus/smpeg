@@ -6201,7 +6201,7 @@ AC_MSG_RESULT([$SED])
 dnl AM_PATH_GTK([MINIMUM-VERSION, [ACTION-IF-FOUND [, ACTION-IF-NOT-FOUND [, MODULES]]]])
 dnl Test for GTK, and define GTK_CFLAGS and GTK_LIBS
 dnl
-AC_DEFUN(AM_PATH_GTK,
+AC_DEFUN([AM_PATH_GTK],
 [dnl 
 dnl Get the cflags and libraries from the gtk-config script
 dnl
@@ -6400,7 +6400,7 @@ main ()
 ## work because it doesn't search <sys/socket.h>.  Maybe that macro
 ## should be changed instead.
 ## 
-AC_DEFUN(AC_TYPE_SOCKLEN_T,
+AC_DEFUN([AC_TYPE_SOCKLEN_T],
 [AC_CACHE_CHECK([for socklen_t], ac_cv_type_socklen_t,
 [
   AC_TRY_COMPILE(
