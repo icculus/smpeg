@@ -9,7 +9,6 @@ die() {
 set -e
 
 aclocal $ACLOCAL_FLAGS || die aclocal
-libtoolize -c -f || die libtoolize
 automake --foreign || die automake
 autoconf || die autoconf
 

@@ -4,8 +4,6 @@
 # These are the subdirectories that are always built
 SUBDIRS = audio video
 
-CXXLD = cc
-
 bin_SCRIPTS = smpeg-config
 
 # The smpeg library target
