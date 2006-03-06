@@ -6,6 +6,8 @@ SUBDIRS = audio video
 
 bin_SCRIPTS = smpeg-config
 
+CCLD = $(CXXLD)
+
 # The smpeg library target
 lib_LTLIBRARIES = libsmpeg.la
 
@@ -34,7 +36,7 @@ libsmpeginclude_HEADERS =	\
 
 libsmpeg_la_LDFLAGS = 		\
         -release $(LT_RELEASE)	\
-	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE) -lstdc++
+	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
 
 libsmpeg_la_LIBADD =		\
 	audio/libaudio.la	\
