@@ -133,13 +133,13 @@ MPEGaudio:: ActualSpec(const SDL_AudioSpec *actual)
 	;
 #endif
     }
-#if SDL_BYTEORDER == SDL_LIL_ENDIAN
-    if ( actual->format != AUDIO_S16LSB)
-#else
-    if ( actual->format != AUDIO_S16MSB)
-#endif
+    if ( actual->format != AUDIO_S16SYS )
     {
-        fprintf(stderr, "Warning: incorrect audio format\n");
+        if ( (actual->format^0x1000) == AUDIO_S16SYS ) {
+            swapendianflag = true;
+        } else {
+            fprintf(stderr, "Warning: incorrect audio format\n");
+        }
     }
     rate_in_s=((double)((actual->format&0xFF)/8)*actual->channels*actual->freq);
     stereo=((actual->channels-1) > 0);

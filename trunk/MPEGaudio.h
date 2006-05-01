@@ -222,6 +222,7 @@ private:
 private:
   bool forcetomonoflag;
   bool forcetostereoflag;
+  bool swapendianflag;
   int  downfrequency;
 
 public:

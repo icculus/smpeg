@@ -88,6 +88,7 @@ void MPEGaudio::initialize()
   stereo = true;
   forcetomonoflag = false;
   forcetostereoflag = false;
+  swapendianflag = false;
   downfrequency = 0;
 
   scalefactor=SCALE;
@@ -312,6 +313,17 @@ bool MPEGaudio::run( int frames, double *timestamp)
         if     ( layer == 3 ) extractlayer3();
         else if( layer == 2 ) extractlayer2();
         else if( layer == 1 ) extractlayer1();
+
+        /* Handle swapping data endianness */
+        if ( swapendianflag ) {
+            Sint16 *p;
+
+            p = rawdata+rawdatawriteoffset;
+            while ( p > rawdata ) {
+                --p;
+                *p = SDL_Swap16(*p);
+            }
+        }
 
         /* Handle expanding to stereo output */
         if ( forcetostereoflag ) {
