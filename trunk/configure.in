@@ -311,8 +311,6 @@ fi
 # Finally create all the generated files
 AC_OUTPUT([
 Makefile
-audio/Makefile
-video/Makefile
 smpeg-config
 smpeg.spec
 ])

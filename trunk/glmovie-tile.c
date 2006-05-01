@@ -16,7 +16,7 @@
  */
 
 #include "glmovie.h"
-#include <malloc.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* Some data is redundant at this stage. */
