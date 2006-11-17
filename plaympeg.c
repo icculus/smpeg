@@ -69,6 +69,7 @@ void usage(char *argv0)
 "	--loop or -l	     Play MPEG over and over\n"
 "	--bilinear	     Use software bilinear filtering\n"
 "	--volume N or -v N   Set audio volume to N (0-100)\n"
+"	--title T or -t T  Set window's title to T\n"
 "	--scale wxh or -s wxh  Play MPEG at given resolution\n"
 "	--seek N or -S N     Skip N bytes\n"
 #ifdef USE_SYSTEM_TIMESTAMP
@@ -487,6 +488,7 @@ int main(int argc, char *argv[])
     SMPEG *mpeg;
     SMPEG_Info info;
     char *basefile;
+    const char *title = NULL;
     SDL_version sdlver;
     SMPEG_version smpegver;
     int fd;
@@ -552,6 +554,17 @@ int main(int argc, char *argv[])
 	      fprintf(stderr, "Volume must be between 0 and 100\n");
 	      volume = 100;
 	    }
+	} else
+        if ((strcmp(argv[i], "--title") == 0)||(strcmp(argv[i], "-t") == 0)) {
+            ++i;
+	    if (i >= argc)
+	      {
+		fprintf(stderr, "Please specify title when using --title or -t\n");
+		return(1);
+	      }
+            if ( argv[i] ) {
+                title = argv[i];
+            }
 	} else
         if ((strcmp(argv[i], "--version") == 0) ||
 	    (strcmp(argv[i], "-V") == 0)) {
@@ -734,7 +747,11 @@ int main(int argc, char *argv[])
                                 	width, height, SDL_GetError());
                 continue;
             }
-            SDL_WM_SetCaption(argv[i], "plaympeg");
+            if (title != NULL) {
+                SDL_WM_SetCaption(title, title);
+            } else {
+                SDL_WM_SetCaption(argv[i], "plaympeg");
+            }
             if ( screen->flags & SDL_FULLSCREEN ) {
                 SDL_ShowCursor(0);
             }
