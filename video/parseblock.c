@@ -192,9 +192,6 @@ void ParseReconBlock( int n, VidStream* vid_stream )
   Block *blockPtr = &vid_stream->block;
   int coeffCount=0;
   
-  if (vid_stream->buf_length < 100)
-    correct_underflow(vid_stream);
-
     int diff;
     int size, level=0, i, run, pos, coeff;
 #ifdef USE_ATI
@@ -204,6 +201,9 @@ void ParseReconBlock( int n, VidStream* vid_stream )
 #endif
     unsigned char *iqmatrixptr, *niqmatrixptr;
     int qscale;
+
+  if (vid_stream->buf_length < 100)
+    correct_underflow(vid_stream);
 
 #ifdef USE_ATI
     reconptr = DCT_recon[n];

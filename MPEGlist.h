@@ -8,38 +8,30 @@
 
 #include "SDL.h"
 
-class MPEGlist {
-public:
-  MPEGlist();
-  ~MPEGlist();
-
-  /* Get to the next free buffer or allocate a new one if none is free */
-  MPEGlist * Alloc(Uint32 Buffer_Size);
-
-  /* Lock current buffer */
-  void Lock();
-
-  /* Unlock current buffer */
-  void Unlock();
-
-  /* Get the buffer */
-  inline void * Buffer() { return(data); };
-
-  inline Uint32 Size() { return(size); }; 
-
-  inline MPEGlist * Next() { return(next); };
-
-  inline MPEGlist * Prev() { return(prev); };
-
-  inline Uint32 IsLocked() { return(lock); };
-
-  double TimeStamp;
-
-private:
-  class MPEGlist * next;
-  class MPEGlist * prev;
+struct MPEGlist {
+  struct MPEGlist *next;
+  struct MPEGlist *prev;
   Uint32 lock;
-  Uint8 * data;
+  Uint8 *data;
   Uint32 size;
+  double TimeStamp;
 };
+
+typedef struct MPEGlist MPEGlist;
+
+#undef _THIS
+#define _THIS MPEGlist *self
+
+MPEGlist* MPEGlist_init (_THIS);
+void MPEGlist_destroy (_THIS);
+void MPEGlist_delete (_THIS);
+MPEGlist* MPEGlist_Alloc (_THIS, Uint32);
+void MPEGlist_Lock (_THIS);
+void MPEGlist_Unlock (_THIS);
+void* MPEGlist_Buffer (_THIS);
+Uint32 MPEGlist_Size (_THIS);
+MPEGlist* MPEGlist_Next (_THIS);
+MPEGlist* MPEGlist_Prev (_THIS);
+Uint32 MPEGlist_IsLocked (_THIS);
+
 #endif

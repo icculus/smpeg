@@ -15,13 +15,13 @@
 #include "MPEGaudio.h"
 
 // For header
-const int MPEGaudio::frequencies[2][3]=
+const int MPEGaudio_frequencies[2][3]=
 {
   {44100,48000,32000}, // MPEG 1
   {22050,24000,16000}  // MPEG 2
 };
 
-const int MPEGaudio::bitrate[2][3][15]=
+const int MPEGaudio_bitrate[2][3][15]=
 {
   // MPEG 1
   {{0,32,64,96,128,160,192,224,256,288,320,352,384,416,448},
@@ -35,7 +35,7 @@ const int MPEGaudio::bitrate[2][3][15]=
 };
 
 // Mpeg general table
-const REAL MPEGaudio::scalefactorstable[64] =
+const REAL MPEGaudio_scalefactorstable[64] =
 {
   2.00000000000000, 1.58740105196820, 1.25992104989487, 1.00000000000000,
   0.79370052598410, 0.62996052494744, 0.50000000000000, 0.39685026299205,
@@ -55,7 +55,7 @@ const REAL MPEGaudio::scalefactorstable[64] =
   0.00000190734863, 0.00000151386361, 0.00000120155435, 0.00000000000000
 };
 
-const REAL MPEGaudio::filter[512]=
+const REAL MPEGaudio_filter[512]=
 {
    0.000000000, -0.000442505,  0.003250122, -0.007003784,
    0.031082153, -0.078628540,  0.100311279, -0.572036743,
@@ -187,8 +187,8 @@ const REAL MPEGaudio::filter[512]=
    0.007919312, -0.003326416,  0.000473022,  0.000015259
 };
 
-REAL MPEGaudio::hcos_64[16],
-     MPEGaudio::hcos_32[ 8],
-     MPEGaudio::hcos_16[ 4],
-     MPEGaudio::hcos_8 [ 2],
-     MPEGaudio::hcos_4;
+REAL MPEGaudio_hcos_64[16],
+     MPEGaudio_hcos_32[ 8],
+     MPEGaudio_hcos_16[ 4],
+     MPEGaudio_hcos_8 [ 2],
+     MPEGaudio_hcos_4;

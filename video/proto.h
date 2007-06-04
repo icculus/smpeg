@@ -67,7 +67,8 @@ void InitIDCT P((void ));
 VidStream *NewVidStream P((unsigned int buffer_len ));
 void ResetVidStream P((VidStream *vid ));
 void DestroyVidStream P((VidStream *astream ));
-PictImage *NewPictImage P(( VidStream *vid_stream ));
+//PictImage *NewPictImage P(( VidStream *vid_stream ));
+PictImage* NewPictImage P((VidStream* vid_stream, int w, int h, SDL_Surface *dst));
 bool InitPictImages P(( VidStream *vid_stream, int w, int h, SDL_Surface *dst ));
 void DestroyPictImage P(( VidStream *vid_stream, PictImage *apictimage ));
 VidStream *mpegVidRsrc P((TimeStamp time_stamp,VidStream *vid_stream, int first  ));
@@ -78,7 +79,7 @@ void SetPFlag P((BOOLEAN val ));
 void ParseReconBlock P((int n, VidStream *vid_stream ));
 void ParseAwayBlock P((int n , VidStream *vid_stream ));
 
-/* motionvec.c */
+/* motionvector.c */
 void ComputeForwVector P((int *recon_right_for_ptr , int *recon_down_for_ptr , VidStream *the_stream ));
 void ComputeBackVector P((int *recon_right_back_ptr , int *recon_down_back_ptr, VidStream *the_stream ));
 

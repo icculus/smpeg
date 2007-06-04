@@ -15,6 +15,12 @@
 #pragma warning(disable: 4244 4305)
 #endif
 
+
+
+#define getbits(x) MPEGaudio_getbits(self, x)
+
+
+
 // Tables for layer 1
 static const REAL factortable[15] = 
 {
@@ -41,7 +47,7 @@ static const REAL offsettable[15] =
 };
 
 // Mpeg layer 1
-void MPEGaudio::extractlayer1(void)
+void MPEGaudio_extractlayer1 (MPEGaudio *self)
 {
   REAL fraction[MAXCHANNEL][MAXSUBBAND];
   REAL scalefactor[MAXCHANNEL][MAXSUBBAND];
@@ -50,7 +56,9 @@ void MPEGaudio::extractlayer1(void)
       sample[MAXCHANNEL][MAXSUBBAND];
 
   register int i,j;
-  int s=stereobound,l;
+//  int s=stereobound,l;
+  int s,l;
+  s = self->stereobound;
 
 
 // Bitalloc
@@ -64,48 +72,48 @@ void MPEGaudio::extractlayer1(void)
     bitalloc[RS][i]=getbits(4);
 
 // Scale index
-  if(inputstereo)
+  if(self->inputstereo)
     for(i=0;i<MAXSUBBAND;i++)
     {
-      if(bitalloc[LS][i])scalefactor[LS][i]=scalefactorstable[getbits(6)];
-      if(bitalloc[RS][i])scalefactor[RS][i]=scalefactorstable[getbits(6)];
+      if(bitalloc[LS][i])scalefactor[LS][i]=MPEGaudio_scalefactorstable[getbits(6)];
+      if(bitalloc[RS][i])scalefactor[RS][i]=MPEGaudio_scalefactorstable[getbits(6)];
     }
   else
     for(i=0;i<MAXSUBBAND;i++)
-      if(bitalloc[LS][i])scalefactor[LS][i]=scalefactorstable[getbits(6)];
+      if(bitalloc[LS][i])scalefactor[LS][i]=MPEGaudio_scalefactorstable[getbits(6)];
 
   for(l=0;l<SCALEBLOCK;l++)
   {
     // Sample
     for(i=0;i<s;i++)
     {
-      if((j=bitalloc[LS][i]))sample[LS][i]=getbits(j+1);
-      if((j=bitalloc[RS][i]))sample[RS][i]=getbits(j+1);
+      if((j=bitalloc[LS][i]))sample[LS][i]=MPEGaudio_getbits(self, j+1);
+      if((j=bitalloc[RS][i]))sample[RS][i]=MPEGaudio_getbits(self, j+1);
     }
     for(;i<MAXSUBBAND;i++)
-      if((j=bitalloc[LS][i]))sample[LS][i]=sample[RS][i]=getbits(j+1);
+      if((j=bitalloc[LS][i]))sample[LS][i]=sample[RS][i]=MPEGaudio_getbits(self, j+1);
 
 
     // Fraction
-    if(outputstereo)
+    if(self->outputstereo)
       for(i=0;i<MAXSUBBAND;i++)
       {
 	if((j=bitalloc[LS][i]))
-	  fraction[LS][i]=(REAL(sample[LS][i])*factortable[j]+offsettable[j])
+	  fraction[LS][i]=((REAL)(sample[LS][i])*factortable[j]+offsettable[j])
 			  *scalefactor[LS][i];
 	else fraction[LS][i]=0.0;
 	if((j=bitalloc[RS][i]))
-	  fraction[RS][i]=(REAL(sample[RS][i])*factortable[j]+offsettable[j])
+	  fraction[RS][i]=((REAL)(sample[RS][i])*factortable[j]+offsettable[j])
 			  *scalefactor[RS][i];
 	else fraction[RS][i]=0.0;
       }
     else
       for(i=0;i<MAXSUBBAND;i++)
 	if((j=bitalloc[LS][i]))
-	  fraction[LS][i]=(REAL(sample[LS][i])*factortable[j]+offsettable[j])
+	  fraction[LS][i]=((REAL)(sample[LS][i])*factortable[j]+offsettable[j])
 			  *scalefactor[LS][i];
 	else fraction[LS][i]=0.0;
 
-    subbandsynthesis(fraction[LS],fraction[RS]);
+    MPEGaudio_subbandsynthesis(self, fraction[LS],fraction[RS]);
   }
 }

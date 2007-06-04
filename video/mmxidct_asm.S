@@ -31,6 +31,11 @@ preSC:  .short  16384,22725,21407,19266,16384,12873,8867,4520
 x0005000200010001:
 	.long	0x00010001,0x00050002
 	.align 8
+	.type	x0040000000000000,@object
+	.size	x0040000000000000,8
+x0040000000000000:
+	.long	0, 0x00400000
+	.align 8
 	.type	x5a825a825a825a82,@object
 	.size	x5a825a825a825a82,8
 x5a825a825a825a82:
@@ -75,21 +80,8 @@ scratch7:
 x0:
 	.long 0,0
 	.align 8
-
 .text
 	.align 4
-
-#ifdef __PIC__
-# undef __i686 /* gcc define gets in our way */
-# define MUNG(sym) sym ## @GOTOFF(%ebx)
-# define INIT_PIC() \
-	call __i686.get_pc_thunk.bx ; \
-	addl $_GLOBAL_OFFSET_TABLE_, %ebx
-#else
-# define MUNG(sym) sym
-# define INIT_PIC()
-#endif
-
 .globl IDCT_mmx
 	.type	 IDCT_mmx,@function
 IDCT_mmx:
@@ -100,9 +92,8 @@ IDCT_mmx:
 	pushl %edx
 	pushl %esi
 	pushl %edi
-	INIT_PIC()
 	movl 8(%ebp),%esi		/* source matrix */
-	leal MUNG(preSC), %ecx
+	leal preSC, %ecx
 /* column 0: even part
  * use V4, V12, V0, V8 to produce V22..V25
  */
@@ -118,7 +109,7 @@ IDCT_mmx:
 	movq %mm1, %mm2			/* added 11/1/96 */
 	pmulhw 8*8(%esi),%mm5		/* V8 */
 	psubsw %mm0, %mm1		/* V16 */
-	pmulhw MUNG(x5a825a825a825a82), %mm1	/* 23170 ->V18 */
+	pmulhw x5a825a825a825a82, %mm1	/* 23170 ->V18 */
 	paddsw %mm0, %mm2		/* V17 */
 	movq %mm2, %mm0			/* duplicate V17 */
 	psraw $1, %mm2			/* t75=t82 */
@@ -159,7 +150,7 @@ IDCT_mmx:
 	paddsw %mm0, %mm3		/* V29 ; free mm0 */
 	movq %mm7, %mm1			/* duplicate V26 */
 	psraw $1, %mm3			/* t91=t94 */
-	pmulhw MUNG(x539f539f539f539f),%mm7	/* V33 */
+	pmulhw x539f539f539f539f,%mm7	/* V33 */
 	psraw $1, %mm1			/* t96 */
 	movq %mm5, %mm0			/* duplicate V2 */
 	psraw $2, %mm4			/* t85=t87 */
@@ -167,15 +158,15 @@ IDCT_mmx:
 	psubsw %mm4, %mm0		/* V28 ; free mm4 */
 	movq %mm0, %mm2			/* duplicate V28 */
 	psraw $1, %mm5			/* t90=t93 */
-	pmulhw MUNG(x4546454645464546),%mm0	/* V35 */
+	pmulhw x4546454645464546,%mm0	/* V35 */
 	psraw $1, %mm2			/* t97 */
 	movq %mm5, %mm4			/* duplicate t90=t93 */
 	psubsw %mm2, %mm1		/* V32 ; free mm2 */
-	pmulhw MUNG(x61f861f861f861f8),%mm1	/* V36 */
+	pmulhw x61f861f861f861f8,%mm1	/* V36 */
 	psllw $1, %mm7			/* t107 */
 	paddsw %mm3, %mm5		/* V31 */
 	psubsw %mm3, %mm4		/* V30 ; free mm3 */
-	pmulhw MUNG(x5a825a825a825a82),%mm4	/* V34 */
+	pmulhw x5a825a825a825a82,%mm4	/* V34 */
 	nop
 	psubsw %mm1, %mm0		/* V38 */
 	psubsw %mm7, %mm1		/* V37 ; free mm7 */
@@ -242,7 +233,7 @@ IDCT_mmx:
 	psubsw %mm7, %mm1		/* V50 */
 	pmulhw 8*9(%esi), %mm5		/* V9 */
 	paddsw %mm7, %mm2		/* V51 */
-	pmulhw MUNG(x5a825a825a825a82), %mm1	/* 23170 ->V52 */
+	pmulhw x5a825a825a825a82, %mm1	/* 23170 ->V52 */
 	movq %mm2, %mm6			/* duplicate V51 */
 	psraw $1, %mm2			/* t138=t144 */
 	movq %mm3, %mm4			/* duplicate V1 */
@@ -283,11 +274,11 @@ IDCT_mmx:
  * even more by doing the correction step in a later stage when the number
  * is actually multiplied by 16
  */
-	paddw MUNG(x0005000200010001), %mm4
+	paddw x0005000200010001, %mm4
 	psubsw %mm6, %mm3		/* V60 ; free mm6 */
 	psraw $1, %mm0			/* t154=t156 */
 	movq %mm3, %mm1			/* duplicate V60 */
-	pmulhw MUNG(x539f539f539f539f), %mm1	/* V67 */
+	pmulhw x539f539f539f539f, %mm1	/* V67 */
 	movq %mm5, %mm6			/* duplicate V3 */
 	psraw $2, %mm4			/* t148=t150 */
 	paddsw %mm4, %mm5		/* V61 */
@@ -296,13 +287,13 @@ IDCT_mmx:
 	psllw $1, %mm1			/* t169 */
 	paddsw %mm0, %mm5		/* V65 -> result */
 	psubsw %mm0, %mm4		/* V64 ; free mm0 */
-	pmulhw MUNG(x5a825a825a825a82), %mm4	/* V68 */
+	pmulhw x5a825a825a825a82, %mm4	/* V68 */
 	psraw $1, %mm3			/* t158 */
 	psubsw %mm6, %mm3		/* V66 */
 	movq %mm5, %mm2			/* duplicate V65 */
-	pmulhw MUNG(x61f861f861f861f8), %mm3	/* V70 */
+	pmulhw x61f861f861f861f8, %mm3	/* V70 */
 	psllw $1, %mm6			/* t165 */
-	pmulhw MUNG(x4546454645464546), %mm6	/* V69 */
+	pmulhw x4546454645464546, %mm6	/* V69 */
 	psraw $1, %mm2			/* t172 */
 /* moved from next block */
 	movq 8*5(%esi), %mm0		/* V56 */
@@ -427,7 +418,7 @@ IDCT_mmx:
 *	movq 8*13(%esi), %mm4		tmt13
 */
 	psubsw %mm4, %mm3		/* V134 */
-	pmulhw MUNG(x5a825a825a825a82), %mm3	/* 23170 ->V136 */
+	pmulhw x5a825a825a825a82, %mm3	/* 23170 ->V136 */
 	movq 8*9(%esi), %mm6		/* tmt9 */
 	paddsw %mm4, %mm5		/* V135 ; mm4 free */
 	movq %mm0, %mm4			/* duplicate tmt1 */
@@ -456,17 +447,17 @@ IDCT_mmx:
 	psubsw %mm7, %mm0		/* V144 */
 	movq %mm0, %mm3			/* duplicate V144 */
 	paddsw %mm7, %mm2		/* V147 ; free mm7 */
-	pmulhw MUNG(x539f539f539f539f), %mm0	/* 21407-> V151 */
+	pmulhw x539f539f539f539f, %mm0	/* 21407-> V151 */
 	movq %mm1, %mm7			/* duplicate tmt3 */
 	paddsw %mm5, %mm7		/* V145 */
 	psubsw %mm5, %mm1		/* V146 ; free mm5 */
 	psubsw %mm1, %mm3		/* V150 */
 	movq %mm7, %mm5			/* duplicate V145 */
-	pmulhw MUNG(x4546454645464546), %mm1	/* 17734-> V153 */
+	pmulhw x4546454645464546, %mm1	/* 17734-> V153 */
 	psubsw %mm2, %mm5		/* V148 */
-	pmulhw MUNG(x61f861f861f861f8), %mm3	/* 25080-> V154 */
+	pmulhw x61f861f861f861f8, %mm3	/* 25080-> V154 */
 	psllw $2, %mm0			/* t311 */
-	pmulhw MUNG(x5a825a825a825a82), %mm5	/* 23170-> V152 */
+	pmulhw x5a825a825a825a82, %mm5	/* 23170-> V152 */
 	paddsw %mm2, %mm7		/* V149 ; free mm2 */
 	psllw $1, %mm1			/* t313 */
 	nop	/* without the nop - freeze here for one clock */
@@ -492,7 +483,7 @@ IDCT_mmx:
 	paddsw %mm3, %mm6		/* V164 ; free mm3 */
 	movq %mm4, %mm3			/* duplicate V142 */
 	psubsw %mm5, %mm4		/* V165 ; free mm5 */
-	movq %mm2, MUNG(scratch7)		/* out7 */
+	movq %mm2, scratch7		/* out7 */
 	psraw $4, %mm6
 	psraw $4, %mm4
 	paddsw %mm5, %mm3		/* V162 */
@@ -503,11 +494,11 @@ IDCT_mmx:
  */
 	movq %mm6, 8*9(%esi)		/* out9 */
 	paddsw %mm1, %mm0		/* V161 */
-	movq %mm3, MUNG(scratch5)		/* out5 */
+	movq %mm3, scratch5		/* out5 */
 	psubsw %mm1, %mm5		/* V166 ; free mm1 */
 	movq %mm4, 8*11(%esi)		/* out11 */
 	psraw $4, %mm5
-	movq %mm0, MUNG(scratch3)		/* out3 */
+	movq %mm0, scratch3		/* out3 */
 	movq %mm2, %mm4			/* duplicate V140 */
 	movq %mm5, 8*13(%esi)		/* out13 */
 	paddsw %mm7, %mm2		/* V160 */
@@ -517,7 +508,7 @@ IDCT_mmx:
 /* moved from the next block */
 	movq 8*3(%esi), %mm7
 	psraw $4, %mm4
-	movq %mm2, MUNG(scratch1)		/* out1 */
+	movq %mm2, scratch1		/* out1 */
 /* moved from the next block */
 	movq %mm0, %mm1
 	movq %mm4, 8*15(%esi)		/* out15 */
@@ -574,15 +565,15 @@ IDCT_mmx:
 	paddsw %mm4, %mm3		/* V113 ; free mm4 */
 	movq %mm0, %mm4			/* duplicate V110 */
 	paddsw %mm1, %mm2		/* V111 */
-	pmulhw MUNG(x539f539f539f539f), %mm0	/* 21407-> V117 */
+	pmulhw x539f539f539f539f, %mm0	/* 21407-> V117 */
 	psubsw %mm1, %mm5		/* V112 ; free mm1 */
 	psubsw %mm5, %mm4		/* V116 */
 	movq %mm2, %mm1			/* duplicate V111 */
-	pmulhw MUNG(x4546454645464546), %mm5	/* 17734-> V119 */
+	pmulhw x4546454645464546, %mm5	/* 17734-> V119 */
 	psubsw %mm3, %mm2		/* V114 */
-	pmulhw MUNG(x61f861f861f861f8), %mm4	/* 25080-> V120 */
+	pmulhw x61f861f861f861f8, %mm4	/* 25080-> V120 */
 	paddsw %mm3, %mm1		/* V115 ; free mm3 */
-	pmulhw MUNG(x5a825a825a825a82), %mm2	/* 23170-> V118 */
+	pmulhw x5a825a825a825a82, %mm2	/* 23170-> V118 */
 	psllw $2, %mm0			/* t266 */
 	movq %mm1, (%esi)		/* save V115 */
 	psllw $1, %mm5			/* t268 */
@@ -600,7 +591,7 @@ IDCT_mmx:
 	movq %mm6, %mm3			/* duplicate tmt4 */
 	psubsw %mm0, %mm6		/* V100 */
 	paddsw %mm0, %mm3		/* V101 ; free mm0 */
-	pmulhw MUNG(x5a825a825a825a82), %mm6	/* 23170 ->V102 */
+	pmulhw x5a825a825a825a82, %mm6	/* 23170 ->V102 */
 	movq %mm7, %mm5			/* duplicate tmt0 */
 	movq 8*8(%esi), %mm1		/* tmt8 */
 	paddsw %mm1, %mm7		/* V103 */
@@ -634,10 +625,10 @@ IDCT_mmx:
 	movq 8*2(%esi), %mm3		/* V123 */
 	paddsw %mm4, %mm7		/* out0 */
 /* moved up from next block */
-	movq MUNG(scratch3), %mm0
+	movq scratch3, %mm0
 	psraw $4, %mm7
 /* moved up from next block */
-	movq MUNG(scratch5), %mm6 
+	movq scratch5, %mm6 
 	psubsw %mm4, %mm1		/* out14 ; free mm4 */
 	paddsw %mm3, %mm5		/* out2 */
 	psraw $4, %mm1
@@ -648,7 +639,7 @@ IDCT_mmx:
 	movq %mm5, 8*2(%esi)		/* out2 ; free mm5 */
 	psraw $4, %mm2
 /* moved up to the prev block */
-	movq MUNG(scratch7), %mm4
+	movq scratch7, %mm4
 /* moved up to the prev block */
 	psraw $4, %mm0
 	movq %mm2, 8*12(%esi)		/* out12 ; free mm2 */
@@ -656,13 +647,13 @@ IDCT_mmx:
 	psraw $4, %mm6
 /* move back the data to its correct place
 * moved up to the prev block
- *	movq MUNG(scratch3), %mm0
- *	movq MUNG(scratch5), %mm6
- *	movq MUNG(scratch7), %mm4
+ *	movq scratch3, %mm0
+ *	movq scratch5, %mm6
+ *	movq scratch7, %mm4
  *	psraw $4, %mm0
  *	psraw $4, %mm6
 */
-	movq MUNG(scratch1), %mm1
+	movq scratch1, %mm1
 	psraw $4, %mm4
 	movq %mm0, 8*3(%esi)		/* out3 */
 	psraw $4, %mm1
@@ -680,18 +671,5 @@ IDCT_mmx:
 .Lfe1:
 	.size	 IDCT_mmx,.Lfe1-IDCT_mmx
 
-#ifdef __PIC__
-	.section .gnu.linkonce.t.__i686.get_pc_thunk.bx,"ax",@progbits
-.globl __i686.get_pc_thunk.bx
-	.hidden  __i686.get_pc_thunk.bx
-	.type    __i686.get_pc_thunk.bx,@function
- __i686.get_pc_thunk.bx:
-	movl (%esp), %ebx
-	ret
-#endif
 
 #endif /* i386 && USE_MMX */
-
-#ifdef __ELF__
-.section .note.GNU-stack,"",%progbits
-#endif

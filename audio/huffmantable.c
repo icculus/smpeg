@@ -548,7 +548,7 @@ htd33[ 31][2]={{ 16,  1},{  8,  1},{  4,  1},{  2,  1},{  0,  0},{  0,  1},
 	       {  4,  1},{  2,  1},{  0, 12},{  0, 13},{  2,  1},{  0, 14},
 	       {  0, 15}};
 
-const HUFFMANCODETABLE MPEGaudio::ht[HTN]=
+const HUFFMANCODETABLE MPEGaudio_ht[HTN]=
 {
   { 0, 0-1, 0-1, 0,  0, htd33},
   { 1, 2-1, 2-1, 0,  7,htd01},

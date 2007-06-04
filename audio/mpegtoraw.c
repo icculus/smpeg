@@ -28,7 +28,19 @@
 #define _KEY 3
 #endif
 
-int MPEGaudio::getbits( int bits )
+
+#undef _THIS
+#define _THIS MPEGaudio *self
+
+#define hcos_64 MPEGaudio_hcos_64
+#define hcos_32 MPEGaudio_hcos_32
+#define hcos_16 MPEGaudio_hcos_16
+#define hcos_8 MPEGaudio_hcos_8
+#define hcos_4 MPEGaudio_hcos_4
+
+
+int
+MPEGaudio_getbits( _THIS, int bits )
 {
     union
     {
@@ -41,17 +53,17 @@ int MPEGaudio::getbits( int bits )
         return 0;
 
     u.current = 0;
-    bi = (bitindex & 7);
-    u.store[ _KEY ] = _buffer[ bitindex >> 3 ] << bi;
+    bi = (self->bitindex & 7);
+    u.store[ _KEY ] = self->_buffer[ self->bitindex >> 3 ] << bi;
     bi = 8 - bi;
-    bitindex += bi;
+    self->bitindex += bi;
 
     while( bits )
     {
         if( ! bi )
         {
-            u.store[ _KEY ] = _buffer[ bitindex >> 3 ];
-            bitindex += 8;
+            u.store[ _KEY ] = self->_buffer[ self->bitindex >> 3 ];
+            self->bitindex += 8;
             bi = 8;
         }
 
@@ -68,7 +80,7 @@ int MPEGaudio::getbits( int bits )
             bits = 0;
         }
     }
-    bitindex -= bi;
+    self->bitindex -= bi;
 
     return( u.current >> 8 );
 }
@@ -76,7 +88,8 @@ int MPEGaudio::getbits( int bits )
 
 // Convert mpeg to raw
 // Mpeg headder class
-void MPEGaudio::initialize()
+void
+MPEGaudio_initialize (_THIS)
 {
   static bool initialized = false;
 
@@ -84,68 +97,69 @@ void MPEGaudio::initialize()
   register REAL *s1,*s2;
   REAL *s3,*s4;
 
-  last_speed = 0;
-  stereo = true;
-  forcetomonoflag = false;
-  forcetostereoflag = false;
-  swapendianflag = false;
-  downfrequency = 0;
+  self->last_speed = 0;
+  self->stereo = true;
+  self->forcetomonoflag = false;
+  self->forcetostereoflag = false;
+  self->downfrequency = 0;
 
-  scalefactor=SCALE;
-  calcbufferoffset=15;
-  currentcalcbuffer=0;
+  self->scalefactor=SCALE;
+  self->calcbufferoffset=15;
+  self->currentcalcbuffer=0;
 
-  s1 = calcbufferL[0];
-  s2 = calcbufferR[0];
-  s3 = calcbufferL[1];
-  s4 = calcbufferR[1];
+  s1 = self->calcbufferL[0];
+  s2 = self->calcbufferR[0];
+  s3 = self->calcbufferL[1];
+  s4 = self->calcbufferR[1];
   for(i=CALCBUFFERSIZE-1;i>=0;i--)
   {
-    calcbufferL[0][i]=calcbufferL[1][i]=
-    calcbufferR[0][i]=calcbufferR[1][i]=0.0;
+    self->calcbufferL[0][i]=self->calcbufferL[1][i]=
+    self->calcbufferR[0][i]=self->calcbufferR[1][i]=0.0;
   }
 
   if( ! initialized )
   {
     for(i=0;i<16;i++) hcos_64[i] = (float)
-			(1.0/(2.0*cos(MY_PI*double(i*2+1)/64.0)));
+			(1.0/(2.0*cos(MY_PI*(double)(i*2+1)/64.0)));
     for(i=0;i< 8;i++) hcos_32[i] = (float)
-			(1.0/(2.0*cos(MY_PI*double(i*2+1)/32.0)));
+			(1.0/(2.0*cos(MY_PI*(double)(i*2+1)/32.0)));
     for(i=0;i< 4;i++) hcos_16[i] = (float)
-			(1.0/(2.0*cos(MY_PI*double(i*2+1)/16.0)));
+			(1.0/(2.0*cos(MY_PI*(double)(i*2+1)/16.0)));
     for(i=0;i< 2;i++) hcos_8 [i] = (float)
-			(1.0/(2.0*cos(MY_PI*double(i*2+1)/ 8.0)));
+			(1.0/(2.0*cos(MY_PI*(double)(i*2+1)/ 8.0)));
     hcos_4 = (float)(1.0f / (2.0f * cos( MY_PI * 1.0 / 4.0 )));
     initialized = true;
   }
 
-  layer3initialize();
+  MPEGaudio_layer3initialize(self);
 
 #ifdef THREADED_AUDIO
-  decode_thread = NULL;
-  ring = NULL;
+  self->decode_thread = NULL;
+  self->ring = NULL;
 #endif
-  Rewind();
-  ResetSynchro(0);
+  MPEGaudio_Rewind(self);
+  MPEGaudio_ResetSynchro(self, 0);
 };
 
 
-bool MPEGaudio::loadheader()
+bool
+MPEGaudio_loadheader (_THIS)
 {
     register int c;
     bool flag;
+    int speed;
 
     flag = false;
     do
     {
-        if( (c = mpeg->copy_byte()) < 0 )
+        if( (c = MPEGstream_copy_byte(self->mpeg)) < 0 )
             break;
 
         if( c == 0xff )
         {
             while( ! flag )
             {
-                if( (c = mpeg->copy_byte()) < 0 )
+                if( (c = MPEGstream_copy_byte(self->mpeg)) < 0 )
                 {
                     flag = true;
                     break;
@@ -170,169 +184,160 @@ bool MPEGaudio::loadheader()
     // Analyzing
 
     c &= 0xf;
-    protection = c & 1;
-    layer = 4 - ((c >> 1) & 3);
-    version = (_mpegversion) ((c >> 3) ^ 1);
+    self->protection = c & 1;
+    self->layer = 4 - ((c >> 1) & 3);
+    self->version = (MPEGaudio_mpegversion) ((c >> 3) ^ 1);
 
-    c = mpeg->copy_byte() >> 1;
-    padding = (c & 1);
+    c = MPEGstream_copy_byte(self->mpeg) >> 1;
+    self->padding = (c & 1);
     c >>= 1;
-    frequency = (_frequency) (c&3);
-    if (frequency == 3)
+    self->frequency = (MPEGaudio_frequency) (c&3);
+    if (self->frequency == 3)
         return false;
     c >>= 2;
-    bitrateindex = (int) c;
-    if( bitrateindex == 15 )
+    self->bitrateindex = (int) c;
+    if( self->bitrateindex == 15 )
         return false;
 
-    c = ((unsigned int)mpeg->copy_byte()) >> 4;
-    extendedmode = c & 3;
-    mode = (_mode) (c >> 2);
+    c = ((unsigned int)MPEGstream_copy_byte(self->mpeg)) >> 4;
+    self->extendedmode = c & 3;
+    self->mode = (MPEGaudio_mode) (c >> 2);
 
 
     // Making information
 
-    inputstereo = (mode == single) ? 0 : 1;
+    self->inputstereo = (self->mode == single) ? 0 : 1;
 
-    forcetomonoflag = (!stereo && inputstereo);
-    forcetostereoflag = (stereo && !inputstereo);
+    self->forcetomonoflag = (!self->stereo && self->inputstereo);
+    self->forcetostereoflag = (self->stereo && !self->inputstereo);
 
-    if(forcetomonoflag)
-        outputstereo=0;
+    if(self->forcetomonoflag)
+        self->outputstereo=0;
     else
-        outputstereo=inputstereo;
+        self->outputstereo=self->inputstereo;
 
-    channelbitrate=bitrateindex;
-    if(inputstereo)
+    self->channelbitrate=self->bitrateindex;
+    if(self->inputstereo)
     {
-        if(channelbitrate==4)
-            channelbitrate=1;
+        if(self->channelbitrate==4)
+            self->channelbitrate=1;
         else
-            channelbitrate-=4;
+            self->channelbitrate-=4;
     }
 
-    if(channelbitrate==1 || channelbitrate==2)
-        tableindex=0;
+    if(self->channelbitrate==1 || self->channelbitrate==2)
+        self->tableindex=0;
     else
-        tableindex=1;
+        self->tableindex=1;
 
-  if(layer==1)
-      subbandnumber=MAXSUBBAND;
+  if(self->layer==1)
+      self->subbandnumber=MAXSUBBAND;
   else
   {
-    if(!tableindex)
-      if(frequency==frequency32000)subbandnumber=12; else subbandnumber=8;
-    else if(frequency==frequency48000||
-        (channelbitrate>=3 && channelbitrate<=5))
-      subbandnumber=27;
-    else subbandnumber=30;
+    if(!self->tableindex)
+      if(self->frequency==frequency32000)self->subbandnumber=12; else self->subbandnumber=8;
+    else if(self->frequency==frequency48000||
+        (self->channelbitrate>=3 && self->channelbitrate<=5))
+      self->subbandnumber=27;
+    else self->subbandnumber=30;
   }
 
-  if(mode==single)stereobound=0;
-  else if(mode==joint)stereobound=(extendedmode+1)<<2;
-  else stereobound=subbandnumber;
+  if(self->mode==single)self->stereobound=0;
+  else if(self->mode==joint)self->stereobound=(self->extendedmode+1)<<2;
+  else self->stereobound=self->subbandnumber;
 
-  if(stereobound>subbandnumber)stereobound=subbandnumber;
+  if(self->stereobound>self->subbandnumber)self->stereobound=self->subbandnumber;
 
   // framesize & slots
-  if(layer==1)
+  if(self->layer==1)
   {
-    framesize=(12000*bitrate[version][0][bitrateindex])/
-              frequencies[version][frequency];
-    if(frequency==frequency44100 && padding)framesize++;
-    framesize<<=2;
+    self->framesize=(12000*MPEGaudio_bitrate[self->version][0][self->bitrateindex])/
+              MPEGaudio_frequencies[self->version][self->frequency];
+    if(self->frequency==frequency44100 && self->padding)self->framesize++;
+    self->framesize<<=2;
   }
   else
   {
-    framesize=(144000*bitrate[version][layer-1][bitrateindex])/
-      (frequencies[version][frequency]<<version);
-    if(padding)framesize++;
-    if(layer==3)
+    self->framesize=(144000*MPEGaudio_bitrate[self->version][self->layer-1][self->bitrateindex])/
+      (MPEGaudio_frequencies[self->version][self->frequency]<<self->version);
+    if(self->padding)self->framesize++;
+    if(self->layer==3)
     {
-      if(version)
-    layer3slots=framesize-((mode==single)?9:17)
-                         -(protection?0:2)
+      if(self->version)
+    self->layer3slots=self->framesize-((self->mode==single)?9:17)
+                         -(self->protection?0:2)
                          -4;
       else
-    layer3slots=framesize-((mode==single)?17:32)
-                         -(protection?0:2)
+    self->layer3slots=self->framesize-((self->mode==single)?17:32)
+                         -(self->protection?0:2)
                          -4;
     }
   }
 
 #ifdef DEBUG_AUDIO
-  fprintf(stderr, "MPEG %d audio layer %d (%d kbps), at %d Hz %s [%d]\n", version+1, layer,  bitrate[version][layer-1][bitrateindex], frequencies[version][frequency], (mode == single) ? "mono" : "stereo", framesize);
+  fprintf(stderr, "MPEG %d audio layer %d (%d kbps), at %d Hz %s [%d]\n", self->version+1, self->layer,  MPEGaudio_bitrate[self->version][self->layer-1][self->bitrateindex], MPEGaudio_frequencies[self->version][self->frequency], (self->mode == single) ? "mono" : "stereo", self->framesize);
 #endif
 
   /* Fill the buffer with new data */
-  if(!fillbuffer(framesize-4))
+  if(!MPEGaudio_fillbuffer(self, self->framesize-4))
     return false;
 
-  if(!protection)
+  if(!self->protection)
   {
-    getbyte();                      // CRC, Not check!!
-    getbyte();
+    MPEGaudio_getbyte(self);                      // CRC, Not check!!
+    MPEGaudio_getbyte(self);
   }
 
   // Sam 7/17 - skip sequences of quickly varying frequencies
-  int speed = frequencies[version][frequency];
-  if ( speed != last_speed ) {
-    last_speed = speed;
-    if ( rawdatawriteoffset ) {
-        ++decodedframe;
+  speed = MPEGaudio_frequencies[self->version][self->frequency];
+  if ( speed != self->last_speed ) {
+    self->last_speed = speed;
+    if ( self->rawdatawriteoffset ) {
+        ++self->decodedframe;
 #ifndef THREADED_AUDIO
-        ++currentframe;
+        ++self->currentframe;
 #endif
     }
-    return loadheader();
+    return MPEGaudio_loadheader(self);
   }
 
   return true;
 }
 
 
-bool MPEGaudio::run( int frames, double *timestamp)
+bool
+MPEGaudio_run ( _THIS, int frames, double *timestamp)
 {
     double last_timestamp = -1;
     int totFrames = frames;
 
     for( ; frames; frames-- )
     {
-        if( loadheader() == false ) {
+        if( MPEGaudio_loadheader(self) == false ) {
 	  return false;	  
         }
 
-        if (frames == totFrames  && timestamp != NULL)
-            if (last_timestamp != mpeg->timestamp){
-		if (mpeg->timestamp_pos <= _buffer_pos)
-		    last_timestamp = *timestamp = mpeg->timestamp;
+        if (frames == totFrames  && timestamp != NULL) {
+            if (last_timestamp != self->mpeg->timestamp){
+		if (self->mpeg->timestamp_pos <= self->_buffer_pos)
+		    last_timestamp = *timestamp = self->mpeg->timestamp;
 	    }
             else
                 *timestamp = -1;
-
-        if     ( layer == 3 ) extractlayer3();
-        else if( layer == 2 ) extractlayer2();
-        else if( layer == 1 ) extractlayer1();
-
-        /* Handle swapping data endianness */
-        if ( swapendianflag ) {
-            Sint16 *p;
-
-            p = rawdata+rawdatawriteoffset;
-            while ( p > rawdata ) {
-                --p;
-                *p = SDL_Swap16(*p);
-            }
         }
 
+        if     ( self->layer == 3 ) MPEGaudio_extractlayer3(self);
+        else if( self->layer == 2 ) MPEGaudio_extractlayer2(self);
+        else if( self->layer == 1 ) MPEGaudio_extractlayer1(self);
+
         /* Handle expanding to stereo output */
-        if ( forcetostereoflag ) {
+        if ( self->forcetostereoflag ) {
             Sint16 *in, *out;
 
-            in = rawdata+rawdatawriteoffset;
-            rawdatawriteoffset *= 2;
-            out = rawdata+rawdatawriteoffset;
-            while ( in > rawdata ) {
+            in = self->rawdata+self->rawdatawriteoffset;
+            self->rawdatawriteoffset *= 2;
+            out = self->rawdata+self->rawdatawriteoffset;
+            while ( in > self->rawdata ) {
                 --in;
                 *(--out) = *in;
                 *(--out) = *in;
@@ -340,10 +345,10 @@ bool MPEGaudio::run( int frames, double *timestamp)
         }
 
         // Sam 10/5 - If there is no data, don't increment frames
-        if ( rawdatawriteoffset ) {
-            ++decodedframe;
+        if ( self->rawdatawriteoffset ) {
+            ++self->decodedframe;
 #ifndef THREADED_AUDIO
-            ++currentframe;
+            ++self->currentframe;
 #endif
         }
     }
@@ -361,23 +366,24 @@ int Decode_MPEGaudio(void *udata)
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 #endif
 
-    audio->force_exit = false;
-    while ( audio->decoding && ! audio->mpeg->eof() && !audio->force_exit ) {
-        audio->rawdata = (Sint16 *)audio->ring->NextWriteBuffer();
+    while ( audio->decoding && ! MPEGstream_eof(audio->mpeg) ) {
+        audio->rawdata = (Sint16 *)MPEG_ring_NextWriteBuffer(audio->ring);
 
         if ( audio->rawdata ) {
             audio->rawdatawriteoffset = 0;
             /* Sam 10/5/2000 - Added while to prevent empty buffer in ring */
-            while ( audio->run(1, &timestamp) &&
+            while ( MPEGaudio_run(audio, 1, &timestamp) &&
                     (audio->rawdatawriteoffset == 0) ) {
                 /* Keep looping */ ;
             }
-            if((Uint32)audio->rawdatawriteoffset*2 <= audio->ring->BufferSize())
-              audio->ring->WriteDone(audio->rawdatawriteoffset*2, timestamp);
+            if((Uint32)audio->rawdatawriteoffset*2 <= MPEG_ring_BufferSize(audio->ring))
+              MPEG_ring_WriteDone(audio->ring, audio->rawdatawriteoffset*2, timestamp);
         }
     }
 
     audio->decoding = false;
+/* Patch to allow audio to loop infinitely */
+//    audio->decode_thread = NULL;
     return(0);
 }
 #endif /* THREADED_AUDIO */
@@ -389,9 +395,8 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
     long copylen;
     int mixed = 0;
 
-		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  conflict name in popcorn */
     /* Bail if audio isn't playing */
-    if ( audio->GetStatus() != MPEG_PLAYING ) {
+    if ( MPEGaudio_GetStatus(audio) != MPEG_PLAYING ) {
         return(0);
     }
     volume = audio->volume;
@@ -412,7 +417,9 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
 
     /* Copy the audio data to output */
 #ifdef THREADED_AUDIO
+{
     Uint8 *rbuf;
+    int i;
     assert(audio);
     assert(audio->ring);
     do {
@@ -421,26 +428,26 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
 	   the timestamps refer to the time when the frame starts
 	   playing or then the frame ends playing, but as is works
 	   quite right */
-        copylen = audio->ring->NextReadBuffer(&rbuf);
+        copylen = MPEG_ring_NextReadBuffer(audio->ring, &rbuf);
         if ( copylen > len ) {
             SDL_MixAudio(stream, rbuf, len, volume);
             mixed += len;
-            audio->ring->ReadSome(len);
+            MPEG_ring_ReadSome(audio->ring, len);
             len = 0;
-	    for (int i=0; i < N_TIMESTAMPS -1; i++)
+	    for (i=0; i < N_TIMESTAMPS -1; i++)
 		audio->timestamp[i] = audio->timestamp[i+1];
-	    audio->timestamp[N_TIMESTAMPS-1] = audio->ring->ReadTimeStamp();
+	    audio->timestamp[N_TIMESTAMPS-1] = MPEG_ring_ReadTimeStamp(audio->ring);
         } else {
             SDL_MixAudio(stream, rbuf, copylen, volume);
             mixed += copylen;
             ++audio->currentframe;
-            audio->ring->ReadDone();
+            MPEG_ring_ReadDone(audio->ring);
 //fprintf(stderr, "-");
             len -= copylen;
             stream += copylen;
         }
 	if (audio->timestamp[0] != -1){
-	    double timeshift = audio->Time() - audio->timestamp[0];
+	    double timeshift = MPEGaudio_Time(audio) - audio->timestamp[0];
 	    double correction = 0;
 	    assert(audio->timestamp >= 0);
 	    if (fabs(timeshift) > 1.0){
@@ -455,13 +462,12 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
 #endif
 #ifdef DEBUG_TIMESTAMP_SYNC
 	    fprintf(stderr, "\raudio: time:%8.3f shift:%8.4f",
-                    audio->Time(), timeshift);
+                    MPEGaudio_Time(audio), timeshift);
 #endif
 	    audio->timestamp[0] = -1;
 	}
-    } while ( copylen && (len > 0) && ((audio->currentframe < audio->decodedframe) || audio->decoding)  
-              && !audio->force_exit );
-              
+    } while ( copylen && (len > 0) && ((audio->currentframe < audio->decodedframe) || audio->decoding));
+}
 #else
     /* The length is interpreted as being in samples */
     len /= 2;
@@ -471,14 +477,12 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
         copylen = (audio->rawdatawriteoffset-audio->rawdatareadoffset);
         assert(copylen >= 0);
         if ( copylen >= len ) {
-            SDL_MixAudio(stream, (Uint8 *)&audio->spillover[audio->rawdatareadoffset],
-                                                       len*2, volume);
+            SDL_MixAudio(stream, (Uint8 *)&audio->spillover[audio->rawdatareadoffset], len*2, volume);
             mixed += len*2;
             audio->rawdatareadoffset += len;
             goto finished_mixing;
         }
-        SDL_MixAudio(stream, (Uint8 *)&audio->spillover[audio->rawdatareadoffset],
-                                                       copylen*2, volume);
+        SDL_MixAudio(stream, (Uint8 *)&audio->spillover[audio->rawdatareadoffset], copylen*2, volume);
         mixed += copylen*2;
         len -= copylen;
         stream += copylen*2;
@@ -487,7 +491,7 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
     /* Copy in any new data */
     audio->rawdata = (Sint16 *)stream;
     audio->rawdatawriteoffset = 0;
-    audio->run(len/audio->samplesperframe);
+    MPEGaudio_run(audio, len/audio->samplesperframe, NULL);
     mixed += audio->rawdatawriteoffset*2;
     len -= audio->rawdatawriteoffset;
     stream += audio->rawdatawriteoffset*2;
@@ -495,7 +499,7 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
     /* Write a save buffer for remainder */
     audio->rawdata = audio->spillover;
     audio->rawdatawriteoffset = 0;
-    if ( audio->run(1) ) {
+    if ( MPEGaudio_run(audio, 1, NULL) ) {
         assert(audio->rawdatawriteoffset > len);
         SDL_MixAudio(stream, (Uint8 *) audio->spillover, len*2, volume);
         mixed += len*2;

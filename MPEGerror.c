@@ -19,13 +19,12 @@
 
 /* A class used for error reporting in the MPEG classes */
 
-#ifndef _MPEGERROR_H_
-#define _MPEGERROR_H_
-
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
 
-/* This struct becomes a member of the other MPEG* structs. */
+#include "MPEGerror.h"
 
 #if 0
 class MPEGerror {
@@ -64,40 +63,46 @@ protected:
 #endif /* 0 */
 
 
-#define MAKE_OBJECT(objtype) objtype failsafe; \
- do { \
-  if (!self) { \
-    self = (objtype *)malloc(sizeof(objtype)); \
-    if (!self) self = &failsafe; \
-    memset(self, 0, sizeof(*self)); \
-  } \
- } while (0)
 
-struct MPEGerror {
-    char errbuf[512];
-    char *error;
-
-    void (*SetError)(char *fmt, ...);
-};
-
-typedef struct MPEGerror MPEGerror;
-
-
-
-typedef int bool;
-#define false 0
-#define true (!false)
-
-
-
+/* Error methods. */
 #undef _THIS
 #define _THIS MPEGerror *self
 
-MPEGerror * MPEGerror_init (_THIS);
-void MPEGerror_destroy (_THIS);
-void MPEGerror_SetError (_THIS, char *fmt, ...);
-bool MPEGerror_WasError (_THIS);
-char *MPEGerror_TheError (_THIS);
-void MPEGerror_ClearError (_THIS);
 
-#endif /* _MPEGERROR_H_ */
+MPEGerror * MPEGerror_init (_THIS)
+{
+  MAKE_OBJECT(MPEGerror);
+  MPEGerror_ClearError(self);
+  return self;
+}
+
+void MPEGerror_destroy (_THIS)
+{
+  return;
+}
+
+void MPEGerror_SetError (_THIS, char *fmt, ...)
+{
+  va_list ap;
+
+  va_start(ap, fmt);
+  vsprintf(self->errbuf, fmt, ap);
+  va_end(ap);
+  self->error = self->errbuf;
+}
+
+bool MPEGerror_WasError (_THIS)
+{
+  return (self->error != NULL);
+}
+
+char *MPEGerror_TheError (_THIS)
+{
+  return (self->error);
+}
+
+void MPEGerror_ClearError (_THIS)
+{
+  self->error = NULL;
+}
+

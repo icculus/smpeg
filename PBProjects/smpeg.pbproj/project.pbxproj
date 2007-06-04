@@ -117,7 +117,7 @@
 				DEBUGGING_SYMBOLS = NO;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
-				FRAMEWORK_SEARCH_PATHS = "\"$(HOME)/Library/Frameworks/\"";
+				FRAMEWORK_SEARCH_PATHS = "\"$(HOME)/Library/Frameworks/SDL.framework\"";
 				FRAMEWORK_VERSION = A;
 				HEADER_SEARCH_PATHS = "\"$(HOME)/Library/Frameworks/SDL.framework/Headers\"";
 				INSTALL_PATH = "$(HOME)/Library/Frameworks";
@@ -565,7 +565,7 @@
 		};
 		F8508D3E03AD9BF301A8000A = {
 			isa = PBXFileReference;
-			path = hufftable.cpp;
+			path = huffmantable.cpp;
 			refType = 4;
 		};
 		F8508D4203AD9BF301A8000A = {
@@ -624,8 +624,8 @@
 		};
 		F8508D4E03AD9BF301A8000A = {
 			isa = PBXFileReference;
-			name = MPEGstream.cpp;
-			path = ../MPEGstream.cpp;
+			name = MPEGstream.c;
+			path = ../MPEGstream.c;
 			refType = 2;
 		};
 		F8508D4F03AD9BF301A8000A = {
@@ -709,12 +709,12 @@
 		};
 		F8508D5E03AD9BF301A8000A = {
 			isa = PBXFileReference;
-			path = motionvec.cpp;
+			path = motionvector.cpp;
 			refType = 4;
 		};
 		F8508D5F03AD9BF301A8000A = {
 			isa = PBXFileReference;
-			path = MPEGvideo.cpp;
+			path = MPEGvideo.c;
 			refType = 4;
 		};
 		F8508D6003AD9BF301A8000A = {

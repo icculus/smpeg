@@ -5,7 +5,7 @@ Makefile
 bitwindow.lo
 MPEGaudio.lo
 mpeglayer1.lo
-hufftable.lo
+huffmantable.lo
 filter.lo
 filter_2.lo
 mpegtable.lo

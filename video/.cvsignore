@@ -6,7 +6,7 @@ floatdct.lo
 MPEGvideo.lo
 gdith.lo
 decoders.lo
-motionvec.lo
+motionvector.lo
 readfile.lo
 parseblock.lo
 jrevdct.lo

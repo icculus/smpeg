@@ -148,6 +148,9 @@ typedef Uint8 UINT8;
 /* Brown - changed to const int because it is a help variable */
 extern const int scan[][8];
 
+/* Temporary definition of time stamp structure. */
+typedef double TimeStamp;
+
 /* Structure with reconstructed pixel values. */
 
 typedef struct pict_image {
@@ -305,7 +308,7 @@ typedef struct vid_stream {
   double _skipCount;
   int _jumpFrame;
   double _oneFrameTime;
-  MPEGvideo* _smpeg;
+  struct MPEGvideo* _smpeg;
 /* KR - end of added variables */
 
 /* SL - beginning of added variables for FPS calculation */

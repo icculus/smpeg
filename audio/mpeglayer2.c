@@ -15,6 +15,12 @@
 
 #include "MPEGaudio.h"
 
+
+
+#define getbits(n) MPEGaudio_getbits(self, n)
+
+
+
 #define MAXTABLE 2
 
 // Tables for layer 2
@@ -416,7 +422,7 @@ static const REAL dtableB4[4]=
 
 
 // Mpeg layer 2
-void MPEGaudio::extractlayer2(void)
+void MPEGaudio_extractlayer2 (MPEGaudio *self)
 {
   REAL fraction[MAXCHANNEL][3][MAXSUBBAND];
   unsigned int bitalloc[MAXCHANNEL][MAXSUBBAND],
@@ -428,13 +434,13 @@ void MPEGaudio::extractlayer2(void)
   REAL factor[MAXCHANNEL][MAXSUBBAND];
   REAL c[MAXCHANNEL][MAXSUBBAND],d[MAXCHANNEL][MAXSUBBAND];
 
-  int s=stereobound,n=subbandnumber;
+  int s=self->stereobound,n=self->subbandnumber;
+  register int i;
 
 
 // Bitalloc
   {
-    register int i;
-    register const int *t=bitalloclengthtable[tableindex];
+    register const int *t=bitalloclengthtable[self->tableindex];
 
     for(i=0;i<s;i++,t++)
     {
@@ -447,25 +453,25 @@ void MPEGaudio::extractlayer2(void)
 
 
   // Scale selector
-  if(inputstereo)
-    for(register int i=0;i<n;i++)
+  if(self->inputstereo)
+    for(i=0;i<n;i++)
     {
       if(bitalloc[LS][i])scaleselector[LS][i]=getbits(2);
       if(bitalloc[RS][i])scaleselector[RS][i]=getbits(2);
     }
   else
-    for(register int i=0;i<n;i++)
+    for(i=0;i<n;i++)
       if(bitalloc[LS][i])scaleselector[LS][i]=getbits(2);
 
   // Scale index
   {
-    register int i,j;
+    register int j;
 
     for(i=0;i<n;i++)
     {
       if((j=bitalloc[LS][i]))
       {
-	if(!tableindex)
+	if(!self->tableindex)
 	{
 	  group[LS][i]=grouptableA[j];
 	  codelength[LS][i]=codelengthtableA[j];
@@ -512,28 +518,28 @@ void MPEGaudio::extractlayer2(void)
 
 	switch(scaleselector[LS][i])
 	{
-	  case 0:scalefactor[LS][0][i]=scalefactorstable[getbits(6)];
-		 scalefactor[LS][1][i]=scalefactorstable[getbits(6)];
-		 scalefactor[LS][2][i]=scalefactorstable[getbits(6)];
+	  case 0:scalefactor[LS][0][i]=MPEGaudio_scalefactorstable[getbits(6)];
+		 scalefactor[LS][1][i]=MPEGaudio_scalefactorstable[getbits(6)];
+		 scalefactor[LS][2][i]=MPEGaudio_scalefactorstable[getbits(6)];
 		 break;
 	  case 1:scalefactor[LS][0][i]=
-		 scalefactor[LS][1][i]=scalefactorstable[getbits(6)];
-		 scalefactor[LS][2][i]=scalefactorstable[getbits(6)];
+		 scalefactor[LS][1][i]=MPEGaudio_scalefactorstable[getbits(6)];
+		 scalefactor[LS][2][i]=MPEGaudio_scalefactorstable[getbits(6)];
 		 break;
 	  case 2:scalefactor[LS][0][i]=
 		 scalefactor[LS][1][i]=
-		 scalefactor[LS][2][i]=scalefactorstable[getbits(6)];
+		 scalefactor[LS][2][i]=MPEGaudio_scalefactorstable[getbits(6)];
 		 break;
-	  case 3:scalefactor[LS][0][i]=scalefactorstable[getbits(6)];
+	  case 3:scalefactor[LS][0][i]=MPEGaudio_scalefactorstable[getbits(6)];
 		 scalefactor[LS][1][i]=
-		 scalefactor[LS][2][i]=scalefactorstable[getbits(6)];
+		 scalefactor[LS][2][i]=MPEGaudio_scalefactorstable[getbits(6)];
 		 break;
 	}
       }
 
-      if(inputstereo && (j=bitalloc[RS][i]))
+      if(self->inputstereo && (j=bitalloc[RS][i]))
       {
-	if(!tableindex)
+	if(!self->tableindex)
 	{
 	  group[RS][i]=grouptableA[j];
 	  codelength[RS][i]=codelengthtableA[j];
@@ -580,21 +586,21 @@ void MPEGaudio::extractlayer2(void)
 
 	switch(scaleselector[RS][i])
 	{
-	  case 0 : scalefactor[RS][0][i]=scalefactorstable[getbits(6)];
-		   scalefactor[RS][1][i]=scalefactorstable[getbits(6)];
-		   scalefactor[RS][2][i]=scalefactorstable[getbits(6)];
+	  case 0 : scalefactor[RS][0][i]=MPEGaudio_scalefactorstable[getbits(6)];
+		   scalefactor[RS][1][i]=MPEGaudio_scalefactorstable[getbits(6)];
+		   scalefactor[RS][2][i]=MPEGaudio_scalefactorstable[getbits(6)];
 		   break;
 	  case 1 : scalefactor[RS][0][i]=
-		   scalefactor[RS][1][i]=scalefactorstable[getbits(6)];
-		   scalefactor[RS][2][i]=scalefactorstable[getbits(6)];
+		   scalefactor[RS][1][i]=MPEGaudio_scalefactorstable[getbits(6)];
+		   scalefactor[RS][2][i]=MPEGaudio_scalefactorstable[getbits(6)];
 		   break;
 	  case 2 : scalefactor[RS][0][i]=
 		   scalefactor[RS][1][i]=
-		   scalefactor[RS][2][i]=scalefactorstable[getbits(6)];
+		   scalefactor[RS][2][i]=MPEGaudio_scalefactorstable[getbits(6)];
 		   break;
-	  case 3 : scalefactor[RS][0][i]=scalefactorstable[getbits(6)];
+	  case 3 : scalefactor[RS][0][i]=MPEGaudio_scalefactorstable[getbits(6)];
 		   scalefactor[RS][1][i]=
-		   scalefactor[RS][2][i]=scalefactorstable[getbits(6)];
+		   scalefactor[RS][2][i]=MPEGaudio_scalefactorstable[getbits(6)];
 		   break;
 	}
       }
@@ -604,9 +610,9 @@ void MPEGaudio::extractlayer2(void)
 
 // Read Sample
   {
-    register int i;
+    int l;
 
-    for(int l=0;l<SCALEBLOCK;l++)
+    for(l=0;l<SCALEBLOCK;l++)
     {
       // Read Sample
       for(i=0;i<s;i++)
@@ -632,16 +638,16 @@ void MPEGaudio::extractlayer2(void)
 	  else
 	  {
 	    fraction[LS][0][i]=
-	      REAL(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
+	      (REAL)(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
 	    fraction[LS][1][i]=
-	      REAL(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
+	      (REAL)(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
 	    fraction[LS][2][i]=
-	      REAL(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
+	      (REAL)(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
 	  }
 	}
 	else fraction[LS][0][i]=fraction[LS][1][i]=fraction[LS][2][i]=0.0;
 
-	if(inputstereo && bitalloc[RS][i])
+	if(self->inputstereo && bitalloc[RS][i])
 	{
 	  if(group[RS][i])
 	  {
@@ -662,11 +668,11 @@ void MPEGaudio::extractlayer2(void)
 	  else
 	  {
 	    fraction[RS][0][i]=
-	      REAL(getbits(codelength[RS][i]))*factor[RS][i]-1.0;
+	      (REAL)(getbits(codelength[RS][i]))*factor[RS][i]-1.0;
 	    fraction[RS][1][i]=
-	      REAL(getbits(codelength[RS][i]))*factor[RS][i]-1.0;
+	      (REAL)(getbits(codelength[RS][i]))*factor[RS][i]-1.0;
 	    fraction[RS][2][i]=
-	      REAL(getbits(codelength[RS][i]))*factor[RS][i]-1.0;
+	      (REAL)(getbits(codelength[RS][i]))*factor[RS][i]-1.0;
 	  }
 	}
 	else fraction[RS][0][i]=fraction[RS][1][i]=fraction[RS][2][i]=0.0;
@@ -691,11 +697,11 @@ void MPEGaudio::extractlayer2(void)
 	  else
 	  {
 	    fraction[LS][0][i]=fraction[RS][0][i]=
-	      REAL(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
+	      (REAL)(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
 	    fraction[LS][1][i]=fraction[RS][1][i]=
-	      REAL(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
+	      (REAL)(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
 	    fraction[LS][2][i]=fraction[RS][2][i]=
-	      REAL(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
+	      (REAL)(getbits(codelength[LS][i]))*factor[LS][i]-1.0;
 	  }
 	}
 	else fraction[LS][0][i]=fraction[LS][1][i]=fraction[LS][2][i]=
@@ -705,19 +711,21 @@ void MPEGaudio::extractlayer2(void)
 
 
       //Fraction
-      if(outputstereo)
+      if(self->outputstereo)
 	for(i=0;i<n;i++)
 	{
 	  if(bitalloc[LS][i])
 	  {
-	    if(!group[LS][i])
+        register REAL t;
+
+	    if (!group[LS][i])
 	    {
 	      fraction[LS][0][i]=(fraction[LS][0][i]+d[LS][i])*c[LS][i];
 	      fraction[LS][1][i]=(fraction[LS][1][i]+d[LS][i])*c[LS][i];
 	      fraction[LS][2][i]=(fraction[LS][2][i]+d[LS][i])*c[LS][i];
 	    }
 
-	    register REAL t=scalefactor[LS][l>>2][i];
+	    t=scalefactor[LS][l>>2][i];
 	    fraction[LS][0][i]*=t;
 	    fraction[LS][1][i]*=t;
 	    fraction[LS][2][i]*=t;
@@ -725,6 +733,8 @@ void MPEGaudio::extractlayer2(void)
 
 	  if(bitalloc[RS][i])
 	  {
+        register REAL t;
+
 	    if(!group[RS][i])
 	    {
 	      fraction[RS][0][i]=(fraction[RS][0][i]+d[RS][i])*c[RS][i];
@@ -732,7 +742,7 @@ void MPEGaudio::extractlayer2(void)
 	      fraction[RS][2][i]=(fraction[RS][2][i]+d[RS][i])*c[RS][i];
 	    }
 
-	    register REAL t=scalefactor[RS][l>>2][i];
+	    t=scalefactor[RS][l>>2][i];
 	    fraction[RS][0][i]*=t;
 	    fraction[RS][1][i]*=t;
 	    fraction[RS][2][i]*=t;
@@ -742,6 +752,8 @@ void MPEGaudio::extractlayer2(void)
 	for(i=0;i<n;i++)
 	  if(bitalloc[LS][i])
 	  {
+        register REAL t;
+
 	    if(!group[LS][i])
 	    {
 	      fraction[LS][0][i]=(fraction[LS][0][i]+d[LS][i])*c[LS][i];
@@ -749,7 +761,7 @@ void MPEGaudio::extractlayer2(void)
 	      fraction[LS][2][i]=(fraction[LS][2][i]+d[LS][i])*c[LS][i];
 	    }
 
-	    register REAL t=scalefactor[LS][l>>2][i];
+	    t=scalefactor[LS][l>>2][i];
 	    fraction[LS][0][i]*=t;
 	    fraction[LS][1][i]*=t;
 	    fraction[LS][2][i]*=t;
@@ -760,7 +772,7 @@ void MPEGaudio::extractlayer2(void)
 	fraction[RS][0][i]=fraction[RS][1][i]=fraction[RS][2][i]=0.0;
 
       for(i=0;i<3;i++)
-	subbandsynthesis(fraction[LS][i],fraction[RS][i]);
+	MPEGaudio_subbandsynthesis(self,fraction[LS][i],fraction[RS][i]);
     }
   }
 }

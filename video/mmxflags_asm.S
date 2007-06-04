@@ -1,6 +1,11 @@
 
 #if defined(i386) && defined(USE_MMX)
 
+.data
+	.align 16
+	.type	 flags,@object
+flags: .long 0
+
 .text
 	.align 4
 .globl cpu_flags
@@ -35,13 +40,16 @@ cpu_flags:
         xorl %ecx,%eax
         je cpu_flags.L1
 
-        pushl %ebx
+        pusha
 
         movl $1,%eax
         cpuid
-        movl %edx,%eax
 
-        popl %ebx
+        movl %edx,flags
+
+        popa
+
+        movl flags,%eax
 
 cpu_flags.L1: 
         ret
@@ -49,7 +57,3 @@ cpu_flags.L1:
 	.size	 cpu_flags,.Lfe1-cpu_flags
 
 #endif /* i386 && USE_MMX */
-
-#ifdef __ELF__
-.section .note.GNU-stack,"",%progbits
-#endif

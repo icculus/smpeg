@@ -1055,7 +1055,8 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
         show_bits32(data);
         if( data != SEQ_START_CODE )
         {
-            vid_stream->_smpeg->SetError("Invalid sequence in video stream");
+//            vid_stream->_smpeg->SetError("Invalid sequence in video stream");
+            MPEGerror_SetError(vid_stream->_smpeg->error, "Invalid sequence in video stream");
             /* Let whoever called NewVidStream call DestroyVidStream - KR
             DestroyVidStream( vid_stream );
             */
@@ -1085,7 +1086,8 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
         if( vid_stream->future != NULL )
         {
             vid_stream->current = vid_stream->future;
-            vid_stream->_smpeg->ExecuteDisplay( vid_stream );
+//            vid_stream->_smpeg->ExecuteDisplay( vid_stream );
+            MPEGvideo_ExecuteDisplay(vid_stream->_smpeg, vid_stream);
         }
 
 #ifdef ANALYSIS
@@ -1202,7 +1204,8 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
                 next_start_code( vid_stream );
             }
 
-            vid_stream->_smpeg->timeSync( vid_stream );
+//            vid_stream->_smpeg->timeSync( vid_stream );
+            MPEGvideo_timeSync(vid_stream->_smpeg, vid_stream);
             goto done;
         }
         else if( status != PARSE_OK )
@@ -2446,6 +2449,7 @@ static void ReconPMBlock( VidStream* vid_stream, int bnum,
   int illegalBlock = 0;
   int row_start, row_end, rfirst, rlast, col_start, col_end, cfirst, clast;
 #endif
+  rlast = clast = 0;
 
   /* Calculate macroblock row and column from address. */
 
@@ -2931,6 +2935,7 @@ static void ReconBMBlock( VidStream* vid_stream, int bnum,
   int maxx, maxy, cc;
   int row_start, row_end, rlast, rfirst, col_start, col_end, clast, cfirst;
 #endif
+  rlast = clast = 0;
 
   /* Calculate macroblock row and column from address. */
 
@@ -4670,12 +4675,14 @@ static void DoPictureDisplay( VidStream *vid_stream )
             vid_stream->future->locked |= FUTURE_LOCK;
             vid_stream->current = vid_stream->past;
 
-            vid_stream->_smpeg->ExecuteDisplay( vid_stream );
+//            vid_stream->_smpeg->ExecuteDisplay( vid_stream );
+            MPEGvideo_ExecuteDisplay(vid_stream->_smpeg, vid_stream);
         }
     }
     else
     {
-        vid_stream->_smpeg->ExecuteDisplay( vid_stream );
+//        vid_stream->_smpeg->ExecuteDisplay( vid_stream );
+        MPEGvideo_ExecuteDisplay(vid_stream->_smpeg, vid_stream);
     }
 }
 
