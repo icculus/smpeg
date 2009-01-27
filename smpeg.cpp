@@ -371,7 +371,7 @@ char *SMPEG_error( SMPEG* mpeg )
     char *error = NULL;
 
     if (mpeg == NULL) {
-        error = "NULL mpeg (unknown error)";
+        error = (char *) "NULL mpeg (unknown error)";
     } else {
         if ( mpeg->obj->WasError() ) {
             error = mpeg->obj->TheError();
