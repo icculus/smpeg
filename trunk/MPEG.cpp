@@ -47,7 +47,7 @@ MPEG::MPEG(int Mpeg_FD, bool SDLaudio) :
     return;
   }
 
-  source = SDL_RWFromFP(file,false);
+  source = SDL_RWFromFP(file,0);
   if (!source) {
     InitErrorState();
     SetError(SDL_GetError());
