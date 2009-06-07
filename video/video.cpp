@@ -2930,6 +2930,8 @@ static void ReconBMBlock( VidStream* vid_stream, int bnum,
   int illegalBlock = 0;
   int maxx, maxy, cc;
   int row_start, row_end, rlast, rfirst, col_start, col_end, clast, cfirst;
+
+  rlast = clast = 0;
 #endif
 
   /* Calculate macroblock row and column from address. */
