@@ -302,13 +302,14 @@ bool MPEGaudio::run( int frames, double *timestamp)
 	  return false;	  
         }
 
-        if (frames == totFrames  && timestamp != NULL)
+        if (frames == totFrames  && timestamp != NULL){
             if (last_timestamp != mpeg->timestamp){
 		if (mpeg->timestamp_pos <= _buffer_pos)
 		    last_timestamp = *timestamp = mpeg->timestamp;
 	    }
             else
                 *timestamp = -1;
+        }
 
         if     ( layer == 3 ) extractlayer3();
         else if( layer == 2 ) extractlayer2();

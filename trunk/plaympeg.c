@@ -484,7 +484,7 @@ int main(int argc, char *argv[])
     Uint32 seek;
     float skip;
     int bilinear_filtering;
-    SDL_Surface *screen;
+    SDL_Surface *screen = NULL;
     SMPEG *mpeg;
     SMPEG_Info info;
     char *basefile;
@@ -759,6 +759,7 @@ int main(int argc, char *argv[])
             SMPEG_scaleXY(mpeg, screen->w, screen->h);
         } else {
             SDL_QuitSubSystem(SDL_INIT_VIDEO);
+            use_video = 0;
         }
 
         /* Set any special playback parameters */

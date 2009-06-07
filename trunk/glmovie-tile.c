@@ -152,8 +152,8 @@ GLenum glmovie_init( GLuint width, GLuint height )
     /* Initial black texels. */
     GLubyte* pixels;
     /* Absolute offsets from within tiled frame. */
-    GLuint offset_x = 0;
-    GLuint offset_y = 0;
+    /* GLuint offset_x = 0; */
+    /* GLuint offset_y = 0; */
     GLuint skip_rows = 0;
     GLuint skip_pixels = 0;
     GLuint i, j, current;
@@ -193,10 +193,9 @@ GLenum glmovie_init( GLuint width, GLuint height )
         return GL_OUT_OF_MEMORY;
     }
 
-    for ( i = 0; i < num_texture_rows; i++ ) {
+    for ( i = 0, current = 0; i < num_texture_rows; i++ ) {
         skip_pixels = 0;
-        for ( j = 0; j < num_texture_cols; j++ ) {
-            current = i * num_texture_cols + j;
+        for ( j = 0; j < num_texture_cols; j++, current++ ) {
             /* Setup texture. */
             textures[current].id = texture_ids[current];
             textures[current].poly_width = texture_size;
