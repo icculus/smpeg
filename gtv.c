@@ -30,7 +30,7 @@ static void gtv_audio( GtkWidget*, gpointer );
 static void gtv_filter( GtkWidget*, gpointer );
 
 static void gtv_open( GtkWidget*, gpointer );
-static void gtv_open_file( gchar*, gpointer );
+static void gtv_open_file( gchar const*, gpointer );
 static void gtv_close( GtkWidget*, gpointer );
 static void gtv_info( GtkWidget*, gpointer );
 static void gtv_quit( GtkWidget*, gpointer );
@@ -140,7 +140,7 @@ static void gtv_dialog_cancel( GtkWidget* item, gpointer raw )
 static void gtv_open_ok( GtkWidget* item, gpointer raw )
 {
     GtkWidget* file_sel = NULL;
-    gchar* filename = NULL;
+    gchar const* filename = NULL;
 
     /* HACK HACK HACK */
     file_sel = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "dialog" ) );
@@ -210,7 +210,7 @@ static void gtv_center_window(SDL_Surface *screen)
     }
 }
 
-static void gtv_open_file( gchar* name, gpointer raw )
+static void gtv_open_file( gchar const* name, gpointer raw )
 {
     SMPEG_Info* info = NULL;
     SMPEG* mpeg = NULL;
@@ -364,7 +364,7 @@ static GtkWidget* create_file_info_dialog( void )
   gtk_widget_show (viewport1);
   gtk_container_add (GTK_CONTAINER (scrolledwindow1), viewport1);
 
-  text = gtk_text_new (NULL, NULL);
+  text = gtk_text_view_new ();
   gtk_widget_ref (text);
   gtk_object_set_data_full (GTK_OBJECT (file_info_dialog), "text", text,
                             (GtkDestroyNotify) gtk_widget_unref);
@@ -459,7 +459,7 @@ static GtkWidget* create_about_dialog( void )
   gtk_widget_show (viewport2);
   gtk_container_add (GTK_CONTAINER (scrolledwindow2), viewport2);
 
-  text = gtk_text_new (NULL, NULL);
+  text = gtk_text_view_new ();
   gtk_widget_ref (text);
   gtk_object_set_data_full (GTK_OBJECT (about_dialog), "text", text,
                             (GtkDestroyNotify) gtk_widget_unref);
@@ -805,14 +805,23 @@ static void gtv_seek( GtkAdjustment* adjust, gpointer raw )
     }
 }
 
-static void gtv_trackbar_drag_on(GtkWidget *widget, gpointer raw)
+static gboolean gtv_trackbar_drag_on(GtkWidget *widget,
+                                     GdkEventButton *event, gpointer raw)
 {
     gtv_trackbar_dragging = 1;
+    return FALSE;
 }
 
-static void gtv_trackbar_drag_off(GtkWidget *widget, gpointer raw)
+static gboolean gtv_trackbar_drag_off(GtkWidget *widget,
+                                      GdkEventButton *event, gpointer raw)
 {
     gtv_trackbar_dragging = 0;
+
+    GtkWidget *scale = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "scale" ) );
+    GtkAdjustment *seek  = gtk_range_get_adjustment ( GTK_RANGE( scale ) );
+    gtk_adjustment_changed( seek );
+
+    return FALSE;
 }
 
 static void gtv_set_frame( gpointer raw, int value )
@@ -856,13 +865,11 @@ static void gtv_set_trackbar( gpointer raw, int value )
     info = (SMPEG_Info*) gtk_object_get_data( GTK_OBJECT( raw ), "info" );
 
     if( mpeg && info && info->total_size ) {
-            scale = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "scale" ) );
+      scale = GTK_WIDGET( gtk_object_get_data( GTK_OBJECT( raw ), "scale" ) );
       seek  = gtk_range_get_adjustment ( GTK_RANGE( scale ) );
       seek->value = 100. * value / info->total_size;
       gtk_range_set_adjustment ( GTK_RANGE( scale ), seek );
-      gtk_range_slider_update ( GTK_RANGE( scale ) );
-      gtk_range_clear_background ( GTK_RANGE( scale ) );
-      gtk_range_draw_background ( GTK_RANGE( scale ) );
+      gtk_adjustment_changed( seek );
     }
 }
 
@@ -1021,7 +1028,6 @@ static GtkWidget* create_gtv_window( void )
   GtkWidget *menubar1;
   GtkWidget *file;
   GtkWidget *file_menu;
-  GtkAccelGroup *file_menu_accels;
   GtkWidget *open;
   GtkWidget *close;
   GtkWidget *separator1;
@@ -1030,7 +1036,6 @@ static GtkWidget* create_gtv_window( void )
   GtkWidget *quit;
   GtkWidget *help;
   GtkWidget *help_menu;
-  GtkAccelGroup *help_menu_accels;
   GtkWidget *about;
   GtkWidget *table1;
   GtkObject *seek;
@@ -1083,7 +1088,6 @@ static GtkWidget* create_gtv_window( void )
   gtk_object_set_data_full (GTK_OBJECT (gtv_window), "file_menu", file_menu,
                             (GtkDestroyNotify) gtk_widget_unref);
   gtk_menu_item_set_submenu (GTK_MENU_ITEM (file), file_menu);
-  file_menu_accels = gtk_menu_ensure_uline_accel_group (GTK_MENU (file_menu));
 
   open = gtk_menu_item_new_with_label ("Open");
   gtk_widget_ref (open);
@@ -1154,7 +1158,6 @@ static GtkWidget* create_gtv_window( void )
   gtk_object_set_data_full (GTK_OBJECT (gtv_window), "help_menu", help_menu,
                             (GtkDestroyNotify) gtk_widget_unref);
   gtk_menu_item_set_submenu (GTK_MENU_ITEM (help), help_menu);
-  help_menu_accels = gtk_menu_ensure_uline_accel_group (GTK_MENU (help_menu));
 
   about = gtk_menu_item_new_with_label ("About");
   gtk_widget_ref (about);
