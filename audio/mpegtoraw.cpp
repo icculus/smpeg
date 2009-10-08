@@ -390,7 +390,10 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
     long copylen;
     int mixed = 0;
 
-    memset(steam, 0, len);
+#if SDL_VERSION_ATLEAST(1, 3, 0)
+    /* Need to initialize the stream in SDL 1.3+ */
+    memset(stream, 0, len);
+#endif
 
 		/* Michel Darricau from eProcess <mdarricau@eprocess.fr>  conflict name in popcorn */
     /* Bail if audio isn't playing */
