@@ -26,10 +26,22 @@
 #include "MPEGaudio.h"
 #include "MPEGstream.h"
 
-MPEGaudio:: MPEGaudio(MPEGstream *stream, bool initSDL) : sdl_audio(initSDL)
+MPEGaudio:: MPEGaudio(MPEGstream *stream, bool initSDL)
+    : sdl_audio(initSDL)
+    , mpeg(stream)
+    , valid_stream(0)
+    , stereo(false)
+    , rate_in_s(0.0)
+    , frags_playing(0)
+    , frag_time(0)
+#ifdef THREADED_AUDIO
+    , decoding(false)
+    , decode_thread(NULL)
+#endif
 {
+    memset(&sideinfo, '\0', sizeof (sideinfo));
+
     /* Initialize MPEG audio */
-    mpeg = stream;
     initialize();
 
     /* Just be paranoid.  If all goes well, this will be set to true */
