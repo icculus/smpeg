@@ -253,14 +253,23 @@ MPEGaudio:: ResetSynchro(double time)
 void
 MPEGaudio:: Skip(float seconds)
 {
-   /* Called only when there is no timestamp info in the MPEG */
-   printf("Audio: Skipping %f seconds...\n", seconds);
-   while(seconds > 0)
-   {
-     seconds -= (float) samplesperframe / ((float) frequencies[version][frequency]*(1+inputstereo));
-     if(!loadheader()) break;
-   }
- }
+#ifdef THREADED_AUDIO
+    /* Stop the decode thread */
+    StopDecoding();
+#endif
+
+    /* Called only when there is no timestamp info in the MPEG */
+    //printf("Audio: Skipping %f seconds...\n", seconds);
+    while(seconds > 0)
+    {
+        seconds -= (float) samplesperframe / ((float) frequencies[version][frequency]*(1+inputstereo));
+        if(!loadheader()) break;
+    }
+
+#ifdef THREADED_AUDIO
+    StartDecoding();
+#endif
+}
 void
 MPEGaudio:: Volume(int vol)
 {
