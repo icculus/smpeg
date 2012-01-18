@@ -74,6 +74,8 @@ EXTRA_DIST =			\
 	gtv.1			\
 	VisualC.zip		\
 	smpeg.m4		\
+	smpeg.spec		\
+	smpeg.spec.in		\
 	gcc-fat.sh		\
 	autogen.sh		\
 	audio/AUTHORS		\

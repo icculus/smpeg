@@ -7,11 +7,11 @@ Summary:   SDL MPEG Library
 Name:      smpeg
 Version:   %ver
 Release:   %rel
-Copyright: LGPL
+License:   LGPL
 Group:     System Environment/Libraries
-Source0:   @PACKAGE@-%{PACKAGE_VERSION}.tar.gz
+Source0:   @PACKAGE@-%{ver}.tar.gz
 URL:       http://www.lokigames.com/development/smpeg.php3
-BuildRoot: /tmp/@PACKAGE@-%{PACKAGE_VERSION}-root
+BuildRoot: /tmp/@PACKAGE@-%{ver}-root
 Packager:  Sam Lantinga <hercules@lokigames.com>
 Docdir: %{prefix}/doc
 
@@ -73,9 +73,8 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-, root, root)
 %doc CHANGES COPYING README
 %{prefix}/lib/lib*.so.*
-%{prefix}/bin/plaympeg
-%{prefix}/bin/gtv
-%{prefix}/man/*
+%{prefix}/bin/*
+%{prefix}/share/man/*
 
 %files devel
 %defattr(-, root, root)
@@ -83,7 +82,9 @@ rm -rf $RPM_BUILD_ROOT
 %{prefix}/bin/@PACKAGE@-config
 %{prefix}/include/*
 %{prefix}/lib/lib*.a
+%{prefix}/lib/lib*.la
 %{prefix}/lib/lib*.so
+%{prefix}/share/aclocal/*.m4
 
 %changelog
 * Fri Mar  3 2000 Sam Lantinga <hercules@lokigames.com>
