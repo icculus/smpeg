@@ -77,6 +77,7 @@ EXTRA_DIST =			\
 	smpeg.spec		\
 	smpeg.spec.in		\
 	gcc-fat.sh		\
+	acinclude		\
 	autogen.sh		\
 	audio/AUTHORS		\
 	audio/COPYING.LIB	\
