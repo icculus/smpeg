@@ -13,10 +13,10 @@ dnl Set various version strings - taken gratefully from the GTk sources
 # set BINARY_AGE and INTERFACE_AGE to 0.
 #
 MAJOR_VERSION=0
-MINOR_VERSION=4
-MICRO_VERSION=5
-INTERFACE_AGE=4
-BINARY_AGE=5
+MINOR_VERSION=5
+MICRO_VERSION=0
+INTERFACE_AGE=0
+BINARY_AGE=0
 VERSION=$MAJOR_VERSION.$MINOR_VERSION.$MICRO_VERSION
 
 AC_SUBST(MAJOR_VERSION)
@@ -133,7 +133,7 @@ fi
 
 dnl Check for SDL
 SDL_VERSION=1.2.0
-AM_PATH_SDL($SDL_VERSION,
+AM_PATH_SDL2($SDL_VERSION,
             :,
 	    AC_MSG_ERROR([*** SDL version $SDL_VERSION not found!])
 )
@@ -161,23 +161,6 @@ if test x$enable_mmx = xyes; then
         CFLAGS="$CFLAGS -DUSE_MMX"
         ASFLAGS="$ASFLAGS -DUSE_MMX"
         CCASFLAGS="$CCASFLAGS -DUSE_MMX"
-    fi
-fi
-
-dnl Check for ATI vha support
-AC_ARG_ENABLE(ati,
-[  --enable-ati            enable ATI Rage128 hardware acceleration [default=no]],
-              , enable_ati=no)
-if test x$enable_ati = xyes; then
-    use_ati=yes
-    AC_CHECK_LIB(r128hap, ATIHAP_StartCCE, LIBS="$LIBS -lr128hap", use_ati=no)
-    AC_CHECK_LIB(r128vha, VHA_Init, LIBS="$LIBS -lr128vha", use_ati=no)
-    AC_CHECK_LIB(r128ov, CreateOVSurface, LIBS="$LIBS -lr128ov", use_ati=no)
-    AC_MSG_CHECKING(for ATI Rage128 hardware acceleration)
-    AC_MSG_RESULT($use_ati)
-
-    if test x$use_ati = xyes; then
-        CFLAGS="$CFLAGS -DUSE_ATI"
     fi
 fi
 
@@ -212,66 +195,6 @@ AC_ARG_ENABLE(threaded-audio,
 if test x$enable_threaded_audio = xyes; then
 	CFLAGS="$CFLAGS -DTHREADED_AUDIO"
 fi
-
-dnl See if we can build the GTk player
-AC_ARG_ENABLE(gtk_player,
-[  --enable-gtk-player     build a GTk sample SMPEG player [default=yes]],
-              , enable_gtk_player=yes)
-have_gtk=no
-if test x$enable_gtk_player = xyes; then
-    AM_PATH_GTK_2_0(2.0.0, have_gtk=yes)
-    if test x$have_gtk = xyes; then
-        CFLAGS="$CFLAGS $GTK_CFLAGS"
-    fi
-    AC_SUBST(GTK_LIBS)
-fi
-AM_CONDITIONAL(HAVE_GTK, test x$have_gtk = xyes)
-
-dnl See if we can build the Mesa player
-AC_ARG_ENABLE(opengl_player,
-[  --enable-opengl-player  build an OpenGL sample SMPEG player [default=yes]],
-              , enable_opengl_player=yes)
-have_glu=no
-if test x$enable_opengl_player = xyes; then
-    case "$target" in
-        *-*-cygwin* | *-*-mingw32*)
-            SYS_GL_LIBS="-lopengl32 -lglu32"
-            ;;
-        *-*-beos*)
-            SYS_GL_LIBS="-lGL"
-            ;;
-        *-*-darwin*)
-            SYS_GL_LIBS=""
-            ;;
-        *)
-            AC_PATH_X
-            AC_PATH_XTRA
-            if test x$have_x = xyes; then
-                CFLAGS="$CFLAGS $X_CFLAGS"
-                SYS_GL_LIBS="$X_LIBS -lGL -lGLU"
-            else
-                SYS_GL_LIBS="-lGL -lGLU"
-            fi
-            ;;
-    esac
-    AC_MSG_CHECKING(for OpenGL support)
-    have_opengl=no
-    AC_TRY_COMPILE([
-     #include <GL/gl.h>
-     #include <GL/glu.h>
-    ],[
-    ],[
-    have_opengl=yes
-    ])
-    AC_MSG_RESULT($have_opengl)
-    if test x$have_opengl = xyes; then
-        GL_LIBS="$SYS_GL_LIBS"
-    else
-        echo "*** The OpenGL movie player will not be built (missing GL or GLU)"
-    fi
-fi
-AC_SUBST(GL_LIBS)
-AM_CONDITIONAL(HAVE_OPENGL, test x$have_opengl = xyes)
 
 dnl Disable assertions in release builds
 AC_ARG_ENABLE(assertions,

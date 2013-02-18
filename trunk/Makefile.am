@@ -14,7 +14,6 @@ libsmpeg_la_SOURCES =		\
 	MPEGlist.cpp		\
 	MPEGstream.cpp		\
 	MPEGsystem.cpp		\
-	MPEGfilter.c		\
 	smpeg.cpp		\
 	audio/MPEGaudio.cpp	\
 	audio/bitwindow.cpp	\
@@ -41,8 +40,6 @@ libsmpeg_la_SOURCES =		\
 	video/util.h		\
 	video/video.cpp		\
 	video/video.h		\
-	video/vhar128.cpp	\
-	video/vhar128.h		\
 	video/mmxflags_asm.S	\
 	video/mmxidct_asm.S
 
@@ -52,7 +49,7 @@ libsmpeginclude_HEADERS =	\
 	MPEGaction.h		\
 	MPEGaudio.h		\
 	MPEGerror.h		\
-	MPEGfilter.h		\
+	MPEGframe.h		\
 	MPEGring.h		\
 	MPEGlist.h		\
 	MPEGstream.h		\
@@ -71,7 +68,6 @@ EXTRA_DIST =			\
 	README			\
 	README.SDL_mixer 	\
 	plaympeg.1		\
-	gtv.1			\
 	VisualC.zip		\
 	smpeg.m4		\
 	smpeg.spec		\
@@ -92,31 +88,12 @@ video/16bit_mmx.lo: video/16bit_mmx.cpp
 video/32bit_mmx.lo: video/32bit_mmx.cpp
 	$(CXX) -c -o $@ $^ $(CXXFLAGS)
 
-# Sample MPEG players
-if HAVE_GTK
-GTK_PLAYER = gtv
-else
-GTK_PLAYER =
-endif
-if HAVE_OPENGL
-OPENGL_PLAYER = glmovie
-else
-OPENGL_PLAYER =
-endif
-bin_PROGRAMS = plaympeg $(GTK_PLAYER) $(OPENGL_PLAYER)
+bin_PROGRAMS = plaympeg
 
 # Sources for plaympeg
-man_MANS = plaympeg.1 gtv.1
+man_MANS = plaympeg.1
 plaympeg_SOURCES = plaympeg.c
 plaympeg_LDADD = libsmpeg.la
-
-# Sources for gtv
-gtv_SOURCES = gtv.c gtv.h
-gtv_LDADD = @GTK_LIBS@ libsmpeg.la
-
-# Sources for glmovie
-glmovie_SOURCES = glmovie-tile.c glmovie.c glmovie.h
-glmovie_LDADD = @GL_LIBS@ libsmpeg.la
 
 # M4 macro file for inclusion with autoconf
 m4datadir = $(datadir)/aclocal

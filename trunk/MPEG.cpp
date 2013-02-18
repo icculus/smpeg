@@ -327,27 +327,11 @@ bool MPEG::GetVideoInfo(MPEG_VideoInfo *info) {
   }
   return(false);
 }
-bool MPEG::SetDisplay(SDL_Surface *dst, SDL_mutex *lock,
-		MPEG_DisplayCallback callback) {
+bool MPEG::SetDisplay(MPEG_DisplayCallback callback, void *data, SDL_mutex *lock) {
   if ( VideoEnabled() ) {
-    return(videoaction->SetDisplay(dst, lock, callback));
+    return(videoaction->SetDisplay(callback, data, lock));
   }
   return(false);
-}
-void MPEG::MoveDisplay(int x, int y) {
-  if ( VideoEnabled() ) {
-    videoaction->MoveDisplay(x, y);
-  }
-}
-void MPEG::ScaleDisplayXY(int w, int h) {
-  if ( VideoEnabled() ) {
-    videoaction->ScaleDisplayXY(w, h);
-  }
-}
-void MPEG::SetDisplayRegion(int x, int y, int w, int h) {
-  if ( VideoEnabled() ) {
-    videoaction->SetDisplayRegion(x, y, w, h);
-  }
 }
 void MPEG::RenderFrame(int frame)
 {
@@ -355,21 +339,13 @@ void MPEG::RenderFrame(int frame)
         videoaction->RenderFrame(frame);
     }
 }
-void MPEG::RenderFinal(SDL_Surface *dst, int x, int y)
+void MPEG::RenderFinal()
 {
     Stop();
     if ( VideoEnabled() ) {
-        videoaction->RenderFinal(dst, x, y);
+        videoaction->RenderFinal();
     }
     Rewind();
-}
-
-SMPEG_Filter * MPEG::Filter(SMPEG_Filter * filter)
-{
-  if ( VideoEnabled() ) {
-    return(videoaction->Filter(filter));
-  }
-  return 0;
 }
 
 void MPEG::Seek(int position)

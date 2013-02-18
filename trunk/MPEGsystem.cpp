@@ -781,7 +781,7 @@ header_size, packet_size, stream_id, stream_timestamp);
     int cur_seconds=int(timestamp)%60;
 
     if (cur_seconds%5==0){
-      fprintf(stderr, "Skiping to %02d:%02d (%02d:%02d)\r",
+      fprintf(stderr, "Skipping to %02d:%02d (%02d:%02d)\r",
               int(skip_timestamp)/60, int(skip_timestamp)%60,
               int(timestamp)/60, cur_seconds);
     }

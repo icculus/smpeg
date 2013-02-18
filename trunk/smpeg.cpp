@@ -22,7 +22,6 @@
 /* This is the C interface to the SMPEG library */
 
 #include "MPEG.h"
-#include "MPEGfilter.h"
 #include "smpeg.h"
 
 extern "C" {
@@ -246,43 +245,15 @@ void SMPEG_setvolume( SMPEG* mpeg, int volume )
 }
 
 /* Set the destination surface for MPEG video playback */
-void SMPEG_setdisplay( SMPEG* mpeg, SDL_Surface* dst, SDL_mutex* surfLock,
-                                            SMPEG_DisplayCallback callback)
+void SMPEG_setdisplay( SMPEG* mpeg, SMPEG_DisplayCallback callback, void* data, SDL_mutex* lock)
 {
-    mpeg->obj->SetDisplay(dst, surfLock, callback);
+    mpeg->obj->SetDisplay(callback, data, lock);
 }
 
 /* Set or clear looping play on an SMPEG object */
 void SMPEG_loop( SMPEG* mpeg, int repeat )
 {
     mpeg->obj->Loop(repeat ? true : false);
-}
-
-/* Scale pixel display on an SMPEG object */
-void SMPEG_scale( SMPEG* mpeg, int scale )
-{
-    MPEG_VideoInfo vinfo;
-
-    if ( mpeg->obj->videostream != NULL ) {
-        mpeg->obj->GetVideoInfo(&vinfo);
-        mpeg->obj->ScaleDisplayXY(vinfo.width*scale, vinfo.height*scale);
-    }
-}
-void SMPEG_scaleXY( SMPEG* mpeg, int w, int h )
-{
-    mpeg->obj->ScaleDisplayXY(w, h);
-}
-
-/* Move the video display area within the destination surface */
-void SMPEG_move( SMPEG* mpeg, int x, int y )
-{
-    mpeg->obj->MoveDisplay(x, y);
-}
-
-/* Set the region of the video to be shown */
-void SMPEG_setdisplayregion(SMPEG* mpeg, int x, int y, int w, int h)
-{
-    mpeg->obj->SetDisplayRegion(x, y, w, h);
 }
 
 /* Play an SMPEG object */
@@ -328,15 +299,9 @@ void SMPEG_renderFrame( SMPEG* mpeg, int framenum )
 }
 
 /* Render the last frame of an MPEG video */
-void SMPEG_renderFinal( SMPEG* mpeg, SDL_Surface* dst, int x, int y )
+void SMPEG_renderFinal( SMPEG* mpeg )
 {
-    mpeg->obj->RenderFinal(dst, x, y);
-}
-
-/* Set video filter */
-SMPEG_Filter * SMPEG_filter( SMPEG* mpeg, SMPEG_Filter * filter )
-{
-    return((SMPEG_Filter *) mpeg->obj->Filter((SMPEG_Filter *) filter));
+    mpeg->obj->RenderFinal();
 }
 
 /* Exported function for general audio playback */
