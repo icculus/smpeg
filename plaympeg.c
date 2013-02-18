@@ -62,21 +62,21 @@ void usage(char *argv0)
     printf(
 "Usage: %s [options] file ...\n"
 "Where the options are one of:\n"
-"	--noaudio	     Don't play audio stream\n"
-"	--novideo	     Don't play video stream\n"
-"	--fullscreen	     Play MPEG in fullscreen mode\n"
-"	--double or -2	     Play MPEG at double size\n"
-"	--loop or -l	     Play MPEG over and over\n"
-"	--bilinear	     Use software bilinear filtering\n"
-"	--volume N or -v N   Set audio volume to N (0-100)\n"
-"	--title T or -t T  Set window's title to T\n"
-"	--scale wxh or -s wxh  Play MPEG at given resolution\n"
-"	--seek N or -S N     Skip N bytes\n"
+"        --noaudio             Don't play audio stream\n"
+"        --novideo             Don't play video stream\n"
+"        --fullscreen             Play MPEG in fullscreen mode\n"
+"        --double or -2             Play MPEG at double size\n"
+"        --loop or -l             Play MPEG over and over\n"
+"        --bilinear             Use bilinear filtering\n"
+"        --volume N or -v N   Set audio volume to N (0-100)\n"
+"        --title T or -t T  Set window's title to T\n"
+"        --scale wxh or -s wxh  Play MPEG at given resolution\n"
+"        --seek N or -S N     Skip N bytes\n"
 #ifdef USE_SYSTEM_TIMESTAMP
-"	--skip N or -k N     Skip N seconds\n"
+"        --skip N or -k N     Skip N seconds\n"
 #endif
-"	--help or -h\n"
-"	--version or -V\n"
+"        --help or -h\n"
+"        --version or -V\n"
 "Specifying - as filename will use stdin for input\n", argv0);
 }
 
@@ -130,7 +130,7 @@ int udp_open(char * address, int port)
 
   /* Create a UDP socket */
   if((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) return(0);
-	    
+            
   /* Allow multiple instance of the client to share the same address and port */
   if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *) &enable, sizeof(unsigned long int)) < 0) return(0);
   
@@ -220,13 +220,13 @@ int http_open(char * arg)
 
   /* Send HTTP GET request */
   sprintf(http_request, 
-	  "GET /%s HTTP/1.0\r\n"
-	  "User-Agent: Mozilla/2.0 (Win95; I)\r\n"
-	  "Pragma: no-cache\r\n"
-	  "Host: %s\r\n"
-	  "Accept: */*\r\n"
-	  "\r\n",
-	  request, host);
+          "GET /%s HTTP/1.0\r\n"
+          "User-Agent: Mozilla/2.0 (Win95; I)\r\n"
+          "Pragma: no-cache\r\n"
+          "Host: %s\r\n"
+          "Accept: */*\r\n"
+          "\r\n",
+          request, host);
   send(tcp_sock, http_request, strlen(http_request), 0);
   
   /* Parse server reply */
@@ -263,7 +263,7 @@ int ftp_get_reply(int tcp_sock)
       answer[i] = c;
     }
     answer[i] = 0;
-    fprintf(stderr, answer + 4);
+    fprintf(stderr, "%s", answer + 4);
   }
   while(answer[3] == '-');
 
@@ -351,9 +351,9 @@ int ftp_open(char * arg)
 
   i = ntohl(stLclAddr.sin_addr.s_addr);
   sprintf(ftp_request, "PORT %d,%d,%d,%d,%d,%d\r\n",
-	    (i >> 24) & 0xFF, (i >> 16) & 0xFF,
-	    (i >> 8) & 0xFF, i & 0xFF,
-	    (port >> 8) & 0xFF, port & 0xFF);
+            (i >> 24) & 0xFF, (i >> 16) & 0xFF,
+            (i >> 8) & 0xFF, i & 0xFF,
+            (port >> 8) & 0xFF, port & 0xFF);
   send(tcp_sock, ftp_request, strlen(ftp_request), 0);
   if(ftp_get_reply(tcp_sock) != 200) return(0);
 
@@ -457,11 +457,18 @@ int vcd_open(char * arg)
 }
 #endif
 
-void update(SDL_Surface *screen, Sint32 x, Sint32 y, Uint32 w, Uint32 h)
+typedef struct
 {
-    if ( screen->flags & SDL_DOUBLEBUF ) {
-        SDL_Flip(screen);
-    }
+    SMPEG_Frame *frame;
+    int frameCount;
+    SDL_mutex *lock;
+} update_context;
+
+void update(void *data, SMPEG_Frame *frame)
+{
+    update_context *context = (update_context *)data;
+    context->frame = frame;
+    ++context->frameCount;
 }
 
 /* Flag telling the UI that the movie or song should be skipped */
@@ -469,7 +476,7 @@ int done;
 
 void next_movie(int sig)
 {
-	done = 1;
+        done = 1;
 }
 
 int main(int argc, char *argv[])
@@ -483,8 +490,14 @@ int main(int argc, char *argv[])
     int volume;
     Uint32 seek;
     float skip;
-    int bilinear_filtering;
-    SDL_Surface *screen = NULL;
+    int filtering;
+    SDL_Window *window = NULL;
+    SDL_Renderer *renderer = NULL;
+    SDL_Texture *texture = NULL;
+    int texture_width;
+    int texture_height;
+    update_context context;
+    int frameCount = 0;
     SMPEG *mpeg;
     SMPEG_Info info;
     char *basefile;
@@ -492,7 +505,6 @@ int main(int argc, char *argv[])
     SDL_version sdlver;
     SMPEG_version smpegver;
     int fd;
-    char buf[32];
     int status;
 
     /* Get the command line options */
@@ -506,7 +518,7 @@ int main(int argc, char *argv[])
     volume = 100;
     seek = 0;
     skip = 0;
-    bilinear_filtering = 0;
+    filtering = 0;
     fd = 0;
     for ( i=1; argv[i] && (argv[i][0] == '-') && (argv[i][1] != 0); ++i ) {
         if ( (strcmp(argv[i], "--noaudio") == 0) ||
@@ -526,7 +538,7 @@ int main(int argc, char *argv[])
             loop_play = 1;
         } else
         if ( strcmp(argv[i], "--bilinear") == 0 ) {
-            bilinear_filtering = 1;
+            filtering = 1;
         } else
         if ((strcmp(argv[i], "--seek") == 0)||(strcmp(argv[i], "-S") == 0)) {
             ++i;
@@ -542,38 +554,38 @@ int main(int argc, char *argv[])
         } else
         if ((strcmp(argv[i], "--volume") == 0)||(strcmp(argv[i], "-v") == 0)) {
             ++i;
-	    if (i >= argc)
-	      {
-		fprintf(stderr, "Please specify volume when using --volume or -v\n");
-		return(1);
-	      }
+            if (i >= argc)
+              {
+                fprintf(stderr, "Please specify volume when using --volume or -v\n");
+                return(1);
+              }
             if ( argv[i] ) {
                 volume = atoi(argv[i]);
             }
-	    if ( ( volume < 0 ) || ( volume > 100 ) ) {
-	      fprintf(stderr, "Volume must be between 0 and 100\n");
-	      volume = 100;
-	    }
-	} else
+            if ( ( volume < 0 ) || ( volume > 100 ) ) {
+              fprintf(stderr, "Volume must be between 0 and 100\n");
+              volume = 100;
+            }
+        } else
         if ((strcmp(argv[i], "--title") == 0)||(strcmp(argv[i], "-t") == 0)) {
             ++i;
-	    if (i >= argc)
-	      {
-		fprintf(stderr, "Please specify title when using --title or -t\n");
-		return(1);
-	      }
+            if (i >= argc)
+              {
+                fprintf(stderr, "Please specify title when using --title or -t\n");
+                return(1);
+              }
             if ( argv[i] ) {
                 title = argv[i];
             }
-	} else
+        } else
         if ((strcmp(argv[i], "--version") == 0) ||
-	    (strcmp(argv[i], "-V") == 0)) {
-            sdlver = *SDL_Linked_Version();
+            (strcmp(argv[i], "-V") == 0)) {
+            SDL_GetVersion(&sdlver);
             SMPEG_VERSION(&smpegver);
-	    printf("SDL version: %d.%d.%d\n"
+            printf("SDL version: %d.%d.%d\n"
                    "SMPEG version: %d.%d.%d\n",
-		   sdlver.major, sdlver.minor, sdlver.patch,
-		   smpegver.major, smpegver.minor, smpegver.patch);
+                   sdlver.major, sdlver.minor, sdlver.patch,
+                   smpegver.major, smpegver.minor, smpegver.patch);
             return(0);
         } else
         if ((strcmp(argv[i], "--scale") == 0)||(strcmp(argv[i], "-s") == 0)) {
@@ -599,64 +611,66 @@ int main(int argc, char *argv[])
     putenv("SDL_NOMOUSE=1");
 #endif
 
+    context.lock = SDL_CreateMutex();
+
     /* Play the mpeg files! */
     status = 0;
     for ( ; argv[i]; ++i ) {
-	/* Initialize SDL */
-	if ( use_video ) {
-	  if ((SDL_Init(SDL_INIT_VIDEO) < 0) || !SDL_VideoDriverName(buf, 1)) {
-	    fprintf(stderr, "Warning: Couldn't init SDL video: %s\n",
-		    SDL_GetError());
-	    fprintf(stderr, "Will ignore video stream\n");
-	    use_video = 0;
-	  }
-	}
-	
-	if ( use_audio ) {
-	  if ((SDL_Init(SDL_INIT_AUDIO) < 0) || !SDL_AudioDriverName(buf, 1)) {
-	    fprintf(stderr, "Warning: Couldn't init SDL audio: %s\n",
-		    SDL_GetError());
-	    fprintf(stderr, "Will ignore audio stream\n");
-	    use_audio = 0;
-	  }
-	}
+        /* Initialize SDL */
+        if ( use_video ) {
+          if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+            fprintf(stderr, "Warning: Couldn't init SDL video: %s\n",
+                    SDL_GetError());
+            fprintf(stderr, "Will ignore video stream\n");
+            use_video = 0;
+          }
+        }
+        
+        if ( use_audio ) {
+          if (SDL_Init(SDL_INIT_AUDIO) < 0) {
+            fprintf(stderr, "Warning: Couldn't init SDL audio: %s\n",
+                    SDL_GetError());
+            fprintf(stderr, "Will ignore audio stream\n");
+            use_audio = 0;
+          }
+        }
 
-	/* Allow Ctrl-C when there's no video output */
-	signal(SIGINT, next_movie);
-	
+        /* Allow Ctrl-C when there's no video output */
+        signal(SIGINT, next_movie);
+        
         /* Create the MPEG stream */
 #ifdef NET_SUPPORT
 #ifdef RAW_SUPPORT
         /* Check if source is an IP address and port*/
         if((fd = raw_open(argv[i])) != 0)
-	  mpeg = SMPEG_new_descr(fd, &info, use_audio);
-	else
+          mpeg = SMPEG_new_descr(fd, &info, use_audio);
+        else
 #endif
 #ifdef HTTP_SUPPORT
         /* Check if source is an http URL */
         if((fd = http_open(argv[i])) != 0)
-	  mpeg = SMPEG_new_descr(fd, &info, use_audio);
-	else
+          mpeg = SMPEG_new_descr(fd, &info, use_audio);
+        else
 #endif
 #ifdef FTP_SUPPORT
         /* Check if source is an http URL */
         if((fd = ftp_open(argv[i])) != 0)
-	  mpeg = SMPEG_new_descr(fd, &info, use_audio);
-	else
+          mpeg = SMPEG_new_descr(fd, &info, use_audio);
+        else
 #endif
 #endif
 #ifdef VCD_SUPPORT
-	/* Check if source is a CDROM device */
-	if((fd = vcd_open(argv[i])) != 0)
-	  mpeg = SMPEG_new_descr(fd, &info, use_audio);
-	else
+        /* Check if source is a CDROM device */
+        if((fd = vcd_open(argv[i])) != 0)
+          mpeg = SMPEG_new_descr(fd, &info, use_audio);
+        else
 #endif
-	{
-	  if(strcmp(argv[i], "-") == 0) /* Use stdin for input */
-	    mpeg = SMPEG_new_descr(0, &info, use_audio);
-	  else
-	    mpeg = SMPEG_new(argv[i], &info, use_audio);
-	}
+        {
+          if(strcmp(argv[i], "-") == 0) /* Use stdin for input */
+            mpeg = SMPEG_new_descr(0, &info, use_audio);
+          else
+            mpeg = SMPEG_new(argv[i], &info, use_audio);
+        }
 
         if ( SMPEG_error(mpeg) ) {
             fprintf(stderr, "%s: %s\n", argv[i], SMPEG_error(mpeg));
@@ -667,15 +681,6 @@ int main(int argc, char *argv[])
         SMPEG_enableaudio(mpeg, use_audio);
         SMPEG_enablevideo(mpeg, use_video);
         SMPEG_setvolume(mpeg, volume);
-
-        /* Enable software bilinear filtering, if desired */
-        if ( bilinear_filtering ) {
-            SMPEG_Filter *filter;
-
-            filter = SMPEGfilter_bilinear();
-            filter = SMPEG_filter( mpeg, filter );
-            filter->destroy(filter);
-        }
 
         /* Print information about the video */
         basefile = strrchr(argv[i], '/');
@@ -695,34 +700,20 @@ int main(int argc, char *argv[])
             printf("\tVideo %dx%d resolution\n", info.width, info.height);
         }
         if ( info.has_audio ) {
-	    printf("\tAudio %s\n", info.audio_string);
+            printf("\tAudio %s\n", info.audio_string);
         }
         if ( info.total_size ) {
-	    printf("\tSize: %d\n", info.total_size);
+            printf("\tSize: %d\n", info.total_size);
         }
         if ( info.total_time ) {
-	    printf("\tTotal time: %f\n", info.total_time);
+            printf("\tTotal time: %f\n", info.total_time);
         }
 
         /* Set up video display if needed */
         if ( info.has_video && use_video ) {
-            const SDL_VideoInfo *video_info;
-            Uint32 video_flags;
-            int video_bpp;
+            Uint32 window_flags;
             int width, height;
 
-            /* Get the "native" video mode */
-            video_info = SDL_GetVideoInfo();
-            switch (video_info->vfmt->BitsPerPixel) {
-                case 16:
-                case 24:
-                case 32:
-                    video_bpp = video_info->vfmt->BitsPerPixel;
-                    break;
-                default:
-                    video_bpp = 16;
-                    break;
-            }
             if ( scale_width ) {
                 width = scale_width;
             } else {
@@ -735,28 +726,41 @@ int main(int argc, char *argv[])
                 height = info.height;
             }
             height *= scalesize;
-            video_flags = SDL_SWSURFACE;
+            window_flags = SDL_WINDOW_RESIZABLE;
             if ( fullscreen ) {
-                video_flags = SDL_FULLSCREEN|SDL_DOUBLEBUF|SDL_HWSURFACE;
+                window_flags |= SDL_WINDOW_FULLSCREEN;
             }
-            video_flags |= SDL_ASYNCBLIT;
-            video_flags |= SDL_RESIZABLE;
-            screen = SDL_SetVideoMode(width, height, video_bpp, video_flags);
-            if ( screen == NULL ) {
-                fprintf(stderr, "Unable to set %dx%d video mode: %s\n",
-                                	width, height, SDL_GetError());
-                continue;
-            }
-            if (title != NULL) {
-                SDL_WM_SetCaption(title, title);
+            if (window) {
+                SDL_SetWindowSize(window, width, height);
+                SDL_DestroyTexture(texture);
             } else {
-                SDL_WM_SetCaption(argv[i], "plaympeg");
+                window = SDL_CreateWindow(title ? title : argv[i],
+                                          SDL_WINDOWPOS_CENTERED,
+                                          SDL_WINDOWPOS_CENTERED,
+                                          width, height, window_flags);
+                if ( window == NULL ) {
+                    fprintf(stderr, "Unable to create %dx%d window: %s\n",
+                                            width, height, SDL_GetError());
+                    continue;
+                }
+                renderer = SDL_CreateRenderer(window, -1, 0);
             }
-            if ( screen->flags & SDL_FULLSCREEN ) {
+            if ( fullscreen ) {
                 SDL_ShowCursor(0);
             }
-            SMPEG_setdisplay(mpeg, screen, NULL, update);
-            SMPEG_scaleXY(mpeg, screen->w, screen->h);
+
+            if (filtering) {
+                SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+            } else {
+                SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+            }
+
+            texture_width = (info.width + 15) & ~15;
+            texture_height = (info.height + 15) & ~15;
+            texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_YV12, SDL_TEXTUREACCESS_STREAMING, texture_width, texture_height);
+
+            context.frameCount = frameCount = 0;
+            SMPEG_setdisplay(mpeg, update, &context, context.lock);
         } else {
             SDL_QuitSubSystem(SDL_INIT_VIDEO);
             use_video = 0;
@@ -767,127 +771,111 @@ int main(int argc, char *argv[])
             SMPEG_loop(mpeg, 1);
         }
 
-	/* Seek starting position */
-	if(seek) SMPEG_seek(mpeg, seek);
+        /* Seek starting position */
+        if(seek) SMPEG_seek(mpeg, seek);
 
-	/* Skip seconds to starting position */
-	if(skip) SMPEG_skip(mpeg, skip);
-	
+        /* Skip seconds to starting position */
+        if(skip) SMPEG_skip(mpeg, skip);
+        
         /* Play it, and wait for playback to complete */
         SMPEG_play(mpeg);
         done = 0;
-	pause = 0;
+        pause = 0;
         while ( ! done && ( pause || (SMPEG_status(mpeg) == SMPEG_PLAYING) ) ) {
             SDL_Event event;
 
             while ( use_video && SDL_PollEvent(&event) ) {
                 switch (event.type) {
-                    case SDL_VIDEORESIZE: {
-                        SDL_Surface *old_screen = screen;
-                        SMPEG_pause(mpeg);
-                        screen = SDL_SetVideoMode(event.resize.w, event.resize.h, screen->format->BitsPerPixel, screen->flags);
-			if ( old_screen != screen ) {
-                            SMPEG_setdisplay(mpeg, screen, NULL, update);
+                    case SDL_WINDOWEVENT:
+                        if ( event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ) {
+                            SDL_RenderSetViewport(renderer, NULL);
                         }
-                        SMPEG_scaleXY(mpeg, screen->w, screen->h);
-                        SMPEG_pause(mpeg);
-                    } break;
+                        break;
                     case SDL_KEYDOWN:
                         if ( (event.key.keysym.sym == SDLK_ESCAPE) || (event.key.keysym.sym == SDLK_q) ) {
-			  // Quit
-			  done = 1;
+                          // Quit
+                          done = 1;
                         } else if ( event.key.keysym.sym == SDLK_RETURN ) {
-			  // toggle fullscreen
-			  if ( event.key.keysym.mod & KMOD_ALT ) {
-                            SDL_WM_ToggleFullScreen(screen);
-                            fullscreen = (screen->flags & SDL_FULLSCREEN);
+                          // toggle fullscreen
+                          if ( event.key.keysym.mod & KMOD_ALT ) {
+                            fullscreen = !fullscreen;
+                            if (SDL_SetWindowFullscreen(window, fullscreen ? SDL_WINDOW_FULLSCREEN : 0) < 0) {
+                                fullscreen = !fullscreen;
+                            }
                             SDL_ShowCursor(!fullscreen); 
                           }
                         } else if ( event.key.keysym.sym == SDLK_UP ) {
-			  // Volume up
-			  if ( volume < 100 ) {
-			    if ( event.key.keysym.mod & KMOD_SHIFT ) {   // 10+
-			      volume += 10;
-			    } else if ( event.key.keysym.mod & KMOD_CTRL ) { // 100+
-			      volume = 100;
-			    } else {                                     // 1+
-			      volume++;
-			    }
-			    if ( volume > 100 ) 
-			      volume = 100;
-			    SMPEG_setvolume(mpeg, volume);
-			  }
+                          // Volume up
+                          if ( volume < 100 ) {
+                            if ( event.key.keysym.mod & KMOD_SHIFT ) {   // 10+
+                              volume += 10;
+                            } else if ( event.key.keysym.mod & KMOD_CTRL ) { // 100+
+                              volume = 100;
+                            } else {                                     // 1+
+                              volume++;
+                            }
+                            if ( volume > 100 ) 
+                              volume = 100;
+                            SMPEG_setvolume(mpeg, volume);
+                          }
                         } else if ( event.key.keysym.sym == SDLK_DOWN ) {
-			  // Volume down
-			  if ( volume > 0 ) {
-			    if ( event.key.keysym.mod & KMOD_SHIFT ) {
-			      volume -= 10;
-			    } else if ( event.key.keysym.mod & KMOD_CTRL ) {
-			      volume = 0;
-			    } else {
-			      volume--;
-			    }
-			    if ( volume < 0 ) 
-			      volume = 0;
-			    SMPEG_setvolume(mpeg, volume);
-			  }
+                          // Volume down
+                          if ( volume > 0 ) {
+                            if ( event.key.keysym.mod & KMOD_SHIFT ) {
+                              volume -= 10;
+                            } else if ( event.key.keysym.mod & KMOD_CTRL ) {
+                              volume = 0;
+                            } else {
+                              volume--;
+                            }
+                            if ( volume < 0 ) 
+                              volume = 0;
+                            SMPEG_setvolume(mpeg, volume);
+                          }
                         } else if ( event.key.keysym.sym == SDLK_PAGEUP ) {
-			  // Full volume
-			  volume = 100;
-			  SMPEG_setvolume(mpeg, volume);
+                          // Full volume
+                          volume = 100;
+                          SMPEG_setvolume(mpeg, volume);
                         } else if ( event.key.keysym.sym == SDLK_PAGEDOWN ) {
-			  // Volume off
-			  volume = 0;
-			  SMPEG_setvolume(mpeg, volume);
+                          // Volume off
+                          volume = 0;
+                          SMPEG_setvolume(mpeg, volume);
                         } else if ( event.key.keysym.sym == SDLK_SPACE ) {
-			  // Toggle play / pause
-			  if ( SMPEG_status(mpeg) == SMPEG_PLAYING ) {
-			    SMPEG_pause(mpeg);
-			    pause = 1;
-			  } else {
-			    SMPEG_play(mpeg);
-			    pause = 0;
-			  }
-			} else if ( event.key.keysym.sym == SDLK_RIGHT ) {
-			  // Forward
-			  if ( event.key.keysym.mod & KMOD_SHIFT ) {
-			    SMPEG_skip(mpeg, 100);
-			  } else if ( event.key.keysym.mod & KMOD_CTRL ) {
-			    SMPEG_skip(mpeg, 50);
-			  } else {
-			    SMPEG_skip(mpeg, 5);
-			  }
+                          // Toggle play / pause
+                          if ( SMPEG_status(mpeg) == SMPEG_PLAYING ) {
+                            SMPEG_pause(mpeg);
+                            pause = 1;
+                          } else {
+                            SMPEG_play(mpeg);
+                            pause = 0;
+                          }
+                        } else if ( event.key.keysym.sym == SDLK_RIGHT ) {
+                          // Forward
+                          if ( event.key.keysym.mod & KMOD_SHIFT ) {
+                            SMPEG_skip(mpeg, 100);
+                          } else if ( event.key.keysym.mod & KMOD_CTRL ) {
+                            SMPEG_skip(mpeg, 50);
+                          } else {
+                            SMPEG_skip(mpeg, 5);
+                          }
                         } else if ( event.key.keysym.sym == SDLK_LEFT ) {
-			  // Reverse
-			  if ( event.key.keysym.mod & KMOD_SHIFT ) {
+                          // Reverse
+                          if ( event.key.keysym.mod & KMOD_SHIFT ) {
 
-			  } else if ( event.key.keysym.mod & KMOD_CTRL ) {
+                          } else if ( event.key.keysym.mod & KMOD_CTRL ) {
 
-			  } else {
+                          } else {
 
-			  }
+                          }
                         } else if ( event.key.keysym.sym == SDLK_KP_MINUS ) {
-			  // Scale minus
-			  if ( scalesize > 1 ) {
-			    scalesize--;
-			  }
+                          // Scale minus
+                          if ( scalesize > 1 ) {
+                            scalesize--;
+                          }
                         } else if ( event.key.keysym.sym == SDLK_KP_PLUS ) {
-			  // Scale plus
-			  scalesize++;
-			} else if ( event.key.keysym.sym == SDLK_f ) {
-			  // Toggle filtering on/off
-			  if ( bilinear_filtering ) {
-			    SMPEG_Filter *filter = SMPEGfilter_null();
-			    filter = SMPEG_filter( mpeg, filter );
-			    filter->destroy(filter);
-			    bilinear_filtering = 0;
-			  } else {
-			    SMPEG_Filter *filter = SMPEGfilter_bilinear();
-			    filter = SMPEG_filter( mpeg, filter );
-			    filter->destroy(filter);
-			    bilinear_filtering = 1;
-			  }
-			}
+                          // Scale plus
+                          scalesize++;
+                        }
                         break;
                     case SDL_QUIT:
                         done = 1;
@@ -896,10 +884,32 @@ int main(int argc, char *argv[])
                         break;
                 }
             }
-            SDL_Delay(1000/2);
+
+            if (use_video && context.frameCount > frameCount) {
+                SDL_Rect src;
+
+                SDL_mutexP(context.lock);
+                SDL_assert(context.frame->image_width == texture_width);
+                SDL_assert(context.frame->image_height == texture_height);
+                SDL_UpdateTexture(texture, NULL, context.frame->image, context.frame->image_width);
+                frameCount = context.frameCount;
+                SDL_mutexV(context.lock);
+
+                src.x = 0;
+                src.y = 0;
+                src.w = info.width;
+                src.h = info.height;
+                SDL_RenderCopy(renderer, texture, &src, NULL);
+
+                SDL_RenderPresent(renderer);
+            } else {
+                SDL_Delay(0);
+            }
         }
+
         SMPEG_delete(mpeg);
     }
+    SDL_DestroyMutex(context.lock);
     SDL_Quit();
 
 #if defined(RAW_SUPPORT) || defined(HTTP_SUPPORT) || defined(FTP_SUPPORT) || \

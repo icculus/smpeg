@@ -167,7 +167,7 @@ MPEGaudio:: StartDecoding(void)
         ring = new MPEG_ring(samplesperframe*2);
     }
     if ( ! decode_thread ) {
-        decode_thread = SDL_CreateThread(Decode_MPEGaudio, this);
+        decode_thread = SDL_CreateThread(Decode_MPEGaudio, "MPEG audio decode", this);
     }
 }
 void
