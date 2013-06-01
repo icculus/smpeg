@@ -1,14 +1,14 @@
 
 ## Makefile.am for the smpeg library
 
-bin_SCRIPTS = smpeg-config
+bin_SCRIPTS = smpeg2-config
 
 CCLD = $(CXXLD)
 
 # The smpeg library target
-lib_LTLIBRARIES = libsmpeg.la
+lib_LTLIBRARIES = libsmpeg2.la
 
-libsmpeg_la_SOURCES =		\
+libsmpeg2_la_SOURCES =		\
 	MPEG.cpp		\
 	MPEGring.cpp		\
 	MPEGlist.cpp		\
@@ -43,8 +43,8 @@ libsmpeg_la_SOURCES =		\
 	video/mmxflags_asm.S	\
 	video/mmxidct_asm.S
 
-libsmpegincludedir = $(includedir)/smpeg
-libsmpeginclude_HEADERS =	\
+libsmpeg2includedir = $(includedir)/smpeg2
+libsmpeg2include_HEADERS =	\
 	MPEG.h			\
 	MPEGaction.h		\
 	MPEGaudio.h		\
@@ -57,7 +57,7 @@ libsmpeginclude_HEADERS =	\
 	MPEGvideo.h		\
 	smpeg.h
 
-libsmpeg_la_LDFLAGS = 		\
+libsmpeg2_la_LDFLAGS = 		\
         -release $(LT_RELEASE)	\
 	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
 
@@ -69,9 +69,9 @@ EXTRA_DIST =			\
 	README.SDL_mixer 	\
 	plaympeg.1		\
 	VisualC.zip		\
-	smpeg.m4		\
-	smpeg.spec		\
-	smpeg.spec.in		\
+	smpeg2.m4		\
+	smpeg2.spec		\
+	smpeg2.spec.in		\
 	gcc-fat.sh		\
 	acinclude		\
 	autogen.sh		\
@@ -93,11 +93,11 @@ bin_PROGRAMS = plaympeg
 # Sources for plaympeg
 man_MANS = plaympeg.1
 plaympeg_SOURCES = plaympeg.c
-plaympeg_LDADD = libsmpeg.la
+plaympeg_LDADD = libsmpeg2.la
 
 # M4 macro file for inclusion with autoconf
 m4datadir = $(datadir)/aclocal
-m4data_DATA = smpeg.m4
+m4data_DATA = smpeg2.m4
 
 # Rule to build tar-gzipped distribution package
 $(PACKAGE)-$(VERSION).tar.gz: dist
@@ -105,5 +105,5 @@ $(PACKAGE)-$(VERSION).tar.gz: dist
 # Rule to build RPM distribution package
 rpm: $(PACKAGE)-$(VERSION).tar.gz
 	cp $(PACKAGE)-$(VERSION).tar.gz /usr/src/redhat/SOURCES
-	rpm -ba smpeg.spec
+	rpm -ba smpeg2.spec
 

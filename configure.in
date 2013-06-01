@@ -12,8 +12,8 @@ dnl Set various version strings - taken gratefully from the GTk sources
 # if backwards compatibility has been broken,
 # set BINARY_AGE and INTERFACE_AGE to 0.
 #
-MAJOR_VERSION=0
-MINOR_VERSION=5
+MAJOR_VERSION=2
+MINOR_VERSION=0
 MICRO_VERSION=0
 INTERFACE_AGE=0
 BINARY_AGE=0
@@ -46,7 +46,7 @@ dnl Detect the canonical build and host environments
 AC_CANONICAL_HOST
 
 dnl Setup for automake
-AM_INIT_AUTOMAKE(smpeg, $VERSION)
+AM_INIT_AUTOMAKE(smpeg2, $VERSION)
 
 dnl Check for tools
 
@@ -132,7 +132,7 @@ if test x$enable_debug != xyes; then
 fi
 
 dnl Check for SDL
-SDL_VERSION=1.2.0
+SDL_VERSION=2.0.0
 AM_PATH_SDL2($SDL_VERSION,
             :,
 	    AC_MSG_ERROR([*** SDL version $SDL_VERSION not found!])
@@ -240,6 +240,6 @@ fi
 # Finally create all the generated files
 AC_OUTPUT([
 Makefile
-smpeg-config
-smpeg.spec
+smpeg2-config
+smpeg2.spec
 ])
