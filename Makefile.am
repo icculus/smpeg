@@ -73,6 +73,7 @@ EXTRA_DIST =			\
 	smpeg2.spec		\
 	smpeg2.spec.in		\
 	gcc-fat.sh		\
+	g++-fat.sh		\
 	acinclude		\
 	autogen.sh		\
 	audio/AUTHORS		\
