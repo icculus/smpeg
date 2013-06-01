@@ -2,19 +2,19 @@
 #
 # Build Universal binaries on Mac OS X, thanks Ryan!
 #
-# Usage: ./configure CC="sh gcc-fat.sh" && make && rm -rf x86 x64
+# Usage: ./configure CC="sh g++-fat.sh" && make && rm -rf x86 x64
 
 DEVELOPER="`xcode-select -print-path`/Platforms/MacOSX.platform/Developer"
 
 # Intel 32-bit compiler flags (10.6 runtime compatibility)
-GCC_COMPILE_X86="gcc -arch i386 -mmacosx-version-min=10.6 \
+GCC_COMPILE_X86="g++ -arch i386 -mmacosx-version-min=10.6 \
 -DMAC_OS_X_VERSION_MIN_REQUIRED=1040 \
 -I/usr/local/include"
 
 GCC_LINK_X86="-mmacosx-version-min=10.6"
 
 # Intel 64-bit compiler flags (10.6 runtime compatibility)
-GCC_COMPILE_X64="gcc -arch x86_64 -mmacosx-version-min=10.6 \
+GCC_COMPILE_X64="g++ -arch x86_64 -mmacosx-version-min=10.6 \
 -DMAC_OS_X_VERSION_MIN_REQUIRED=1050 \
 -I/usr/local/include"
 
@@ -26,11 +26,11 @@ compile=yes
 link=yes
 while test x$1 != x; do
     case $1 in
-        --version) exec gcc $1;;
-        -v) exec gcc $1;;
-        -V) exec gcc $1;;
-        -print-prog-name=*) exec gcc $1;;
-        -print-search-dirs) exec gcc $1;;
+        --version) exec g++ $1;;
+        -v) exec g++ $1;;
+        -V) exec g++ $1;;
+        -print-prog-name=*) exec g++ $1;;
+        -print-search-dirs) exec g++ $1;;
         -E) GCC_COMPILE_X86="$GCC_COMPILE_X86 -E"
             GCC_COMPILE_X64="$GCC_COMPILE_X64 -E"
             compile=no; link=no;;
