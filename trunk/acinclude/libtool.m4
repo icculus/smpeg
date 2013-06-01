@@ -4334,7 +4334,8 @@ _LT_EOF
       # _LT_TAGVAR(hardcode_libdir_flag_spec, $1) is actually meaningless,
       # as there is no search path for DLLs.
       _LT_TAGVAR(hardcode_libdir_flag_spec, $1)='-L$libdir'
-      _LT_TAGVAR(allow_undefined_flag, $1)=unsupported
+      #_LT_TAGVAR(allow_undefined_flag, $1)=unsupported
+      _LT_TAGVAR(allow_undefined_flag, $1)=
       _LT_TAGVAR(always_export_symbols, $1)=no
       _LT_TAGVAR(enable_shared_with_static_runtimes, $1)=yes
       _LT_TAGVAR(export_symbols_cmds, $1)='$NM $libobjs $convenience | $global_symbol_pipe | $SED -e '\''/^[[BCDGRS]][[ ]]/s/.*[[ ]]\([[^ ]]*\)/\1 DATA/'\'' | $SED -e '\''/^[[AITW]][[ ]]/s/.*[[ ]]//'\'' | sort | uniq > $export_symbols'
@@ -4691,7 +4692,8 @@ _LT_EOF
       # hardcode_libdir_flag_spec is actually meaningless, as there is
       # no search path for DLLs.
       _LT_TAGVAR(hardcode_libdir_flag_spec, $1)=' '
-      _LT_TAGVAR(allow_undefined_flag, $1)=unsupported
+      #_LT_TAGVAR(allow_undefined_flag, $1)=unsupported
+      _LT_TAGVAR(allow_undefined_flag, $1)=
       # Tell ltmain to make .lib files, not .a files.
       libext=lib
       # Tell ltmain to make .dll files, not .so files.
@@ -5637,7 +5639,8 @@ if test "$_lt_caught_CXX_error" != yes; then
         # _LT_TAGVAR(hardcode_libdir_flag_spec, $1) is actually meaningless,
         # as there is no search path for DLLs.
         _LT_TAGVAR(hardcode_libdir_flag_spec, $1)='-L$libdir'
-        _LT_TAGVAR(allow_undefined_flag, $1)=unsupported
+        #_LT_TAGVAR(allow_undefined_flag, $1)=unsupported
+        _LT_TAGVAR(allow_undefined_flag, $1)=
         _LT_TAGVAR(always_export_symbols, $1)=no
         _LT_TAGVAR(enable_shared_with_static_runtimes, $1)=yes
 
