@@ -554,7 +554,7 @@ const HUFFMANCODETABLE MPEGaudio::ht[HTN]=
   { 1, 2-1, 2-1, 0,  7,htd01},
   { 2, 3-1, 3-1, 0, 17,htd02},
   { 3, 3-1, 3-1, 0, 17,htd03},
-  { 4, (unsigned int)0-1, 0-1, 0,  0, htd33},
+  { 4, (unsigned int)0-1, (unsigned int)0-1, 0,  0, htd33},
   { 5, 4-1, 4-1, 0, 31,htd05},
   { 6, 4-1, 4-1, 0, 31,htd06},
   { 7, 6-1, 6-1, 0, 71,htd07},
