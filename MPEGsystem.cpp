@@ -134,7 +134,7 @@ static inline double read_time_code(Uint8 *pointer)
 /* Return true if there is a valid audio header at the beginning of pointer */
 static inline Uint32 audio_header(Uint8 * pointer, Uint32 * framesize, double * frametime)
 {
-  Uint32 layer, version, frequency, bitrate, mode, padding, size;
+  Uint32 layer, version, frequency, bitrate, padding, size;//, mode
 
   if(((pointer[0] & 0xff) != 0xff) || // No sync bits
      ((pointer[1] & 0xf0) != 0xf0) || //
@@ -149,7 +149,7 @@ static inline Uint32 audio_header(Uint8 * pointer, Uint32 * framesize, double * 
   padding = ((pointer)[2] >> 1) & 1;
   frequency = audio_frequencies[version][(((pointer)[2] >> 2) & 3)];
   bitrate = audio_bitrate[version][layer-1][(((pointer)[2] >> 4) & 15)];
-  mode = ((pointer)[3] >> 6) & 3;
+  //mode = ((pointer)[3] >> 6) & 3;
 
   if(layer==1)
   {
@@ -221,7 +221,7 @@ static inline Uint32 sequence_header(Uint8 * pointer, Uint32 size, double * _fra
 static inline Uint32 gop_header(Uint8 * pointer, Uint32 size, double * timestamp)
 {
   Uint32 header_size;
-  Uint32 hour, min, sec, frame;
+  Uint32 hour, min, sec;//, frame
 
   header_size = 0;
   if((header_size+=4) >= size) return(0);
@@ -232,7 +232,7 @@ static inline Uint32 gop_header(Uint8 * pointer, Uint32 size, double * timestamp
   hour = (pointer[4] >> 2) & 31;
   min = ((pointer[4] & 3) << 4) | ((pointer[5] >> 4) & 15);
   sec = ((pointer[5] & 7) << 3) | ((pointer[6] >> 5) & 7);
-  frame = ((pointer[6] & 31) << 1) | ((pointer[7] >> 7) & 1);
+  //frame = ((pointer[6] & 31) << 1) | ((pointer[7] >> 7) & 1);
   if((header_size+=4) >= size) return(0);
 
   if(timestamp) *timestamp = sec + 60.*min + 3600.*hour;
@@ -498,12 +498,11 @@ MPEGstream ** MPEGsystem::GetStreamList()
 void MPEGsystem::Read()
 {
   int remaining;
-  int timeout;
+//int timeout = READ_TIME_OUT;
 
   /* Lock to prevent concurrent access to the stream */
   SDL_mutexP(system_mutex);
 
-  timeout = READ_TIME_OUT;
   remaining = read_buffer + read_size - pointer;
 
   /* Only read data if buffer is rather empty */

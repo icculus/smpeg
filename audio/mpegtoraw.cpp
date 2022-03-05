@@ -81,8 +81,6 @@ void MPEGaudio::initialize()
   static bool initialized = false;
 
   register int i;
-  register REAL *s1,*s2;
-  REAL *s3,*s4;
 
   last_speed = 0;
   stereo = true;
@@ -95,10 +93,6 @@ void MPEGaudio::initialize()
   calcbufferoffset=15;
   currentcalcbuffer=0;
 
-  s1 = calcbufferL[0];
-  s2 = calcbufferR[0];
-  s3 = calcbufferL[1];
-  s4 = calcbufferR[1];
   for(i=CALCBUFFERSIZE-1;i>=0;i--)
   {
     calcbufferL[0][i]=calcbufferL[1][i]=
@@ -458,6 +452,8 @@ int Play_MPEGaudio(MPEGaudio *audio, Uint8 *stream, int len)
 	        correction = -timeshift/100;
 #ifdef USE_TIMESTAMP_SYNC
 	    audio->play_time += correction;
+#else
+	    (void)correction;
 #endif
 #ifdef DEBUG_TIMESTAMP_SYNC
 	    fprintf(stderr, "\raudio: time:%8.3f shift:%8.4f",

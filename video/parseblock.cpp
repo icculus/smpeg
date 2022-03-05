@@ -609,6 +609,8 @@ void ParseAwayBlock( int n, VidStream* vid_stream )
 
     flush_bits(2);
   }
+
+  (void)diff;
 }
 
 

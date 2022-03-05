@@ -1101,19 +1101,15 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
         }
 	/* need adjust current_frame (after Seek) */
 	if (vid_stream->need_frameadjust) {
-		int prev;
-		prev = vid_stream->totNumFrames;
-		vid_stream->current_frame = (int)
-		(
+		//int prev = vid_stream->totNumFrames;
+		vid_stream->current_frame = (int) (
 		vid_stream->group.tc_hours * 3600 * vid_stream->rate_deal +
 		vid_stream->group.tc_minutes * 60 * vid_stream->rate_deal +
 		vid_stream->group.tc_seconds * vid_stream->rate_deal +
 		vid_stream->group.tc_pictures);
 		vid_stream->need_frameadjust=false;
 		vid_stream->totNumFrames=vid_stream->current_frame;
-#if 0
-	printf("Adjusted Frame %d -> %d\n",prev,vid_stream->current_frame);
-#endif
+		//printf("Adjusted Frame %d -> %d\n",prev,vid_stream->current_frame);
 	}
         goto done;
 
