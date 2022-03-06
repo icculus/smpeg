@@ -1740,6 +1740,7 @@ void MPEGaudio::extractlayer3(void)
       REAL ro   [2][SBLIMIT][SSLIMIT];
       REAL lr   [2][SBLIMIT][SSLIMIT];
       REAL hout [2][SSLIMIT][SBLIMIT];
+      REAL HOUT [2*SSLIMIT*SBLIMIT];
     }b2;
 
 
@@ -1767,28 +1768,28 @@ void MPEGaudio::extractlayer3(void)
 
       register int i=2*SSLIMIT*SBLIMIT-1;
       do{
-	NEG(b2.hout[0][0][i   ]);NEG(b2.hout[0][0][i- 2]);
-	NEG(b2.hout[0][0][i- 4]);NEG(b2.hout[0][0][i- 6]);
-	NEG(b2.hout[0][0][i- 8]);NEG(b2.hout[0][0][i-10]);
-	NEG(b2.hout[0][0][i-12]);NEG(b2.hout[0][0][i-14]);
-	NEG(b2.hout[0][0][i-16]);NEG(b2.hout[0][0][i-18]);
-	NEG(b2.hout[0][0][i-20]);NEG(b2.hout[0][0][i-22]);
-	NEG(b2.hout[0][0][i-24]);NEG(b2.hout[0][0][i-26]);
-	NEG(b2.hout[0][0][i-28]);NEG(b2.hout[0][0][i-30]);
+	NEG(b2.HOUT[i   ]);NEG(b2.HOUT[i- 2]);
+	NEG(b2.HOUT[i- 4]);NEG(b2.HOUT[i- 6]);
+	NEG(b2.HOUT[i- 8]);NEG(b2.HOUT[i-10]);
+	NEG(b2.HOUT[i-12]);NEG(b2.HOUT[i-14]);
+	NEG(b2.HOUT[i-16]);NEG(b2.HOUT[i-18]);
+	NEG(b2.HOUT[i-20]);NEG(b2.HOUT[i-22]);
+	NEG(b2.HOUT[i-24]);NEG(b2.HOUT[i-26]);
+	NEG(b2.HOUT[i-28]);NEG(b2.HOUT[i-30]);
       }while((i-=2*SBLIMIT)>0);
     }
     else
     {
       register int i=SSLIMIT*SBLIMIT-1;
       do{
-	NEG(b2.hout[0][0][i   ]);NEG(b2.hout[0][0][i- 2]);
-	NEG(b2.hout[0][0][i- 4]);NEG(b2.hout[0][0][i- 6]);
-	NEG(b2.hout[0][0][i- 8]);NEG(b2.hout[0][0][i-10]);
-	NEG(b2.hout[0][0][i-12]);NEG(b2.hout[0][0][i-14]);
-	NEG(b2.hout[0][0][i-16]);NEG(b2.hout[0][0][i-18]);
-	NEG(b2.hout[0][0][i-20]);NEG(b2.hout[0][0][i-22]);
-	NEG(b2.hout[0][0][i-24]);NEG(b2.hout[0][0][i-26]);
-	NEG(b2.hout[0][0][i-28]);NEG(b2.hout[0][0][i-30]);
+	NEG(b2.HOUT[i   ]);NEG(b2.HOUT[i- 2]);
+	NEG(b2.HOUT[i- 4]);NEG(b2.HOUT[i- 6]);
+	NEG(b2.HOUT[i- 8]);NEG(b2.HOUT[i-10]);
+	NEG(b2.HOUT[i-12]);NEG(b2.HOUT[i-14]);
+	NEG(b2.HOUT[i-16]);NEG(b2.HOUT[i-18]);
+	NEG(b2.HOUT[i-20]);NEG(b2.HOUT[i-22]);
+	NEG(b2.HOUT[i-24]);NEG(b2.HOUT[i-26]);
+	NEG(b2.HOUT[i-28]);NEG(b2.HOUT[i-30]);
       }while((i-=2*SBLIMIT)>0);
     }
 
@@ -1850,6 +1851,7 @@ void MPEGaudio::extractlayer3_2(void)
       REAL ro   [2][SBLIMIT][SSLIMIT];
       REAL lr   [2][SBLIMIT][SSLIMIT];
       REAL hout [2][SSLIMIT][SBLIMIT];
+      REAL HOUT [2*SSLIMIT*SBLIMIT];
     }b2;
 
 
@@ -1877,20 +1879,20 @@ void MPEGaudio::extractlayer3_2(void)
 
       register int i=2*SSLIMIT*SBLIMIT-1;
       do{
-	NEG(b2.hout[0][0][i-16]);NEG(b2.hout[0][0][i-18]);
-	NEG(b2.hout[0][0][i-20]);NEG(b2.hout[0][0][i-22]);
-	NEG(b2.hout[0][0][i-24]);NEG(b2.hout[0][0][i-26]);
-	NEG(b2.hout[0][0][i-28]);NEG(b2.hout[0][0][i-30]);
+	NEG(b2.HOUT[i-16]);NEG(b2.HOUT[i-18]);
+	NEG(b2.HOUT[i-20]);NEG(b2.HOUT[i-22]);
+	NEG(b2.HOUT[i-24]);NEG(b2.HOUT[i-26]);
+	NEG(b2.HOUT[i-28]);NEG(b2.HOUT[i-30]);
       }while((i-=2*SBLIMIT)>0);
     }
     else
     {
       register int i=SSLIMIT*SBLIMIT-1;
       do{
-	NEG(b2.hout[0][0][i-16]);NEG(b2.hout[0][0][i-18]);
-	NEG(b2.hout[0][0][i-20]);NEG(b2.hout[0][0][i-22]);
-	NEG(b2.hout[0][0][i-24]);NEG(b2.hout[0][0][i-26]);
-	NEG(b2.hout[0][0][i-28]);NEG(b2.hout[0][0][i-30]);
+	NEG(b2.HOUT[i-16]);NEG(b2.HOUT[i-18]);
+	NEG(b2.HOUT[i-20]);NEG(b2.HOUT[i-22]);
+	NEG(b2.HOUT[i-24]);NEG(b2.HOUT[i-26]);
+	NEG(b2.HOUT[i-28]);NEG(b2.HOUT[i-30]);
       }while((i-=2*SBLIMIT)>0);
     }
 
