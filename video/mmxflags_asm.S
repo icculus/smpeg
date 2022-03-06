@@ -1,5 +1,5 @@
 
-#if defined(i386) && defined(USE_MMX)
+#if defined(__i386__) && defined(USE_MMX)
 
 .text
 	.align 4
@@ -48,7 +48,7 @@ cpu_flags.L1:
 .Lfe1:
 	.size	 cpu_flags,.Lfe1-cpu_flags
 
-#endif /* i386 && USE_MMX */
+#endif /* __i386__ && USE_MMX */
 
 #ifdef __ELF__
 .section .note.GNU-stack,"",%progbits

@@ -1,8 +1,6 @@
 
+#if defined(__i386__) && defined(USE_MMX)
 
-#if defined(i386) && defined(USE_MMX)
-
-	
 /*
  * the input data is tranposed and each 16 bit element in the 8x8 matrix
  * is left aligned:
@@ -690,7 +688,7 @@ IDCT_mmx:
 	ret
 #endif
 
-#endif /* i386 && USE_MMX */
+#endif /* __i386__ && USE_MMX */
 
 #ifdef __ELF__
 .section .note.GNU-stack,"",%progbits
