@@ -80,7 +80,7 @@ void MPEGaudio::initialize()
 {
   static bool initialized = false;
 
-  register int i;
+  int i;
 
   last_speed = 0;
   stereo = true;
@@ -126,7 +126,7 @@ void MPEGaudio::initialize()
 
 bool MPEGaudio::loadheader()
 {
-    register int c;
+    int c;
     bool flag;
 
     flag = false;
