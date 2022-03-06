@@ -1065,7 +1065,6 @@ VidStream* mpegVidRsrc( TimeStamp time_stamp, VidStream* vid_stream, int first )
 #endif
         flush_bits32;
         goto done;
-        break;
 
     case SEQ_START_CODE:
 
