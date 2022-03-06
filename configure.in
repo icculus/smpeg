@@ -1,6 +1,5 @@
-
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(README)
+AC_INIT(MPEG.cpp)
 
 dnl Set various version strings - taken gratefully from the GTk sources
 #
@@ -62,7 +61,7 @@ dnl Work around the lack of certain typedefs.
 AC_TYPE_SOCKLEN_T
 
 dnl The alpha architecture needs special flags for binary portability
-case "$target" in
+case "$host" in
     alpha*-*-linux*)
 	if test x$ac_cv_prog_gcc = xyes; then
             CFLAGS="$CFLAGS -mcpu=ev4 -Wa,-mall"
@@ -91,7 +90,7 @@ AC_ARG_ENABLE(rpath,
 	enable_rpath=yes)
 
 if test "x$enable_rpath" = "xyes"; then
-  case "$target" in
+  case "$host" in
       *-*-linux*)
 	  SMPEG_RLD_FLAGS="-Wl,-rpath,\${exec_prefix}/lib"
 	  ;;
@@ -117,7 +116,7 @@ if test x$enable_debug != xyes; then
     if test x$ac_cv_prog_gcc = xyes; then
         CFLAGS="$CFLAGS -fexpensive-optimizations -fomit-frame-pointer"
     fi
-    case "$target" in
+    case "$host" in
         i486-*-*)  # Yeah right. :)
             if test x$ac_cv_prog_gcc = xyes; then
                 CFLAGS="$CFLAGS -march=486"
@@ -150,8 +149,8 @@ AC_ARG_ENABLE(mmx,
 if test x$enable_mmx = xyes; then
     AC_MSG_CHECKING(for MMX optimizations)
     use_mmx=no
-    case "$target" in
-        i?86*)
+    case "$host" in
+        i?86-*-*)
             use_mmx=yes
             ;;
     esac
