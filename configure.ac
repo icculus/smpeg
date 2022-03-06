@@ -1,5 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(MPEG.cpp)
+AC_INIT
+AC_CONFIG_SRCDIR([MPEG.cpp])
 
 dnl Set various version strings - taken gratefully from the GTk sources
 #
@@ -53,8 +54,7 @@ AC_PROG_MAKE_SET
 AC_PROG_CC
 AC_PROG_CXX
 AM_PROG_AS
-AC_LIBTOOL_WIN32_DLL
-AM_PROG_LIBTOOL
+LT_INIT([win32-dll])
 AC_PROG_INSTALL
 
 dnl Work around the lack of certain typedefs.
@@ -63,12 +63,12 @@ AC_TYPE_SOCKLEN_T
 dnl The alpha architecture needs special flags for binary portability
 case "$host" in
     alpha*-*-linux*)
-	if test x$ac_cv_prog_gcc = xyes; then
+	if test x$ac_cv_c_compiler_gnu = xyes; then
             CFLAGS="$CFLAGS -mcpu=ev4 -Wa,-mall"
         fi
         ;;
     sparc*-*-solaris*)
-        LIBS="$LIBS -lsocket -lnsl"	
+        LIBS="$LIBS -lsocket -lnsl"
         ;;
     *-*-qnx*)
         LIBS="$LIBS -lsocket"
@@ -77,7 +77,7 @@ case "$host" in
         ac_default_prefix=/boot/develop/tools/gnupro
         ;;
     *-*-cygwin* | *-*-mingw32*)
-        if test "$build" != "$target"; then # cross-compiling
+        if test "$build" != "$host"; then # cross-compiling
             ac_default_prefix=/usr/local/cross-tools/i386-mingw32msvc
         fi
         ;;
@@ -85,7 +85,7 @@ esac
 
 dnl Set runtime shared library paths as needed 
 AC_ARG_ENABLE(rpath,
-	AC_HELP_STRING([--enable-rpath],
+	AS_HELP_STRING([--enable-rpath],
 		[use an rpath when linking SDL [[default=yes]]]),,
 	enable_rpath=yes)
 
@@ -110,20 +110,20 @@ AC_SUBST(SMPEG_RLD_FLAGS)
 dnl Add compiler-specific optimization flags
 
 AC_ARG_ENABLE(debug,
-[  --enable-debug          Disable aggressive optimizations [default=yes]],
+[AS_HELP_STRING([--enable-debug],[Disable aggressive optimizations [default=yes]])],
               , enable_debug=yes)
 if test x$enable_debug != xyes; then
-    if test x$ac_cv_prog_gcc = xyes; then
+    if test x$ac_cv_c_compiler_gnu = xyes; then
         CFLAGS="$CFLAGS -fexpensive-optimizations -fomit-frame-pointer"
     fi
     case "$host" in
         i486-*-*)  # Yeah right. :)
-            if test x$ac_cv_prog_gcc = xyes; then
+            if test x$ac_cv_c_compiler_gnu = xyes; then
                 CFLAGS="$CFLAGS -march=486"
             fi
             ;;
         i?86-*-*)
-            if test x$ac_cv_prog_gcc = xyes; then
+            if test x$ac_cv_c_compiler_gnu = xyes; then
                 CFLAGS="$CFLAGS -march=pentium -mcpu=pentiumpro"
             fi
             ;;
@@ -144,7 +144,7 @@ AC_CHECK_LIB(m, sqrt, LIBS="$LIBS -lm")
 
 dnl Check for MMX support
 AC_ARG_ENABLE(mmx,
-[  --enable-mmx            enable MMX IDCT decoding routines [default=no]],
+[AS_HELP_STRING([--enable-mmx],[enable MMX IDCT decoding routines [default=no]])],
               , enable_mmx=no)
 if test x$enable_mmx = xyes; then
     AC_MSG_CHECKING(for MMX optimizations)
@@ -165,7 +165,7 @@ fi
 
 dnl Check for system timestamp sync
 AC_ARG_ENABLE(timestamp-sync,
-[  --enable-timestamp-sync  enable system timestamp sync [default=yes]],
+[AS_HELP_STRING([--enable-timestamp-sync],[enable system timestamp sync [default=no]])],
               , enable_timestamp_sync=no)
 if test x$enable_timestamp_sync = xyes; then
 	CFLAGS="$CFLAGS -DUSE_TIMESTAMP_SYNC"
@@ -173,7 +173,7 @@ fi
 
 dnl Enable the use of the system thread
 AC_ARG_ENABLE(threaded-system,
-[  --enable-threaded-system enable system thread         [default=no]],
+[AS_HELP_STRING([--enable-threaded-system],[enable system thread [default=no]])],
               , enable_threaded_system=no)
 if test x$enable_threaded_system = xyes; then
 	CFLAGS="$CFLAGS -DUSE_SYSTEM_THREAD"
@@ -181,7 +181,7 @@ fi
 
 dnl Disable using a thread for the video callback
 AC_ARG_ENABLE(video-callback-thread,
-[  --enable-video-callback-thread enable video callback thread [default=yes]],
+[AS_HELP_STRING([--enable-video-callback-thread],[enable video callback thread [default=yes]])],
               , enable_video_callback_thread=yes)
 if test x$enable_video_callback_thread = xno; then
 	CFLAGS="$CFLAGS -DDISABLE_VIDEO_CALLBACK_THREAD"
@@ -189,7 +189,7 @@ fi
 
 dnl Enable threaded audio
 AC_ARG_ENABLE(threaded-audio,
-[  --enable-threaded-audio  enable threaded audio        [default=yes]],
+[AS_HELP_STRING([--enable-threaded-audio],[enable threaded audio [default=yes]])],
               , enable_threaded_audio=yes)
 if test x$enable_threaded_audio = xyes; then
 	CFLAGS="$CFLAGS -DTHREADED_AUDIO"
@@ -197,7 +197,7 @@ fi
 
 dnl Disable assertions in release builds
 AC_ARG_ENABLE(assertions,
-[  --enable-assertions     Enable consistency checks in decoding [default=no]],
+[AS_HELP_STRING([--enable-assertions],[Enable consistency checks in decoding [default=no]])],
               , enable_assertions=no)
 if test x$enable_assertions != xyes; then
     CFLAGS="$CFLAGS -DNDEBUG"
@@ -222,11 +222,8 @@ if test x$GCC = xyes; then
     save_CC="$CC"
     CFLAGS="-fno-rtti -fno-exceptions"
     CC="$CXX"
-    AC_TRY_COMPILE([
-    ],[
-    ],[
-    use_fnoexceptions=yes
-    ])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[])],
+                      [use_fnoexceptions=yes])
     AC_MSG_RESULT($use_fnoexceptions)
     if test x$use_fnoexceptions = xyes; then
         CXXFLAGS="$CXXFLAGS -fno-exceptions -fno-rtti"
@@ -237,8 +234,9 @@ fi
 
 
 # Finally create all the generated files
-AC_OUTPUT([
+AC_CONFIG_FILES([
 Makefile
 smpeg2-config
 smpeg2.spec
 ])
+AC_OUTPUT
