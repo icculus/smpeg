@@ -85,11 +85,6 @@ EXTRA_DIST =			\
 	video/COPYRIGHT
 
 
-video/16bit_mmx.lo: video/16bit_mmx.cpp
-	$(CXX) -c -o $@ $^ $(CXXFLAGS)
-video/32bit_mmx.lo: video/32bit_mmx.cpp
-	$(CXX) -c -o $@ $^ $(CXXFLAGS)
-
 bin_PROGRAMS = plaympeg
 
 # Sources for plaympeg
