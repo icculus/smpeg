@@ -501,7 +501,7 @@ init_mb_type_P()
 
   mb_type_P[0].mb_quant = mb_type_P[0].mb_motion_forward 
     = mb_type_P[0].mb_motion_backward = mb_type_P[0].mb_pattern 
-      = mb_type_P[0].mb_intra = ERROR;
+      = mb_type_P[0].mb_intra = (unsigned int)ERROR;
   mb_type_P[0].num_bits = 0;
 
   ASSIGN2(1, 2, 1, 0, 0, 0, 1, 6, mb_type_P)
@@ -540,7 +540,7 @@ init_mb_type_B()
 
   mb_type_B[0].mb_quant = mb_type_B[0].mb_motion_forward 
     = mb_type_B[0].mb_motion_backward = mb_type_B[0].mb_pattern 
-      = mb_type_B[0].mb_intra = ERROR;
+      = mb_type_B[0].mb_intra = (unsigned int)ERROR;
   mb_type_B[0].num_bits = 0;
 
   ASSIGN2(1, 2, 1, 0, 0, 0, 1, 6, mb_type_B);
