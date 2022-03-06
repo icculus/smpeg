@@ -2,7 +2,7 @@
 #include <string.h>        /* for memmove() */
 #include <errno.h>
 #include <assert.h>
-#ifdef WIN32
+#ifdef _WIN32
 #include <sys/types.h>
 #include <io.h>
 #include <winsock.h>
