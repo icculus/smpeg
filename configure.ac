@@ -207,7 +207,7 @@ dnl Activate compiler warnings
 CFLAGS="$CFLAGS -Wall"
 
 dnl Add the source include directories
-CFLAGS="$CFLAGS -I.. -DNOCONTROLS"
+CFLAGS="$CFLAGS -I.."
 CFLAGS="$CFLAGS -I\$(top_srcdir) -I\$(top_srcdir)/audio -I\$(top_srcdir)/video"
 CXXFLAGS="$CFLAGS"
 

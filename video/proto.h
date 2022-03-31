@@ -192,16 +192,3 @@ int MakeFloatClockTime (
    double *floatClockTime);
 
 
-#ifndef NOCONTROLS
-/* ctrlbar.c */
-double StopWatch (int action);
-bool WindowMapped (Display *dsp, XEvent *xev, char *window);
-bool IfEventType (Display *dsp, XEvent *xev, char *type);
-void MakeControlBar (XInfo *xinfo);
-void UpdateFrameTotal (Display *display);
-void UpdateControlDisplay (Display *display);
-void ControlBar (VidStream **vid_stream, XInfo *xinfo, int numMovies);
-void ControlLoop (VidStream **theStream, XInfo *xinfo, int numStreams);
-#endif /* !NOCONTROLS */
-
-#undef P

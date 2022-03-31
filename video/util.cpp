@@ -53,9 +53,6 @@
 #include "video.h"
 #include "proto.h"
 #include "util.h"
-#ifndef NOCONTROLS
-#include "ctrlbar.h"
-#endif
 
 /*
    Changes to make the code reentrant:
