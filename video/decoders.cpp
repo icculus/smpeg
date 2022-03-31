@@ -407,8 +407,6 @@ const unsigned short int dct_coeff_first[256] =
     val--; \
     }
 
-
-
 /*
  *--------------------------------------------------------------
  *
@@ -426,7 +424,7 @@ const unsigned short int dct_coeff_first[256] =
  *--------------------------------------------------------------
  */
 static void
-init_mb_addr_inc()
+init_mb_addr_inc(void)
 {
   int i, j, val;
 
@@ -474,9 +472,7 @@ init_mb_addr_inc()
     mb_type[i].mb_intra = intra; \
     mb_type[i].num_bits = num; \
   }
-	 
 
-
 /*
  *--------------------------------------------------------------
  *
@@ -495,7 +491,7 @@ init_mb_addr_inc()
  *--------------------------------------------------------------
  */
 static void
-init_mb_type_P()
+init_mb_type_P(void)
 {
   int i;
 
@@ -513,9 +509,6 @@ init_mb_type_P()
   ASSIGN2(32, 64, 0, 1, 0, 1, 0, 1, mb_type_P);
 }
 
-
-
-
 /*
  *--------------------------------------------------------------
  *
@@ -534,7 +527,7 @@ init_mb_type_P()
  *--------------------------------------------------------------
  */
 static void
-init_mb_type_B()
+init_mb_type_B(void)
 {
   int i;
 
@@ -571,8 +564,6 @@ init_mb_type_B()
     val--; \
   }
 
-
-
 /*
  *--------------------------------------------------------------
  *
@@ -593,7 +584,7 @@ init_mb_type_B()
  *--------------------------------------------------------------
  */
 static void
-init_motion_vectors()
+init_motion_vectors(void)
 {
   int i, j, val = 16;
 
@@ -613,10 +604,6 @@ init_motion_vectors()
 }
 
 
-
-extern void init_pre_idct();
-
-
 /*
  *--------------------------------------------------------------
  *
@@ -634,8 +621,8 @@ extern void init_pre_idct();
  *      will be filled.
  *
  *--------------------------------------------------------------
- */    
-void decodeInitTables()
+ */
+void decodeInitTables(void)
 {
   init_mb_addr_inc();
   init_mb_type_P();
@@ -657,7 +644,6 @@ void decodeInitTables()
 }
 
 #if OLDCODE
-
 /*
  *--------------------------------------------------------------
  *
@@ -676,10 +662,9 @@ void decodeInitTables()
  *	Bit stream is irreversibly parsed.
  *
  *--------------------------------------------------------------
- */        
+ */
 void
-decodeDCTDCSizeLum(value)
-unsigned int *value;
+decodeDCTDCSizeLum(unsigned int *value)
 {
   unsigned int index;
 
@@ -697,9 +682,6 @@ unsigned int *value;
   }
 }
 
-
-
-
 /*
  *--------------------------------------------------------------
  *
@@ -718,10 +700,9 @@ unsigned int *value;
  *	Bit stream is irreversibly parsed.
  *
  *--------------------------------------------------------------
- */    
-void    
-decodeDCTDCSizeChrom(value)
-unsigned int *value;
+ */
+void
+decodeDCTDCSizeChrom(unsigned int *value)
 {
   unsigned int index;
 
@@ -739,8 +720,6 @@ unsigned int *value;
   }
 }
 
-
-
 /*
  *--------------------------------------------------------------
  *
@@ -792,10 +771,7 @@ unsigned int *value;
  *--------------------------------------------------------------
  */
 static void
-decodeDCTCoeff(dct_coeff_tbl, run, level)
-unsigned short int *dct_coeff_tbl;                                       
-unsigned int *run;
-int *level;
+decodeDCTCoeff(unsigned short int *dct_coeff_tbl, unsigned int *run, int *level)
 {
   unsigned int temp, index /*, num_bits */;
   unsigned int value, next32bits, flushed;
@@ -856,11 +832,11 @@ int *level;
 	    flushed += 8;
 	    /* next32bits &= bitMask[flushed];  last op before update */
 #ifdef NO_GRIFF_MODS
- 	    assert(*level >= 128);
+	    assert(*level >= 128);
 #else
 	    /* CG: Try to overcome the assertion and incorrect decoding in
 	     * case of lost packets. 12jul2000 */
- 	    if (*level >= 128) {
+	    if (*level >= 128) {
               flush_bits(flushed);
 	    }
 	    else {
@@ -944,7 +920,6 @@ int *level;
   }
 }
 
-
 /*
  *--------------------------------------------------------------
  *
@@ -963,18 +938,13 @@ int *level;
  *	Bit stream is irreversibly parsed.
  *
  *--------------------------------------------------------------
- */        
+ */
 void
-decodeDCTCoeffFirst(run, level)
-unsigned int *run;
-int *level;
+decodeDCTCoeffFirst(unsigned int *run, int *level)
 {
   decodeDCTCoeff(dct_coeff_first, run, level);
 }
 
-
-
-
 /*
  *--------------------------------------------------------------
  *
@@ -993,11 +963,9 @@ int *level;
  *	Bit stream is irreversibly parsed.
  *
  *--------------------------------------------------------------
- */ 
-void       
-decodeDCTCoeffNext(run, level)
-unsigned int *run;
-int *level;
+ */
+void
+decodeDCTCoeffNext(unsigned int *run, int *level)
 {
   decodeDCTCoeff(dct_coeff_next, run, level);
 }

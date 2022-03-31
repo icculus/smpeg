@@ -175,7 +175,7 @@ static DCTELEM PreIDCT[64][64];
  *--------------------------------------------------------------
  */
 
-void init_pre_idct()
+void init_pre_idct(void)
 {
   int i;
 
@@ -187,8 +187,6 @@ void init_pre_idct()
 }
 
 #ifndef NO_SPARSE_DCT
-  
-
 
 /*
  *--------------------------------------------------------------
@@ -362,7 +360,6 @@ void j_rev_dct_sparse( DCTBLOCK data, int pos )
 #ifndef FIVE_DCT
 
 #ifndef ORIG_DCT
-
 
 /*
  *--------------------------------------------------------------
@@ -614,7 +611,6 @@ void j_rev_dct( DCTBLOCK data )
 	    }
 	}
     }
-
 
     /* Odd part per figure 8; the matrix is unitary and hence its
      * transpose is its inverse.  i0..i3 are y7,y5,y3,y1 respectively.
@@ -1380,8 +1376,6 @@ void j_rev_dct( DCTBLOCK data )
 
 #else
 
-
-
 /*
  *--------------------------------------------------------------
  *
@@ -1611,7 +1605,6 @@ void j_rev_dct( DCTBLOCK data )
     dataptr++;			/* advance pointer to next column */
   }
 }
-
 
 #endif /* ORIG_DCT */
 #endif /* FIVE_DCT */

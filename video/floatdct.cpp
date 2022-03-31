@@ -63,7 +63,7 @@ static double c[8][8];
 
 /* initialize DCT coefficient matrix */
 
-void init_float_idct()
+void init_float_idct(void)
 {
   int freq, time;
   double scale;

@@ -173,7 +173,6 @@ static inline unsigned char crop(int x)
 
 #ifdef ANALYSIS
 
-
 unsigned int bitCount = 0;
 
 /* #define SHOWMB_FLAG */
@@ -210,8 +209,7 @@ unsigned int cacheHit[8][8];
 unsigned int cacheMiss[8][8];
 
 static void
-init_stat_struct(astat)
-  Statval *astat;
+init_stat_struct(Statval *astat)
 {
   int j;
 
@@ -242,7 +240,7 @@ init_stat_struct(astat)
 }
 
 void
-init_stats()
+init_stats(void)
 {
   int i, j;
 
@@ -262,7 +260,7 @@ init_stats()
 }
 
 static void
-PrintOneStat()
+PrintOneStat(void)
 {
   int i;
 
@@ -373,8 +371,7 @@ PrintOneStat()
 }
 
 void
-PrintAllStats(vid_stream)
-VidStream *vid_stream;
+PrintAllStats(VidStream *vid_stream)
 {
   int i, j;
   unsigned int supertot, supernum;
@@ -523,7 +520,7 @@ VidStream *vid_stream;
 }
 
 static void
-CollectStats()
+CollectStats(void)
 {
   int i, j;
 
@@ -558,19 +555,19 @@ CollectStats()
 }
 
 static unsigned int
-bitCountRead()
+bitCountRead(void)
 {
   return bitCount;
 }
 
 static void
-StartTime()
+StartTime(void)
 {
   stat_a[0].tottime = ReadSysClock();
 }
 
 static void
-EndTime()
+EndTime(void)
 {
   stat_a[0].tottime = ReadSysClock() - stat_a[0].tottime;
 }
@@ -594,7 +591,7 @@ EndTime()
  */
 
 double
-ReadSysClock()
+ReadSysClock(void)
 {
     return(SDL_GetTicks()/1000.0);
 }
@@ -616,7 +613,7 @@ ReadSysClock()
  *--------------------------------------------------------------
  */
 void
-InitCrop()
+InitCrop(void)
 {
 #ifdef USE_CROP_TABLE
   int i;

@@ -227,24 +227,24 @@ void ParseReconBlock( int n, VidStream* vid_stream )
 
       if (n < 4) {
 
-    /*
-     * Get the luminance bits.  This code has been hand optimized to
-     * get by the normal bit parsing routines.  We get some speedup
-     * by grabbing the next 16 bits and parsing things locally.
-     * Thus, calls are translated as:
-     *
-     *    show_bitsX  <-->   next16bits >> (16-X)
-     *    get_bitsX   <-->   val = next16bits >> (16-flushed-X);
-     *               flushed += X;
-     *               next16bits &= bitMask[flushed];
-     *    flush_bitsX <-->   flushed += X;
-     *               next16bits &= bitMask[flushed];
-     *
-     * I've streamlined the code a lot, so that we don't have to mask
-     * out the low order bits and a few of the extra adds are removed.
-     *    bsmith
-     */
-    unsigned int next16bits, index, flushed;
+        /*
+         * Get the luminance bits.  This code has been hand optimized to
+         * get by the normal bit parsing routines.  We get some speedup
+         * by grabbing the next 16 bits and parsing things locally.
+         * Thus, calls are translated as:
+         *
+         *    show_bitsX  <-->   next16bits >> (16-X)
+         *    get_bitsX   <-->   val = next16bits >> (16-flushed-X);
+         *               flushed += X;
+         *               next16bits &= bitMask[flushed];
+         *    flush_bitsX <-->   flushed += X;
+         *               next16bits &= bitMask[flushed];
+         *
+         * I've streamlined the code a lot, so that we don't have to mask
+         * out the low order bits and a few of the extra adds are removed.
+         *    bsmith
+         */
+        unsigned int next16bits, index, flushed;
 
         show_bits16(next16bits);
         index = next16bits >> (16-5);
@@ -278,14 +278,15 @@ void ParseReconBlock( int n, VidStream* vid_stream )
           coeff = diff + DCT_dc_y_past;
         }
         DCT_dc_y_past = coeff;
-      } else { /* n = 4 or 5 */
-    
-    /*
-     * Get the chrominance bits.  This code has been hand optimized to
-     * as described above
-     */
 
-    unsigned int next16bits, index, flushed;
+      } else { /* n = 4 or 5 */
+
+        /*
+         * Get the chrominance bits.  This code has been hand optimized to
+         * as described above
+         */
+
+        unsigned int next16bits, index, flushed;
 
         show_bits16(next16bits);
         index = next16bits >> (16-5);
@@ -515,7 +516,7 @@ void ParseReconBlock( int n, VidStream* vid_stream )
     }
 #endif
 }
-    
+
 #undef DCT_recon 
 #undef DCT_dc_y_past 
 #undef DCT_dc_cr_past 
