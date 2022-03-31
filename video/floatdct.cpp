@@ -37,12 +37,6 @@
 
 #include <math.h>
 
-#ifndef __STDC__
-#define _ANSI_ARGS_(x) ()
-#else
-#define _ANSI_ARGS_(x) x
-#endif
-
 #define RB "rb"
 #define WB "wb"
 
@@ -59,8 +53,8 @@
 #endif
 
 /* global declarations */
-void init_float_idct _ANSI_ARGS_((void));
-void float_idct _ANSI_ARGS_((short *block));
+void init_float_idct (void);
+void float_idct (short *block);
 
 /* private data */
 
