@@ -18,6 +18,34 @@ DEPS_INC=-IC:\SDL2DEV\h\SDL2
 # change DEPS_LIB in order to point to the dependency libraries.
 DEPS_LIB=C:\SDL2DEV\lib
 
+LIBS = SDL2.lib
+
+BASEFLAGS = -bt=os2 -d0 -q -bm -5s -fp5 -fpi87 -sg -oeatxh -ei -j
+# include paths:
+BASEFLAGS+= -I$(%WATCOM)/h/os2 -I$(%WATCOM)/h
+BASEFLAGS+= -I. $(DEPS_INC)
+# warnings:
+BASEFLAGS+= -w3
+CFLAGS   = $(BASEFLAGS)
+CXXFLAGS = $(BASEFLAGS)
+# to build a dll:
+CXXFLAGS+= -bd
+# for DECLSPEC:
+CXXFLAGS+= -DBUILD_SDL
+# misc smpeg-specifics :
+# disable assertions:
+CXXFLAGS+= -DNDEBUG
+# enable threaded audio:
+CXXFLAGS+= -DTHREADED_AUDIO
+# enable system timestamp sync:
+#CXXFLAGS+= -DUSE_TIMESTAMP_SYNC
+# enable system thread:
+#CXXFLAGS+= -DUSE_SYSTEM_THREAD
+# disable video callback thread:
+#CXXFLAGS+= -DDISABLE_VIDEO_CALLBACK_THREAD
+# enable MMX optimizations:
+#CXXFLAGS+= -DUSE_MMX
+
 SRCS =	MPEG.cpp	&
 	MPEGring.cpp	&
 	MPEGlist.cpp	&
@@ -48,34 +76,6 @@ SRCS =	MPEG.cpp	&
 #	mmxidct_asm.S
 
 OBJS = $(SRCS:.cpp=.obj)
-
-LIBS = SDL2.lib
-
-BASEFLAGS = -bt=os2 -d0 -q -bm -5s -fp5 -fpi87 -sg -oeatxh -ei -j
-# include paths:
-BASEFLAGS+= -I$(%WATCOM)/h/os2 -I$(%WATCOM)/h
-BASEFLAGS+= -I. $(DEPS_INC)
-# warnings:
-BASEFLAGS+= -w3
-CFLAGS   = $(BASEFLAGS)
-CXXFLAGS = $(BASEFLAGS)
-# to build a dll:
-CXXFLAGS+= -bd
-# for DECLSPEC:
-CXXFLAGS+= -DBUILD_SDL
-# misc smpeg-specifics :
-# disable assertions:
-CXXFLAGS+= -DNDEBUG
-# enable threaded audio:
-CXXFLAGS+= -DTHREADED_AUDIO
-# enable system timestamp sync:
-#CXXFLAGS+= -DUSE_TIMESTAMP_SYNC
-# enable system thread:
-#CXXFLAGS+= -DUSE_SYSTEM_THREAD
-# disable video callback thread:
-#CXXFLAGS+= -DDISABLE_VIDEO_CALLBACK_THREAD
-# enable MMX optimizations:
-#CXXFLAGS+= -DUSE_MMX
 
 all: $(DLLFILE) $(LIBFILE) plaympeg.exe
 
