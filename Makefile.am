@@ -57,8 +57,7 @@ libsmpeg2include_HEADERS =	\
 	MPEGvideo.h		\
 	smpeg.h
 
-libsmpeg2_la_LDFLAGS = 		\
-        -release $(LT_RELEASE)	\
+libsmpeg2_la_LDFLAGS = -no-undefined -release $(LT_RELEASE) \
 	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
 
 EXTRA_DIST =			\
