@@ -86,7 +86,7 @@ void MPEGaudio::computebuffer_2(REAL *fraction,REAL buffer[2][CALCBUFFERSIZE])
     OUT2(42)=-(pc+tmp);
     OUT1(2,p9+pd+pf);
     OUT1(4,p5+p7);
-    OUT2(48)=-p0;
+    out2[256]=-p0;//OUT2(48)=-p0;
     out2[0]=-(out1[0]=p1);
     OUT1( 8,p3);
     OUT1(12,p7);
