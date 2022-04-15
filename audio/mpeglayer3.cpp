@@ -34,7 +34,11 @@ inline void Mpegbitwindow::wrap(void)
     for(int i=4;i<point;i++)
       buffer[WINDOWSIZE+i]=buffer[i];
   }
-  *((int *)(buffer+WINDOWSIZE))=*((int *)buffer);
+//*((int *)(buffer+WINDOWSIZE))=*((int *)buffer);
+  buffer[WINDOWSIZE+0] = buffer[0];
+  buffer[WINDOWSIZE+1] = buffer[1];
+  buffer[WINDOWSIZE+2] = buffer[2];
+  buffer[WINDOWSIZE+3] = buffer[3];
 }
 
 #define MUL3(a) (((a)<<1)+(a))
