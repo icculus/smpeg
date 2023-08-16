@@ -14,7 +14,7 @@ jobs:
     - name: installing dependencies
       run: |
         sudo apt update
-        sudo apt install -y autoconf automake libtool sdl2
+        sudo apt install -y autoconf automake libtool libsdl2-dev
     - name: configure
       run: |
         ./autogen.sh
