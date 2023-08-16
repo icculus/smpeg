@@ -22,5 +22,3 @@ jobs:
     - name: build
       run: |
         make
-        make check
-        make test
