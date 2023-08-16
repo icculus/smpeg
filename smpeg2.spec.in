@@ -7,7 +7,7 @@ Summary:   SDL MPEG Library
 Name:      smpeg
 Version:   %ver
 Release:   %rel
-License:   LGPL
+License:   LGPL-2.1-or-later
 Group:     System Environment/Libraries
 Source0:   @PACKAGE@-%{ver}.tar.gz
 URL:       http://www.lokigames.com/development/smpeg.php3
@@ -18,8 +18,8 @@ Docdir: %{prefix}/doc
 %description
 SMPEG is based on UC Berkeley's mpeg_play software MPEG decoder
 and SPLAY, an mpeg audio decoder created by Woo-jae Jung. We have
-completed the initial work to wed these two projects in order to 
-create a general purpose MPEG video/audio player for the Linux OS. 
+completed the initial work to wed these two projects in order to
+create a general purpose MPEG video/audio player for the Linux OS.
 
 %package devel
 Summary: Libraries, includes and more to develop SMPEG applications.
@@ -29,8 +29,8 @@ Requires: %{name}
 %description devel
 SMPEG is based on UC Berkeley's mpeg_play software MPEG decoder
 and SPLAY, an mpeg audio decoder created by Woo-jae Jung. We have
-completed the initial work to wed these two projects in order to 
-create a general purpose MPEG video/audio player for the Linux OS. 
+completed the initial work to wed these two projects in order to
+create a general purpose MPEG video/audio player for the Linux OS.
 
 This is the libraries, include files and other resources you can use
 to develop SMPEG applications.

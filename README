@@ -13,8 +13,7 @@ is based on the ubiquitous Berkeley MPEG player, mpeg_play v2.2.  Audio is
 played through a slightly modified mpegsound library, part of Splay v0.8.2.
 SMPEG supports MPEG audio (MP3), MPEG-1 video, and MPEG system streams.
 
-This library is distributed under the GNU Library Public License (LGPL)
-version 2.
+This library is distributed under the GNU Lesser General Public License (LGPL) version 2.1 or later.
 
 plaympeg, gtv, and glmovie are simple video players provided to test the
 library.  The C library interface is 'documented' in smpeg.h, and the C++
@@ -71,4 +70,3 @@ Links:
 	Berkeley MPEG player   http://bmrc.berkeley.edu/frame/research/mpeg
 	Splay                  http://my.netian.com/~polarb
 	SDL                    http://www.libsdl.org/
-
