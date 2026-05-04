@@ -1,5 +1,6 @@
-
 ## Makefile.am for the smpeg library
+
+ACLOCAL_AMFLAGS = -I acinclude
 
 bin_SCRIPTS = smpeg2-config
 
@@ -62,9 +63,9 @@ libsmpeg2_la_LDFLAGS = -no-undefined -release $(LT_RELEASE) \
 
 EXTRA_DIST =			\
 	CHANGES			\
-	COPYING			\
+	LICENSE.txt		\
 	TODO			\
-	README			\
+	README.md		\
 	README.SDL_mixer 	\
 	plaympeg.1		\
 	Android.mk		\
@@ -74,7 +75,6 @@ EXTRA_DIST =			\
 	smpeg2.spec.in		\
 	gcc-fat.sh		\
 	g++-fat.sh		\
-	acinclude		\
 	autogen.sh		\
 	audio/AUTHORS		\
 	audio/COPYING.LIB	\
@@ -102,4 +102,3 @@ $(PACKAGE)-$(VERSION).tar.gz: dist
 rpm: $(PACKAGE)-$(VERSION).tar.gz
 	cp $(PACKAGE)-$(VERSION).tar.gz /usr/src/redhat/SOURCES
 	rpm -ba smpeg2.spec
-

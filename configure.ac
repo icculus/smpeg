@@ -1,5 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT
+
+AC_INIT([smpeg2],[2.0.0])
+AC_CONFIG_MACRO_DIR([acinclude])
 AC_CONFIG_SRCDIR([MPEG.cpp])
 
 dnl Set various version strings - taken gratefully from the GTk sources
@@ -46,7 +48,7 @@ dnl Detect the canonical build and host environments
 AC_CANONICAL_HOST
 
 dnl Setup for automake
-AM_INIT_AUTOMAKE(smpeg2, $VERSION)
+AM_INIT_AUTOMAKE([foreign subdir-objects])
 
 dnl Check for tools
 
@@ -56,6 +58,7 @@ AC_PROG_CXX
 AM_PROG_AS
 LT_INIT([win32-dll])
 AC_PROG_INSTALL
+PKG_PROG_PKG_CONFIG
 
 dnl Work around the lack of certain typedefs.
 AC_TYPE_SOCKLEN_T
